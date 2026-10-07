@@ -1,0 +1,11 @@
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Make /admin always resolve to the real admin directory URL.
+  RewriteRule ^admin$ admin/ [R=302,L]
+
+  # Serve the existing admin dashboard explicitly for /admin/.
+  RewriteRule ^admin/$ admin/index.html [L]
+</IfModule>

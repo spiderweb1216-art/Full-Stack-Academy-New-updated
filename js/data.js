@@ -1,0 +1,473 @@
+window.FSA_DATA = (() => {
+  const image = (id, width = 1400) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=82`;
+
+  const courses = [
+    {
+      id: 1,
+      slug: 'artificial-intelligence-specialist',
+      title: 'Artificial Intelligence Specialist',
+      category: 'Artificial Intelligence',
+      badge: 'Bestseller',
+      featured: true,
+      image: image('photo-1516321318423-f06f85e504b3'),
+      short: 'Master AI through machine learning, deep learning, LLMs and practical, portfolio-ready applications.',
+      description: 'A practical AI learning path that moves from Python and data foundations into machine learning, deep learning, NLP, transformer architecture, RAG and agentic AI. Build guided projects that demonstrate your ability to solve modern business problems with intelligent systems.',
+      price: 12999,
+      originalPrice: 16999,
+      duration: '3 Months',
+      hours: 120,
+      lessons: 48,
+      projects: 30,
+      rating: 4.9,
+      reviews: 386,
+      students: 1240,
+      level: 'Intermediate',
+      language: 'English / Urdu',
+      updated: 'July 2026',
+      instructor: 'FSA AI Faculty',
+      instructorRole: 'AI & Machine Learning Mentors',
+      skills: ['Python', 'Pandas', 'Machine Learning', 'Deep Learning', 'NLP', 'LLMs', 'RAG', 'LangChain', 'Agentic AI'],
+      requirements: ['Basic computer knowledge', 'Comfort with simple programming concepts', 'A laptop with a modern browser'],
+      audience: ['Students entering AI careers', 'Developers adding AI to applications', 'Professionals reskilling into machine learning'],
+      modules: [
+        { title: 'Python & Data Foundations', duration: '8h 40m', lessons: [
+          { title: 'Welcome and AI career roadmap', duration: '12 min', preview: true },
+          { title: 'Python syntax and problem solving', duration: '38 min', preview: true },
+          { title: 'NumPy arrays and vector operations', duration: '42 min' },
+          { title: 'Pandas data preparation workflow', duration: '51 min' }
+        ]},
+        { title: 'Machine Learning', duration: '18h 20m', lessons: [
+          { title: 'Supervised learning foundations', duration: '43 min' },
+          { title: 'Regression models in practice', duration: '55 min' },
+          { title: 'Classification and model evaluation', duration: '58 min' },
+          { title: 'Feature engineering workshop', duration: '49 min' }
+        ]},
+        { title: 'Deep Learning & NLP', duration: '21h 10m', lessons: [
+          { title: 'Neural networks explained', duration: '44 min' },
+          { title: 'Building models with TensorFlow', duration: '62 min' },
+          { title: 'Text preprocessing and embeddings', duration: '47 min' },
+          { title: 'NLP classification project', duration: '78 min' }
+        ]},
+        { title: 'Generative AI & LLM Applications', duration: '24h 45m', lessons: [
+          { title: 'Transformer architecture', duration: '53 min' },
+          { title: 'Prompt engineering systems', duration: '45 min' },
+          { title: 'RAG application architecture', duration: '68 min' },
+          { title: 'Agentic AI and multi-agent systems', duration: '72 min' }
+        ]}
+      ]
+    },
+    {
+      id: 2,
+      slug: 'ai-powered-web-developer',
+      title: 'AI-Powered Web Developer',
+      category: 'Web Development',
+      badge: 'New',
+      featured: true,
+      image: image('photo-1498050108023-c5249f4df085'),
+      short: 'Learn the MERN stack and modern AI APIs to create fast, useful and intelligent web applications.',
+      description: 'Develop full-stack web applications with HTML, CSS, JavaScript, React, Node.js, Express and MongoDB, then enhance them with practical generative AI features. The program includes authentication, real-time communication and deployment workflows.',
+      price: 11999,
+      originalPrice: 15999,
+      duration: '14 Weeks',
+      hours: 105,
+      lessons: 52,
+      projects: 10,
+      rating: 4.9,
+      reviews: 292,
+      students: 980,
+      level: 'Beginner to Intermediate',
+      language: 'English / Urdu',
+      updated: 'July 2026',
+      instructor: 'FSA Web Faculty',
+      instructorRole: 'Full Stack Development Mentors',
+      skills: ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Express', 'MongoDB', 'Tailwind CSS', 'AI APIs', 'Socket.io'],
+      requirements: ['No prior development experience required', 'A laptop and stable internet connection', 'Willingness to build practical projects'],
+      audience: ['Beginners starting web development', 'Frontend developers moving full stack', 'Freelancers building AI-powered products'],
+      modules: [
+        { title: 'Frontend Foundations', duration: '17h 10m', lessons: [
+          { title: 'How the web works', duration: '18 min', preview: true },
+          { title: 'Semantic HTML structure', duration: '45 min', preview: true },
+          { title: 'Responsive CSS layouts', duration: '57 min' },
+          { title: 'JavaScript essentials', duration: '66 min' }
+        ]},
+        { title: 'Modern React', duration: '19h 30m', lessons: [
+          { title: 'Components, props and state', duration: '52 min' },
+          { title: 'Forms and validation', duration: '47 min' },
+          { title: 'Routing and reusable layouts', duration: '55 min' },
+          { title: 'Frontend project sprint', duration: '84 min' }
+        ]},
+        { title: 'Backend & Database', duration: '22h 20m', lessons: [
+          { title: 'Node.js and Express APIs', duration: '63 min' },
+          { title: 'MongoDB data modelling', duration: '59 min' },
+          { title: 'Authentication and authorization', duration: '74 min' },
+          { title: 'Production API structure', duration: '66 min' }
+        ]},
+        { title: 'AI Features & Deployment', duration: '18h 45m', lessons: [
+          { title: 'Prompt engineering for developers', duration: '41 min' },
+          { title: 'Connecting an LLM API', duration: '61 min' },
+          { title: 'Real-time apps with Socket.io', duration: '52 min' },
+          { title: 'Deployment and CI/CD', duration: '49 min' }
+        ]}
+      ]
+    },
+    {
+      id: 3,
+      slug: 'data-science',
+      title: 'Data Science',
+      category: 'Data and Analytics',
+      badge: 'Popular',
+      featured: true,
+      image: image('photo-1551288049-bebda4e38f71'),
+      short: 'Turn raw data into meaningful insights using Python, statistics, visualization and machine learning.',
+      description: 'Build a strong foundation in data analysis and predictive modelling. Learn how to clean datasets, explore patterns, communicate findings and create machine learning models for business and research applications.',
+      price: 10999,
+      originalPrice: 14999,
+      duration: '3 Months',
+      hours: 96,
+      lessons: 44,
+      projects: 6,
+      rating: 4.7,
+      reviews: 215,
+      students: 760,
+      level: 'Intermediate',
+      language: 'English / Urdu',
+      updated: 'June 2026',
+      instructor: 'FSA Data Faculty',
+      instructorRole: 'Data Science Mentors',
+      skills: ['Python', 'Statistics', 'NumPy', 'Pandas', 'Matplotlib', 'Machine Learning', 'Regression', 'Classification'],
+      requirements: ['Basic mathematics', 'No advanced programming experience required', 'A laptop able to run Python notebooks'],
+      audience: ['Aspiring data scientists', 'Analysts moving into predictive modelling', 'Researchers working with structured data'],
+      modules: [
+        { title: 'Data Science Foundations', duration: '12h 20m', lessons: [
+          { title: 'Data science roles and workflow', duration: '24 min', preview: true },
+          { title: 'Python for data work', duration: '52 min', preview: true },
+          { title: 'Working with NumPy', duration: '46 min' },
+          { title: 'Cleaning data with Pandas', duration: '58 min' }
+        ]},
+        { title: 'Statistics & Visualisation', duration: '16h 15m', lessons: [
+          { title: 'Descriptive statistics', duration: '49 min' },
+          { title: 'Probability for analysts', duration: '55 min' },
+          { title: 'Data visualisation principles', duration: '42 min' },
+          { title: 'Exploratory data analysis project', duration: '76 min' }
+        ]},
+        { title: 'Machine Learning', duration: '23h 10m', lessons: [
+          { title: 'Model training workflow', duration: '51 min' },
+          { title: 'Regression models', duration: '58 min' },
+          { title: 'Classification models', duration: '61 min' },
+          { title: 'Model evaluation and improvement', duration: '63 min' }
+        ]}
+      ]
+    },
+    {
+      id: 4,
+      slug: 'digital-marketing',
+      title: 'Digital Marketing',
+      category: 'Digital Marketing',
+      badge: 'Popular',
+      featured: true,
+      image: image('photo-1460925895917-afdab827c52f'),
+      short: 'Plan digital campaigns, build websites, improve SEO and create content that supports measurable growth.',
+      description: 'A hands-on digital marketing program covering website creation, SEO, social media, content strategy, copywriting and campaign planning. Learn how to connect creative execution with business goals and performance reporting.',
+      price: 7999,
+      originalPrice: 10999,
+      duration: '2 Months',
+      hours: 68,
+      lessons: 36,
+      projects: 7,
+      rating: 4.8,
+      reviews: 181,
+      students: 690,
+      level: 'Beginner',
+      language: 'English / Urdu',
+      updated: 'July 2026',
+      instructor: 'FSA Marketing Faculty',
+      instructorRole: 'Digital Growth Mentors',
+      skills: ['Digital Strategy', 'WordPress', 'SEO', 'Canva', 'Content Marketing', 'Copywriting', 'Social Media', 'Analytics'],
+      requirements: ['No prior marketing experience required', 'Basic internet and computer skills', 'A laptop for project work'],
+      audience: ['Students entering digital marketing', 'Business owners and freelancers', 'Marketing professionals upgrading practical skills'],
+      modules: [
+        { title: 'Digital Strategy', duration: '9h 15m', lessons: [
+          { title: 'Digital marketing ecosystem', duration: '31 min', preview: true },
+          { title: 'Customer journey and funnels', duration: '43 min', preview: true },
+          { title: 'Campaign planning framework', duration: '51 min' },
+          { title: 'Measurement and reporting', duration: '46 min' }
+        ]},
+        { title: 'Website, SEO & Content', duration: '18h 40m', lessons: [
+          { title: 'Building with WordPress', duration: '62 min' },
+          { title: 'Keyword research workflow', duration: '55 min' },
+          { title: 'On-page SEO implementation', duration: '63 min' },
+          { title: 'Content and copywriting project', duration: '82 min' }
+        ]},
+        { title: 'Social Media & Campaigns', duration: '14h 10m', lessons: [
+          { title: 'Social media content systems', duration: '47 min' },
+          { title: 'Creative production with Canva', duration: '52 min' },
+          { title: 'Paid campaign fundamentals', duration: '58 min' },
+          { title: 'Campaign optimisation', duration: '49 min' }
+        ]}
+      ]
+    },
+    {
+      id: 5,
+      slug: 'aws-cloud-engineer',
+      title: 'AWS Cloud Engineer',
+      category: 'Cloud and DevOps',
+      badge: 'Career Track',
+      featured: true,
+      image: image('photo-1451187580459-43490279c0fa'),
+      short: 'Build cloud infrastructure skills with Linux, networking, AWS services, automation and deployment workflows.',
+      description: 'Develop practical cloud engineering skills through Linux administration, networking, core AWS services, infrastructure design and DevOps automation. The course is structured around guided labs and deployment exercises.',
+      price: 10999,
+      originalPrice: 14999,
+      duration: '3 Months',
+      hours: 92,
+      lessons: 42,
+      projects: 5,
+      rating: 4.6,
+      reviews: 164,
+      students: 540,
+      level: 'Intermediate',
+      language: 'English / Urdu',
+      updated: 'May 2026',
+      instructor: 'FSA Cloud Faculty',
+      instructorRole: 'Cloud & DevOps Mentors',
+      skills: ['Linux', 'Networking', 'AWS', 'EC2', 'S3', 'IAM', 'VPC', 'Docker', 'CI/CD'],
+      requirements: ['Basic understanding of computers and networks', 'A laptop for cloud labs', 'Willingness to use command-line tools'],
+      audience: ['Aspiring cloud engineers', 'System administrators moving to AWS', 'Developers learning DevOps workflows'],
+      modules: [
+        { title: 'Linux & Networking', duration: '15h 25m', lessons: [
+          { title: 'Linux command line essentials', duration: '47 min', preview: true },
+          { title: 'Files, permissions and processes', duration: '53 min', preview: true },
+          { title: 'Networking foundations', duration: '58 min' },
+          { title: 'Troubleshooting workshop', duration: '66 min' }
+        ]},
+        { title: 'AWS Core Services', duration: '22h 40m', lessons: [
+          { title: 'AWS global infrastructure', duration: '38 min' },
+          { title: 'EC2 and compute design', duration: '62 min' },
+          { title: 'Storage with S3', duration: '48 min' },
+          { title: 'IAM and secure access', duration: '57 min' }
+        ]},
+        { title: 'DevOps & Deployment', duration: '18h 50m', lessons: [
+          { title: 'Containers with Docker', duration: '61 min' },
+          { title: 'CI/CD workflow design', duration: '55 min' },
+          { title: 'Monitoring and logs', duration: '47 min' },
+          { title: 'Cloud deployment project', duration: '85 min' }
+        ]}
+      ]
+    },
+    {
+      id: 6,
+      slug: 'data-analyst',
+      title: 'Data Analyst',
+      category: 'Data and Analytics',
+      badge: 'Job Ready',
+      featured: false,
+      image: image('photo-1551288049-bebda4e38f71'),
+      short: 'Analyse business data with spreadsheets, SQL, Python and dashboards that support better decisions.',
+      description: 'Learn how analysts gather, prepare and interpret data for business teams. Build practical skills in spreadsheets, SQL, Python, dashboard design and reporting, then complete case studies based on realistic business questions.',
+      price: 9999,
+      originalPrice: 12999,
+      duration: '3 Months',
+      hours: 84,
+      lessons: 40,
+      projects: 5,
+      rating: 4.7,
+      reviews: 143,
+      students: 610,
+      level: 'Beginner to Intermediate',
+      language: 'English / Urdu',
+      updated: 'June 2026',
+      instructor: 'FSA Analytics Faculty',
+      instructorRole: 'Business Analytics Mentors',
+      skills: ['Excel', 'SQL', 'Python', 'Pandas', 'Power BI', 'Data Cleaning', 'Dashboards', 'Business Reporting'],
+      requirements: ['Basic mathematics and computer skills', 'No programming experience required', 'A laptop for hands-on exercises'],
+      audience: ['Students entering analytics', 'Professionals moving into reporting roles', 'Business users who work with data'],
+      modules: [
+        { title: 'Analytics Foundations', duration: '11h 10m', lessons: [
+          { title: 'The data analyst workflow', duration: '25 min', preview: true },
+          { title: 'Spreadsheet analysis essentials', duration: '54 min', preview: true },
+          { title: 'Data cleaning techniques', duration: '48 min' },
+          { title: 'Business questions and metrics', duration: '43 min' }
+        ]},
+        { title: 'SQL & Python', duration: '19h 35m', lessons: [
+          { title: 'Querying data with SQL', duration: '61 min' },
+          { title: 'Joins and aggregations', duration: '58 min' },
+          { title: 'Python for analysis', duration: '59 min' },
+          { title: 'Pandas reporting workflow', duration: '63 min' }
+        ]},
+        { title: 'Dashboards & Reporting', duration: '16h 45m', lessons: [
+          { title: 'Dashboard design principles', duration: '46 min' },
+          { title: 'Building reports in Power BI', duration: '67 min' },
+          { title: 'Communicating data stories', duration: '41 min' },
+          { title: 'Business analytics capstone', duration: '82 min' }
+        ]}
+      ]
+    },
+    {
+      id: 7,
+      slug: 'soc-analysis',
+      title: 'SOC Analysis',
+      category: 'Cybersecurity',
+      badge: 'Fast Track',
+      featured: true,
+      image: image('photo-1563986768609-322da13575f3'),
+      short: 'Investigate security alerts, analyse logs and respond to threats using practical SOC workflows.',
+      description: 'Prepare for security operations work through networking, incident response, SIEM, Splunk, phishing analysis, Windows logs and endpoint security. Guided investigations help you practise the thinking used in a modern SOC.',
+      price: 8999,
+      originalPrice: 11999,
+      duration: '6 Weeks',
+      hours: 58,
+      lessons: 34,
+      projects: 4,
+      rating: 4.8,
+      reviews: 126,
+      students: 430,
+      level: 'Intermediate',
+      language: 'English / Urdu',
+      updated: 'July 2026',
+      instructor: 'FSA Cybersecurity Faculty',
+      instructorRole: 'Security Operations Mentors',
+      skills: ['SOC', 'Networking', 'Incident Response', 'SIEM', 'Splunk', 'Phishing Analysis', 'Windows Logs', 'Threat Detection'],
+      requirements: ['Basic networking knowledge is helpful', 'Comfort using Windows and browsers', 'A laptop for security lab simulations'],
+      audience: ['Aspiring SOC analysts', 'IT professionals moving into security', 'Students preparing for cybersecurity roles'],
+      modules: [
+        { title: 'SOC & Security Foundations', duration: '10h 30m', lessons: [
+          { title: 'Inside a security operations centre', duration: '29 min', preview: true },
+          { title: 'Cybersecurity frameworks', duration: '44 min', preview: true },
+          { title: 'Networking for analysts', duration: '57 min' },
+          { title: 'Incident response lifecycle', duration: '51 min' }
+        ]},
+        { title: 'SIEM & Log Analysis', duration: '16h 50m', lessons: [
+          { title: 'SIEM concepts and architecture', duration: '49 min' },
+          { title: 'Splunk search essentials', duration: '63 min' },
+          { title: 'Windows event logs', duration: '58 min' },
+          { title: 'Detection investigation lab', duration: '78 min' }
+        ]},
+        { title: 'Threat Investigation', duration: '14h 05m', lessons: [
+          { title: 'Phishing email investigation', duration: '52 min' },
+          { title: 'Endpoint security signals', duration: '46 min' },
+          { title: 'Alert triage and escalation', duration: '48 min' },
+          { title: 'SOC incident capstone', duration: '83 min' }
+        ]}
+      ]
+    },
+    {
+      id: 8,
+      slug: 'mern-full-stack-development',
+      title: 'MERN Full Stack Development',
+      category: 'Web Development',
+      badge: 'Core Program',
+      featured: false,
+      image: image('photo-1461749280684-dccba630e2f6'),
+      short: 'Create complete web products with MongoDB, Express, React and Node.js through project-based training.',
+      description: 'A comprehensive full-stack development pathway covering modern frontend development, backend APIs, databases, authentication, testing and deployment. Build multiple projects that demonstrate complete product development skills.',
+      price: 10499,
+      originalPrice: 13999,
+      duration: '3 Months',
+      hours: 100,
+      lessons: 46,
+      projects: 8,
+      rating: 4.8,
+      reviews: 244,
+      students: 890,
+      level: 'Beginner to Intermediate',
+      language: 'English / Urdu',
+      updated: 'June 2026',
+      instructor: 'FSA Web Faculty',
+      instructorRole: 'MERN Stack Mentors',
+      skills: ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Express', 'MongoDB', 'REST APIs', 'Authentication'],
+      requirements: ['No professional development experience required', 'Basic computer knowledge', 'A laptop and consistent practice time'],
+      audience: ['Students starting software careers', 'Frontend learners becoming full stack', 'Freelancers building web applications'],
+      modules: [
+        { title: 'Web Development Fundamentals', duration: '18h 20m', lessons: [
+          { title: 'Web development roadmap', duration: '22 min', preview: true },
+          { title: 'HTML and accessible structure', duration: '48 min', preview: true },
+          { title: 'CSS layouts and responsive design', duration: '61 min' },
+          { title: 'JavaScript programming', duration: '69 min' }
+        ]},
+        { title: 'React Applications', duration: '21h 15m', lessons: [
+          { title: 'React component thinking', duration: '51 min' },
+          { title: 'State and effects', duration: '57 min' },
+          { title: 'Forms, routing and APIs', duration: '63 min' },
+          { title: 'Frontend application project', duration: '86 min' }
+        ]},
+        { title: 'Node, Express & MongoDB', duration: '25h 30m', lessons: [
+          { title: 'Building REST APIs', duration: '67 min' },
+          { title: 'MongoDB data modelling', duration: '62 min' },
+          { title: 'Authentication workflows', duration: '71 min' },
+          { title: 'Full-stack capstone', duration: '94 min' }
+        ]}
+      ]
+    }
+  ];
+
+  const categories = [
+    { name: 'Artificial Intelligence', slug: 'artificial-intelligence', description: 'Machine learning, LLM applications and intelligent systems.', icon: 'sparkles' },
+    { name: 'Web Development', slug: 'web-development', description: 'Modern frontend, backend and full-stack product development.', icon: 'code' },
+    { name: 'Data and Analytics', slug: 'data-and-analytics', description: 'Data analysis, visualisation, statistics and predictive models.', icon: 'chart' },
+    { name: 'Cloud and DevOps', slug: 'cloud-and-devops', description: 'Cloud infrastructure, deployment and modern operations.', icon: 'cloud' },
+    { name: 'Cybersecurity', slug: 'cybersecurity', description: 'Security operations, investigation and threat detection.', icon: 'shield' },
+    { name: 'Digital Marketing', slug: 'digital-marketing', description: 'SEO, content, campaigns and digital growth strategy.', icon: 'megaphone' }
+  ].map(item => ({ ...item, count: courses.filter(c => c.category === item.name).length }));
+
+  const plans = [
+    {
+      id: 'preview', name: 'Free Preview', description: 'Explore sample lessons before choosing a full course.', monthly: 0, yearly: 0, period: 'free', popular: false,
+      features: ['Preview selected lessons', 'Browse full curriculum', 'Save courses to wishlist', 'No card required']
+    },
+    {
+      id: 'single', name: 'Single Course', description: 'One-time access to the course that fits your current goal.', monthly: 7999, yearly: 7999, period: 'one-time', popular: false,
+      features: ['One complete course', 'Lifetime course access', 'Project resources', 'Completion certificate', 'Mobile and desktop access']
+    },
+    {
+      id: 'pro', name: 'All Access Pro', description: 'Unlock every self-paced course and learn across multiple tracks.', monthly: 1499, yearly: 14390, period: 'subscription', popular: true,
+      features: ['All self-paced courses', 'New courses added regularly', 'Project resources', 'Course certificates', 'Progress dashboard', 'Priority learning support']
+    },
+    {
+      id: 'career', name: 'Career Plus', description: 'Course access plus mentor and career-development support.', monthly: 2499, yearly: 23990, period: 'subscription', popular: false,
+      features: ['Everything in All Access Pro', 'Monthly mentor sessions', 'Portfolio review', 'Career guidance', 'Priority assistance', 'Interview preparation resources']
+    }
+  ];
+
+  const branches = [
+    { id: 'charminar', name: 'FSA — Charminar', location: 'Charminar, Hyderabad', address: 'Charminar, Hyderabad, Telangana', phone: '+91 9015 236 236', extension: '', email: 'info@fullstackacademy.in', hours: 'Mon–Sat · 9:00 AM–8:00 PM', image: image('photo-1497366811353-6870744d04b2') },
+    { id: 'ameerpet', name: 'FSA — Ameerpet', location: 'Ameerpet, Hyderabad', address: 'Aditi Arcade, Sap Street, Ameerpet, Hyderabad', phone: '+91 9015 236 236', extension: 'Dial 3', email: 'info@fullstackacademy.in', hours: 'Mon–Sat · 9:00 AM–8:00 PM', image: image('photo-1497366754035-f200968a6e72') },
+    { id: 'gachibowli', name: 'FSA — Gachibowli', location: 'Gachibowli, Hyderabad', address: '5th Floor, Sri Balaji Complex, 8-191, Raidurgam, Gachibowli Road', phone: '+91 9015 236 236', extension: 'Dial 2', email: 'info@fullstackacademy.in', hours: 'Mon–Sat · 9:00 AM–8:00 PM', image: image('photo-1524758631624-e2822e304c36') },
+    { id: 'tolichowki', name: 'FSA — Tolichowki', location: 'Toli Chowki, Hyderabad', address: '2nd Floor, Muthoot Finance Building, Toli Chowki Main Road', phone: '+91 9015 236 236', extension: 'Dial 1', email: 'info@fullstackacademy.in', hours: 'Mon–Sat · 9:00 AM–8:00 PM', image: image('photo-1497366216548-37526070297c') }
+  ];
+
+  const testimonials = [
+    { name: 'Areeba Khan', course: 'AI Specialist', rating: 5, avatar: image('photo-1494790108377-be9c29b29330', 300), comment: 'The structured modules and practical projects made difficult AI concepts much easier to understand and apply.' },
+    { name: 'Mohammed Arham', course: 'MERN Full Stack', rating: 5, avatar: image('photo-1500648767791-00dcc994a43e', 300), comment: 'I liked that every topic led into a real task. The course helped me build complete applications instead of isolated exercises.' },
+    { name: 'Sana Fatima', course: 'Data Analyst', rating: 5, avatar: image('photo-1534528741775-53994a69daeb', 300), comment: 'The learning path was clear, and the dashboard made it easy to continue from exactly where I stopped.' },
+    { name: 'Rehan Ahmed', course: 'AWS Cloud Engineer', rating: 5, avatar: image('photo-1507003211169-0a1dd7228f2d', 300), comment: 'The labs and deployment exercises gave me confidence with Linux, AWS services and troubleshooting.' },
+    { name: 'Meher Ali', course: 'Digital Marketing', rating: 5, avatar: image('photo-1544005313-94ddf0286df2', 300), comment: 'It connected strategy, SEO, content and reporting in one practical workflow that I could use for client projects.' },
+    { name: 'Zain Hasan', course: 'SOC Analysis', rating: 5, avatar: image('photo-1506794778202-cad84cf45f1d', 300), comment: 'The investigation examples and SIEM exercises felt close to real SOC work and helped me understand alert triage.' }
+  ];
+
+  const faqs = [
+    { q: 'How long can I access a purchased course?', a: 'Single-course access and subscription periods are shown on the selected course or plan. The academy team confirms final access terms during enrollment.' },
+    { q: 'Are certificates included?', a: 'Yes. Eligible completed courses include a digital completion certificate that appears in the learner dashboard.' },
+    { q: 'Can I learn on mobile?', a: 'Yes. The learning platform is responsive across mobile, tablet, laptop and desktop screens.' },
+    { q: 'Can I switch to an all-access plan?', a: 'Yes. Compare available plans and contact the academy team when you are ready to upgrade or change your access.' },
+    { q: 'How do I complete payment?', a: 'Submit an enrollment request and the academy team will confirm the fee and provide the approved UPI, bank transfer or branch payment instructions.' },
+    { q: 'Do courses include practical projects?', a: 'Yes. Every course shows its project count, and the curriculum highlights project-based activities.' }
+  ];
+
+  const stats = [
+    { value: 3000, suffix: '+', label: 'Students Trained' },
+    { value: 450, suffix: '+', label: 'Students Placed' },
+    { value: 40, suffix: '+', label: 'Companies Hired' },
+    { value: 12.4, suffix: ' LPA', label: 'Highest Package' },
+    { value: 4.5, suffix: '/5', label: 'Average Rating' }
+  ];
+
+  const academyImages = {
+    hero: image('photo-1522202176988-66273c2fd55f', 1800),
+    about: image('photo-1521737711867-e3b97375f902', 1600),
+    mentor: image('photo-1551434678-e076c223a692', 1600),
+    learning: image('photo-1519389950473-47ba0277781c', 1600),
+    player: image('photo-1498050108023-c5249f4df085', 1600)
+  };
+
+  return { courses, categories, plans, branches, testimonials, faqs, stats, academyImages };
+})();

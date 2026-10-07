@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="SOFTWARE TESTING course artwork">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#182e28"/><stop offset="1" stop-color="#273d36"/></linearGradient><linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#852937"/><stop offset="1" stop-color="#852937"/></linearGradient></defs>
+<rect width="1600" height="900" fill="url(#bg)"/>
+<circle cx="1230" cy="193" r="360" fill="#ffffff" opacity=".035"/><circle cx="1310" cy="700" r="260" fill="#852937" opacity=".14"/>
+<path d="M0 680 C320 580 520 820 860 680 S1320 520 1600 650 V900 H0Z" fill="#ffffff" opacity=".035"/>
+<g fill="none" stroke="#ffffff" opacity=".09" stroke-width="3"><path d="M1000 120h420v420h-420z"/><path d="M1060 180h300v300h-300z"/><path d="M1120 240h180v180h-180z"/></g>
+<rect x="100" y="110" width="190" height="44" rx="22" fill="#fff" opacity=".12"/><text x="195" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#fff">CERTIFIED</text>
+<text x="100" y="400" font-family="Arial, sans-serif" font-size="92" font-weight="800" fill="#fff">SOFTWARE TESTING</text>
+<text x="104" y="470" font-family="Arial, sans-serif" font-size="34" font-weight="600" fill="#f2c9ce">Quality Engineering</text>
+<rect x="105" y="565" width="265" height="70" rx="35" fill="url(#accent)"/><text x="238" y="610" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#fff">CLASSROOM + ONLINE</text>
+<g transform="translate(1225 240)"><rect x="0" y="0" width="220" height="220" rx="42" fill="#fff" opacity=".95"/><text x="110" y="138" text-anchor="middle" font-family="Arial, sans-serif" font-size="76" font-weight="800" fill="#852937">QA</text></g>
+</svg>

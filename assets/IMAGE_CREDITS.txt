@@ -1,0 +1,6 @@
+Stock photography in this frontend is loaded remotely from images.unsplash.com.
+Course imagery can be updated at any time through js/data.js.
+Source platform: https://unsplash.com/
+
+For production, review the applicable Unsplash license and replace any image
+with academy-owned photography where available.

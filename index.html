@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Full Stack Academy learning platform — career-focused technology courses, practical projects and flexible learning plans.">
+  <meta name="theme-color" content="#852937">
+  <meta property="og:title" content="Full Stack Academy — Learning Platform">
+  <meta property="og:description" content="Learn practical technology skills through expert-led courses and structured learning paths.">
+  <meta property="og:type" content="website">
+  <title>Full Stack Academy — Learning Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" id="siteFavicon" href="assets/favicon.svg">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/styles.css?v=98.0">
+  <link rel="stylesheet" href="css/candidates.css?v=25.0">
+  <link rel="stylesheet" href="css/super40.css?v=25.0">
+  <link rel="stylesheet" href="css/events.css?v=29.0">
+  <link rel="stylesheet" href="css/premium-ui.css?v=29.0">
+</head>
+<body>
+  <a class="skip-link" href="#app">Skip to content</a>
+
+  <div class="announcement" id="announcement">
+    <div class="container announcement-inner">
+      <span class="announcement-dot" aria-hidden="true"></span>
+      <span data-site-announcement>Admissions open for Live Streamed, Recorded and Offline Classroom technology programs.</span>
+      <a href="#/courses">Explore courses <span aria-hidden="true">→</span></a>
+      <button class="announcement-close" data-action="close-announcement" data-premium-icon="x" aria-label="Close announcement"></button>
+    </div>
+  </div>
+
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a class="brand" data-brand-role="header" href="#/" aria-label="Full Stack Academy home">
+        <img class="brand-logo" data-site-logo="header" alt="Full Stack Academy" hidden>
+        <span class="brand-mark" data-logo-fallback>FS</span>
+        <span class="brand-copy">
+          <strong data-site-name>Full Stack Academy</strong>
+          <small data-site-tagline>Learning Platform</small>
+        </span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#/" data-nav="home">Home</a>
+        <div class="nav-mega nav-mega-courses">
+          <a class="nav-mega-trigger" href="#/courses" data-nav="courses" aria-haspopup="true">Courses <span aria-hidden="true">+</span></a>
+          <div class="course-mega-menu" aria-label="Technology courses and learning modes">
+            <div class="course-mega-panel">
+              <div class="course-mega-main">
+                <div class="course-mega-head"><div><span class="course-mega-kicker">Career Technology Tracks</span><h3>Choose what you want to master.</h3></div><a href="#/courses">View all courses →</a></div>
+                <div class="course-mega-grid">
+                  <a class="course-mega-item" href="#/courses?q=Artificial%20Intelligence"><span class="mega-icon" data-premium-icon="ai"></span><span><strong>AI &amp; Machine Learning</strong><small>AI Specialist · ML · Generative AI</small></span></a>
+                  <a class="course-mega-item" href="#/courses?q=Data"><span class="mega-icon" data-premium-icon="chart"></span><span><strong>Data &amp; Analytics</strong><small>Data Science · Analyst · Azure Data</small></span></a>
+                  <a class="course-mega-item" href="#/courses?q=Web"><span class="mega-icon" data-premium-icon="code"></span><span><strong>Web &amp; App Development</strong><small>MERN · ASP.NET · React Native</small></span></a>
+                  <a class="course-mega-item" href="#/courses?q=AWS"><span class="mega-icon" data-premium-icon="cloud"></span><span><strong>Cloud &amp; DevOps</strong><small>AWS · DevOps · Cloud engineering</small></span></a>
+                  <a class="course-mega-item" href="#/courses?q=SOC"><span class="mega-icon" data-premium-icon="shield"></span><span><strong>Cybersecurity &amp; Testing</strong><small>SOC Analysis · Software Testing</small></span></a>
+                  <a class="course-mega-item" href="#/courses?q=Digital%20Marketing"><span class="mega-icon" data-premium-icon="megaphone"></span><span><strong>Digital &amp; Business</strong><small>Digital Marketing · Business Analyst</small></span></a>
+                </div>
+              </div>
+              <div class="course-mega-modes">
+                <span>Learn Your Way</span>
+                <a class="course-mega-mode" href="#/courses?mode=live"><span class="mega-icon" data-premium-icon="radio"></span><span><b>Live Streamed</b><small>Instructor-led online</small></span></a>
+                <a class="course-mega-mode" href="#/courses?mode=recorded"><span class="mega-icon" data-premium-icon="play"></span><span><b>Recorded</b><small>Flexible self-paced access</small></span></a>
+                <a class="course-mega-mode" href="#/courses?mode=classroom"><span class="mega-icon" data-premium-icon="classroom"></span><span><b>Offline Classroom</b><small>Learn at an FSA branch</small></span></a>
+              </div>
+              <aside class="course-mega-quick">
+                <span>Quick Access</span>
+                <a href="#/batches"><span class="mega-icon" data-premium-icon="calendar"></span>Upcoming Batches</a>
+                <a href="#/courses?mode=recorded"><span class="mega-icon" data-premium-icon="play"></span>Recorded Courses</a>
+                <a href="#/contact"><span class="mega-icon" data-premium-icon="help"></span>Course Guidance</a>
+                <p>Compare schedules, learning modes and career-focused programs without leaving the academy website.</p>
+              </aside>
+            </div>
+          </div>
+        </div>
+        <a href="#/super40-bba" data-nav="super40-bba">Super40 BBA</a>
+        <div class="nav-mega nav-mega-branches">
+          <a class="nav-mega-trigger" href="#/branches" data-nav="branches" aria-haspopup="true">Branches <span aria-hidden="true">+</span></a>
+          <div class="branch-mega-menu" aria-label="Full Stack Academy branches">
+            <div class="branch-mega-panel">
+              <aside class="branch-mega-intro">
+                <span class="branch-mega-kicker">4 Hyderabad Centres</span>
+                <h3>Learn closer to home.</h3>
+                <p>Explore an FSA classroom, check the location and open the branch directly.</p>
+                <div class="branch-mega-intro-meta"><span>Classroom learning</span><span>Career support</span></div>
+                <a class="branch-mega-view-all" href="#/branches">Explore all branches <span>→</span></a>
+              </aside>
+
+              <div class="branch-mega-content">
+                <div class="branch-mega-topline">
+                  <span>Choose a centre</span>
+                  <small>Hyderabad, Telangana</small>
+                </div>
+                <div class="branch-mega-grid">
+                  <a class="branch-mega-card" href="branches/fsa-charminar/index.html">
+                    <span class="branch-mega-image"><img src="assets/images/fsa-home/branch-charminar.jpg" alt="Full Stack Academy Charminar branch" loading="lazy"><b>01</b></span>
+                    <span class="branch-mega-card-copy"><small>Charminar, Hyderabad</small><strong>FSA — Charminar</strong><em>View branch details</em></span>
+                    <i aria-hidden="true" data-premium-icon="arrow"></i>
+                  </a>
+                  <a class="branch-mega-card" href="branches/fsa-ameerpet/index.html">
+                    <span class="branch-mega-image"><img src="assets/images/fsa-home/branch-ameerpet.jpg" alt="Full Stack Academy Ameerpet branch" loading="lazy"><b>02</b></span>
+                    <span class="branch-mega-card-copy"><small>Ameerpet, Hyderabad</small><strong>FSA — Ameerpet</strong><em>View branch details</em></span>
+                    <i aria-hidden="true" data-premium-icon="arrow"></i>
+                  </a>
+                  <a class="branch-mega-card" href="branches/fsa-gachibowli/index.html">
+                    <span class="branch-mega-image"><img src="assets/images/fsa-home/branch-gachibowli.jpg" alt="Full Stack Academy Gachibowli branch" loading="lazy"><b>03</b></span>
+                    <span class="branch-mega-card-copy"><small>Gachibowli, Hyderabad</small><strong>FSA — Gachibowli</strong><em>View branch details</em></span>
+                    <i aria-hidden="true" data-premium-icon="arrow"></i>
+                  </a>
+                  <a class="branch-mega-card" href="branches/fsa-tolichowki/index.html">
+                    <span class="branch-mega-image"><img src="assets/images/fsa-home/branch-tolichowki.webp" alt="Full Stack Academy Tolichowki branch" loading="lazy"><b>04</b></span>
+                    <span class="branch-mega-card-copy"><small>Tolichowki, Hyderabad</small><strong>FSA — Tolichowki</strong><em>View branch details</em></span>
+                    <i aria-hidden="true" data-premium-icon="arrow"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="placement-nav">
+          <button class="placement-nav-trigger" type="button" aria-haspopup="true">Placements <span aria-hidden="true" data-premium-icon="chevron"></span></button>
+          <div class="placement-nav-menu" aria-label="Placement pages">
+            <a href="#/companies" data-nav="companies"><span class="placement-nav-icon" data-premium-icon="building"></span><span><b>Companies</b><small>Hiring partners &amp; employers</small></span></a>
+            <a href="#/alumni" data-nav="alumni"><span class="placement-nav-icon" data-premium-icon="award"></span><span><b>Successfully Placed</b><small>Alumni outcomes &amp; roles</small></span></a>
+            <a href="#/candidates" data-nav="candidates"><span class="placement-nav-icon" data-premium-icon="users"></span><span><b>Available Candidates</b><small>Current job-ready talent</small></span></a>
+          </div>
+        </div>
+        <a href="#/about" data-nav="about">About</a>
+        <a href="#/events" data-nav="events">Events</a>
+        <a href="#/contact" data-nav="contact">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="icon-button desktop-search" data-action="open-search" aria-label="Search courses"></button>
+        <button class="icon-button cart-button" data-action="open-cart" aria-label="Open cart">
+          <span class="cart-count" id="cartCount">0</span>
+        </button>
+        <div class="desktop-auth" id="desktopAuth"><a class="text-button" href="#/login">Sign In</a></div>
+        <button class="button button-primary header-cta header-call-trigger" type="button" data-action="open-call-popup">Get A Call</button>
+        <button class="icon-button mobile-menu-button" data-action="open-mobile-menu" aria-label="Open menu"></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1" aria-live="polite"></main>
+
+  <footer class="site-footer" id="siteFooter">
+    <div class="container">
+      <div class="footer-grid footer-grid-fsa">
+        <div class="footer-brand">
+          <a class="brand footer-logo" data-brand-role="footer" href="#/" aria-label="Full Stack Academy home">
+            <img class="brand-logo" data-site-logo="footer" alt="Full Stack Academy" hidden>
+            <span class="brand-mark" data-logo-fallback>FS</span>
+            <span class="brand-copy"><strong data-site-name>Full Stack Academy</strong><small data-site-tagline>Learning Platform</small></span>
+          </a>
+          <p>Founded by a team of industry veterans with a collective experience of over 25 years at major corporates such as Microsoft and Tech Mahindra, Full Stack Academy aims to be the bridge between fresh graduates and the software industry.</p>
+          <div class="footer-contact-chips">
+            <a href="tel:+919015236236" data-site-phone-link><span data-premium-icon="phone"></span><span data-site-phone>+91 9015 236 236</span></a>
+            <a href="mailto:info@fullstackacademy.in" data-site-email-link><span data-premium-icon="mail"></span><span data-site-email>info@fullstackacademy.in</span></a>
+          </div>
+        </div>
+
+        <div class="footer-column">
+          <h3>Pages</h3>
+          <a href="#/courses">Courses</a>
+          <a href="#/super40-bba">Super40 BBA</a>
+          <a href="#/companies">Companies</a>
+          <a href="#/branches">Branches</a>
+          <a href="#/batches">Batches</a>
+          <a href="#/events">Events</a>
+          <a href="#/candidates">Available Candidates</a>
+          <a href="#/alumni">Successfully Placed</a>
+        </div>
+
+        <div class="footer-column">
+          <h3>Popular Courses</h3>
+          <a href="#/course/digital-marketing">Digital Marketing</a>
+          <a href="#/course/aws-cloud-engineer">AWS &amp; DevOps</a>
+          <a href="#/course/data-science">Data Science</a>
+          <a href="#/course/data-analyst">Data Analyst</a>
+          <a href="#/course/soc-analysis">SOC Analysis</a>
+          <a href="#/courses">View All Courses</a>
+        </div>
+
+        <div class="footer-column footer-contact-column">
+          <h3>Contact Us</h3>
+          <p><strong>Phone</strong><a href="tel:+919015236236" data-site-phone-link><span data-site-phone>+91 9015 236 236</span></a></p>
+          <p><strong>Email</strong><a href="mailto:info@fullstackacademy.in" data-site-email-link><span data-site-email>info@fullstackacademy.in</span></a></p>
+          <p><strong>Visit</strong><a href="#/branches">Ameerpet · Gachibowli · Tolichowki · Charminar</a></p>
+          <button class="footer-call-button" type="button" data-action="open-call-popup"><span data-premium-icon="phone"></span> Talk To Our Team</button>
+        </div>
+      </div>
+
+      <div class="footer-bottom footer-bottom-fsa">
+        <span>© <span id="currentYear"></span> <span data-site-name>Full Stack Academy</span>. All Rights Reserved.</span>
+        <div class="footer-policy-links">
+          <a href="#/terms">Terms and Conditions</a>
+          <a href="#/privacy">Privacy Policy</a>
+          <a href="#/refund">Refund Policy</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <div class="drawer-backdrop" id="mobileMenu" aria-hidden="true">
+    <aside class="drawer drawer-left" role="dialog" aria-modal="true" aria-label="Mobile navigation">
+      <div class="drawer-header">
+        <a class="brand" data-brand-role="mobile" href="#/" data-action="close-mobile-menu"><img class="brand-logo" data-site-logo="mobile" alt="Full Stack Academy" hidden><span class="brand-mark" data-logo-fallback>FS</span><span class="brand-copy"><strong data-site-name>Full Stack Academy</strong><small data-site-tagline>Learning Platform</small></span></a>
+        <button class="icon-button" data-action="close-mobile-menu" aria-label="Close menu"></button>
+      </div>
+      <nav class="mobile-nav">
+        <a href="#/">Home</a>
+        <div class="mobile-course-group">
+          <a class="mobile-course-main" href="#/courses">Courses <span>3 Learning Modes</span></a>
+          <div class="mobile-course-links">
+            <a href="#/courses?mode=live"><span data-premium-icon="radio"></span><b>Live Streamed</b></a>
+            <a href="#/courses?mode=recorded"><span data-premium-icon="play"></span><b>Recorded</b></a>
+            <a href="#/courses?mode=classroom"><span data-premium-icon="classroom"></span><b>Offline Classroom</b></a>
+            <a href="#/batches"><span data-premium-icon="calendar"></span><b>All Batches</b></a>
+          </div>
+        </div>
+        <a href="#/super40-bba">Super40 BBA</a>
+        <div class="mobile-branch-group">
+          <a class="mobile-branch-main" href="#/branches">Branches <span>04 Centres</span></a>
+          <div class="mobile-branch-links">
+            <a href="branches/fsa-charminar/index.html"><b>01</b> Charminar</a>
+            <a href="branches/fsa-ameerpet/index.html"><b>02</b> Ameerpet</a>
+            <a href="branches/fsa-gachibowli/index.html"><b>03</b> Gachibowli</a>
+            <a href="branches/fsa-tolichowki/index.html"><b>04</b> Tolichowki</a>
+          </div>
+        </div>
+        <div class="mobile-placement-group">
+          <span class="mobile-placement-title">Placements <b>03 Pages</b></span>
+          <div class="mobile-placement-links">
+            <a href="#/companies"><span data-premium-icon="building"></span><b>Companies</b></a>
+            <a href="#/alumni"><span data-premium-icon="award"></span><b>Successfully Placed</b></a>
+            <a href="#/candidates"><span data-premium-icon="users"></span><b>Available Candidates</b></a>
+          </div>
+        </div>
+        
+        <a href="#/about">About</a>
+        <a href="#/events">Events</a>
+        <a href="#/contact">Contact</a>
+      </nav>
+      <div class="mobile-account-links" id="mobileAccountLinks" hidden>
+        <a href="#/dashboard">Student Dashboard</a>
+        <a href="#/profile">My Profile</a>
+        <a href="#/wishlist">Wishlist</a>
+      </div>
+      <div class="drawer-footer"><button class="button button-primary button-block" type="button" data-action="open-call-popup">Get A Call</button><span id="mobileAuthAction"><a class="button button-secondary button-block" href="#/login">Sign In</a></span></div>
+    </aside>
+  </div>
+
+  <div class="drawer-backdrop" id="cartDrawer" aria-hidden="true">
+    <aside class="drawer drawer-right cart-drawer" role="dialog" aria-modal="true" aria-label="Shopping cart">
+      <div class="drawer-header"><div><span class="eyebrow">Your selection</span><h2>Course cart</h2></div><button class="icon-button" data-action="close-cart" aria-label="Close cart"></button></div>
+      <div class="drawer-content" id="cartDrawerItems"></div>
+      <div class="drawer-footer" id="cartDrawerFooter"></div>
+    </aside>
+  </div>
+
+  <div class="modal-backdrop" id="searchModal" aria-hidden="true">
+    <section class="search-modal" role="dialog" aria-modal="true" aria-label="Search courses">
+      <div class="search-modal-head"><div><span class="eyebrow">Quick search</span><h2>What do you want to learn?</h2></div><button class="icon-button" data-action="close-search" aria-label="Close search"></button></div>
+      <label class="search-field large-search"><span class="search-field-icon"></span><input id="globalSearchInput" type="search" placeholder="Search AI, web development, cloud..." autocomplete="off"></label>
+      <div class="quick-search-tags"><button data-search-term="Artificial Intelligence">Artificial Intelligence</button><button data-search-term="Web Development">Web Development</button><button data-search-term="Data Science">Data Science</button><button data-search-term="Cybersecurity">Cybersecurity</button></div>
+      <div id="globalSearchResults" class="global-search-results"></div>
+    </section>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="assertive" aria-atomic="true"></div>
+  <button class="scroll-top" id="scrollTop" data-action="scroll-top" aria-label="Scroll to top"><span data-premium-icon="up"></span></button>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/premium-ui.js?v=51.0"></script>
+  <script src="js/candidates.js?v=27.0"></script>
+  <script src="js/placements.js?v=27.0"></script>
+  <script src="js/super40.js?v=27.0"></script>
+  <script src="js/events-data.js?v=27.2"></script>
+  <script src="js/cms-runtime.js?v=1.0"></script>
+  <script src="js/app.js?v=98.0"></script>
+</body>
+</html>

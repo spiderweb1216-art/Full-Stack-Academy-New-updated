@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="675" height="1200" viewBox="0 0 675 1200">
+<defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E9EFEA"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+  <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity=".10"/></filter>
+</defs>
+<rect width="675" height="1200" fill="url(#g)"/>
+<circle cx="570" cy="160" r="185" fill="#486B5B" opacity=".10"/>
+<circle cx="92" cy="1030" r="205" fill="#486B5B" opacity=".08"/>
+<g filter="url(#s)">
+  <rect x="107" y="195" width="461" height="660" rx="52" fill="#fff" opacity=".92"/>
+  <circle cx="338" cy="420" r="112" fill="#486B5B" opacity=".14"/>
+  <circle cx="338" cy="382" r="58" fill="#486B5B" opacity=".78"/>
+  <path d="M213 646c11-98 58-151 125-151s114 53 125 151c-45 35-87 51-125 51s-80-16-125-51Z" fill="#486B5B" opacity=".78"/>
+  <circle cx="338" cy="740" r="52" fill="#21332D"/>
+  <path d="m324 716 43 24-43 25v-49Z" fill="#fff"/>
+</g>
+<text x="338" y="940" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="700" letter-spacing="5" fill="#486B5B">LEARNER STORY</text>
+<text x="338" y="995" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="600" letter-spacing="3" fill="#21332D" opacity=".7">TEMPORARY PREVIEW</text>
+<text x="338" y="1080" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="52" font-weight="700" fill="#486B5B" opacity=".28">02</text>
+</svg>

@@ -1,0 +1,12 @@
+api/config/database.php
+api/config/app-key.php
+api/config/install.lock
+*.log
+.DS_Store
+Thumbs.db
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+!uploads/avatars/.htaccess
+uploads/media/*
+!uploads/media/.gitkeep
+!uploads/media/.htaccess

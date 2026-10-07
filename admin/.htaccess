@@ -1,0 +1,9 @@
+DirectoryIndex index.html index.php
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Apache/Hostinger: normalize /admin to /admin/ without ever exposing index.html.
+  RewriteCond %{REQUEST_URI} /admin$ [NC]
+  RewriteRule ^$ ./ [R=302,L]
+</IfModule>
