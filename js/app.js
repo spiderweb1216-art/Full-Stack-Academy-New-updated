@@ -1,4 +1,4 @@
-window.FSA_BUILD='v93-classroom-recording-parity';
+window.FSA_BUILD='v113-checkout-mode-session-fix';
 /* FSA Branches V21 — branch mega-menu markup/CSS refresh; existing routing logic preserved. */
 (() => {
   'use strict';
@@ -27,7 +27,8 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     lectureSelection: 'fsa_lecture_selection_v5',
     announcement: 'fsa_announcement_closed_v4',
     initialized: 'fsa_initialized_v3',
-    lastOrder: 'fsa_last_order_v3'
+    lastOrder: 'fsa_last_order_v3',
+    cartModes: 'fsa_cart_modes_v1'
   };
 
   const read = (key, fallback) => {
@@ -236,15 +237,17 @@ window.FSA_BUILD='v93-classroom-recording-parity';
 
   async function apiRequest(action, options = {}) {
     if (FRONTEND_DEMO_MODE) return demoApiRequest(action, options);
-    const { method = 'GET', body } = options;
-    const requestOptions = { method, credentials: 'same-origin', headers: {} };
+    const { method = 'GET', body, keepalive = false, query = {} } = options;
+    const requestOptions = { method, credentials: 'same-origin', headers: {}, keepalive: Boolean(keepalive) };
     if (body !== undefined) {
       if (csrfToken) requestOptions.headers['X-CSRF-Token'] = csrfToken;
       if (body instanceof FormData) requestOptions.body = body;
       else { requestOptions.headers['Content-Type'] = 'application/json'; requestOptions.body = JSON.stringify(body); }
     }
+    const queryString = new URLSearchParams({ action });
+    Object.entries(query || {}).forEach(([key,value]) => { if (value !== undefined && value !== null && value !== '') queryString.set(key,String(value)); });
     let response;
-    try { response = await fetch(`${API_URL}?action=${encodeURIComponent(action)}`, requestOptions); }
+    try { response = await fetch(`${API_URL}?${queryString.toString()}`, requestOptions); }
     catch (_) { throw new Error('The website could not reach the backend. Check the domain, PHP and database connection.'); }
     let payload;
     try { payload = await response.json(); }
@@ -281,10 +284,12 @@ window.FSA_BUILD='v93-classroom-recording-parity';
 
   const state = {
     cart: read(LS.cart, []),
+    cartModes: read(LS.cartModes, {}),
     wishlist: [],
     user: { ...defaultUser },
     loggedIn: false,
     enrollments: [],
+    studentEnrollmentRows: [],
     pendingEnrollments: [],
     progress: {},
     orders: [],
@@ -299,6 +304,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     learnerTab: 'all',
     profileTab: 'personal',
     lessonTab: 'overview',
+    recordedLessonTab: 'overview',
     coupon: null,
     currentPath: '/',
     courseMode: 'all',
@@ -314,6 +320,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   async function syncStudentData() {
     if (!state.loggedIn) {
       state.enrollments = [];
+      state.studentEnrollmentRows = [];
       state.pendingEnrollments = [];
       state.progress = {};
       state.orders = [];
@@ -327,7 +334,8 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const result = await apiRequest('student_data');
     state.user = { ...state.user, ...(result.user || {}) };
     const enrollmentRows = result.enrollments || [];
-    state.enrollments = enrollmentRows.filter(item => ['active','completed'].includes(item.status) && item.access_allowed !== false).map(item => Number(item.course_id));
+    state.studentEnrollmentRows = enrollmentRows.filter(item => ['active','completed'].includes(item.status) && item.access_allowed !== false);
+    state.enrollments = [...new Set(state.studentEnrollmentRows.map(item => Number(item.course_id)).filter(Boolean))];
     state.pendingEnrollments = enrollmentRows.filter(item => item.status === 'pending').map(item => Number(item.course_id));
     state.progress = result.progress || {};
     state.orders = result.orders || [];
@@ -1557,7 +1565,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const modeCopy=state.detailDeliveryMode==='live'?`<span>${icon('radio')}</span><div><strong>Live Streamed</strong><p>Join a scheduled instructor-led online batch in real time.</p></div>`:state.detailDeliveryMode==='recorded'?`<span>${icon('video')}</span><div><strong>Recorded</strong><p>Start flexibly and learn at your own pace inside the private learner area.</p></div>`:`<span>${icon('classroom')}</span><div><strong>Offline Classroom</strong><p>Choose a Hyderabad branch and attend an instructor-led in-person batch.</p></div>`;
     app.innerHTML=`<section class="fsa-course-detail-hero"><div class="container">${breadcrumbs([{label:'Home',href:'#/'},{label:'Courses',href:'#/courses'},{label:course.title}])}<div class="fsa-course-detail-grid"><div class="fsa-course-detail-copy reveal"><div class="fsa-catalog-mode-row">${deliveryPills(delivery)}</div><h1>${escapeHtml(course.title)}</h1><p>${textHtml(course.short||course.description||'Career-focused training with projects and mentor support.')}</p><div class="fsa-course-detail-stats"><span>${icon('clock')}<b>${escapeHtml(course.duration||'Flexible')}</b><small>Duration</small></span><span>${icon('project')}<b>${Number(course.projects||1)} Projects</b><small>Hands-on</small></span><span>${icon('star','',true)}<b>${escapeHtml(course.rating||'4.7')}/5</b><small>Learner rating</small></span><span>${icon('users')}<b>${Number(course.students||300).toLocaleString(siteSettings.locale||'en-IN')}+</b><small>Learners</small></span></div><div class="fsa-course-detail-actions"><a class="button button-primary" href="#course-batches">Check Batches ${icon('arrow')}</a><button class="button button-secondary" data-action="open-call-popup">Get A Call</button></div></div><div class="fsa-course-detail-visual reveal reveal-scale">${imageMarkup(course.image,course.title,initials(course.title))}<div class="fsa-course-detail-visual-badge"><span>${icon('award')}</span><div><small>FSA CERTIFICATE TRACK</small><strong>Project-based learning</strong></div></div></div></div></div></section>
       <section class="fsa-course-summary-band"><div class="container fsa-course-summary-grid"><article><span>${icon('radio')}</span><div><small>Live Streamed</small><strong>${delivery.live?'Scheduled online batches':'Not enabled'}</strong></div></article><article><span>${icon('video')}</span><div><small>Recorded</small><strong>${delivery.recorded?'Start anytime':'Not enabled'}</strong></div></article><article><span>${icon('classroom')}</span><div><small>Offline Classroom</small><strong>${delivery.classroom?'4 Hyderabad branches':'Not enabled'}</strong></div></article><article><span>${icon('award')}</span><div><small>Completion</small><strong>Projects + certificate</strong></div></article></div></section>
-      <section class="fsa-detail-main-section"><div class="container fsa-detail-main-layout"><div class="fsa-detail-content"><section class="fsa-detail-block"><span class="eyebrow">Course Overview</span><h2>Build practical <em>${escapeHtml(course.title)}</em> skills.</h2><p>${textHtml(course.description||course.short||'A structured course designed around practical learning, mentor guidance and project work.')}</p>${skills.length?`<div class="fsa-skill-grid">${skills.map(skill=>`<span>${icon('check')} ${escapeHtml(skill)}</span>`).join('')}</div>`:''}</section><section class="fsa-detail-block"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Curriculum</span><h2>What you will <em>learn.</em></h2></div><span>${modules.length} modules · ${Number(course.hours||60)}+ hours</span></div><div class="fsa-detail-curriculum">${modules.map((module,mi)=>`<article class="fsa-detail-module ${mi===0?'open':''}"><button data-action="toggle-module"><span><small>MODULE ${String(mi+1).padStart(2,'0')}</small><strong>${escapeHtml(module.title)}</strong></span><span>${escapeHtml(module.duration||'')} ${icon('chevronDown')}</span></button><div><ul>${(module.lessons||[]).map(lesson=>`<li><span>${lesson.preview?icon('play'):icon('lock')}</span><b>${escapeHtml(lesson.title)}</b><small>${escapeHtml(lesson.duration||'')}</small>${lesson.preview?'<em>Preview</em>':''}</li>`).join('')}</ul></div></article>`).join('')}</div></section><section class="fsa-detail-block" id="course-batches"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Learning Schedule</span><h2>${escapeHtml(course.title)} <em>options.</em></h2></div><span id="batchResultCount"></span></div><div class="fsa-batch-filters detail"><div><small>Time</small>${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div><small>Mode</small>${[['all','All'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batch-grid detail" id="fsaBatchGrid">${batchRows(course).map(batchCard).join('')}</div></section><section class="fsa-detail-block"><span class="eyebrow">Recorded Course Access</span><h2>Your recorded option becomes a <em>private learner workspace.</em></h2><p>After enrollment, Recorded courses appear in your learner dashboard with lessons, notes, downloadable resources, project work, progress and certificates.</p><div class="fsa-detail-private-grid"><div class="fsa-private-preview">${['Course roadmap','Recorded lesson library','Downloadable notes and lab files','Project submission workspace','Progress & completion certificate'].map((item,i)=>`<div class="fsa-private-row"><span>${i===0?icon('book'):i===1?icon('video'):i===2?icon('download'):i===3?icon('project'):icon('award')}</span><div><strong>${item}</strong><small>${i===1?'Recorded learning':i===2?'Learner resources':i===3?'Private activity':'Course area'}</small></div><b>${i===0?'<em class="preview-open">Preview</em>':icon('lock')}</b></div>`).join('')}</div><div class="fsa-private-copy"><span class="fsa-mode-icon">${icon('video')}</span><h3>Recorded learner access</h3><p>Enroll in a Recorded course and open it anytime from My Courses in your student dashboard.</p><a class="button button-primary button-block" href="#/courses?mode=recorded">Browse Recorded Courses</a><a class="button button-secondary button-block" href="#/login">Student Sign In</a></div></div></section></div><aside class="fsa-detail-enroll-card reveal"><div class="fsa-detail-enroll-head"><small>Choose learning mode</small><div class="fsa-detail-mode-switch">${modeButtons}</div></div><div class="fsa-detail-mode-copy" id="detailModeCopy">${modeCopy}</div><div class="fsa-detail-price"><small>Course fee from</small><strong>${money(course.price)}</strong>${Number(course.originalPrice||0)>Number(course.price||0)?`<del>${money(course.originalPrice)}</del>`:''}</div><div class="fsa-detail-enroll-list">${['Practical projects','Completion certificate','Career-focused guidance','Mode-specific learning access'].map(item=>`<span>${icon('check')} ${item}</span>`).join('')}</div><button class="button button-primary button-block" data-action="add-cart" data-id="${course.id}">Add Course</button><button class="button button-secondary button-block" data-action="open-call-popup">Ask About This Course</button><small class="fsa-detail-note">Delivery-mode availability can be connected to your backend per course.</small></aside></div></section>
+      <section class="fsa-detail-main-section"><div class="container fsa-detail-main-layout"><div class="fsa-detail-content"><section class="fsa-detail-block"><span class="eyebrow">Course Overview</span><h2>${escapeHtml(course.contentHeading||`Build practical ${course.title} skills.`)}</h2><p>${textHtml(course.description||course.short||'A structured course designed around practical learning, mentor guidance and project work.')}</p>${skills.length?`<div class="fsa-skill-grid">${skills.map(skill=>`<span>${icon('check')} ${escapeHtml(skill)}</span>`).join('')}</div>`:''}</section><section class="fsa-detail-block"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Curriculum</span><h2>What you will <em>learn.</em></h2></div><span>${modules.length} modules · ${Number(course.hours||60)}+ hours</span></div><div class="fsa-detail-curriculum">${modules.map((module,mi)=>`<article class="fsa-detail-module ${mi===0?'open':''}"><button data-action="toggle-module"><span><small>MODULE ${String(mi+1).padStart(2,'0')}</small><strong>${escapeHtml(module.title)}</strong></span><span>${escapeHtml(module.duration||'')} ${icon('chevronDown')}</span></button><div><ul>${(module.lessons||[]).map(lesson=>`<li><span>${lesson.preview?icon('play'):icon('lock')}</span><b>${escapeHtml(lesson.title)}</b><small>${escapeHtml(lesson.duration||'')}</small>${lesson.preview?'<em>Preview</em>':''}</li>`).join('')}</ul></div></article>`).join('')}</div></section><section class="fsa-detail-block" id="course-batches"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Learning Schedule</span><h2>${escapeHtml(course.title)} <em>options.</em></h2></div><span id="batchResultCount"></span></div><div class="fsa-batch-filters detail"><div><small>Time</small>${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div><small>Mode</small>${[['all','All'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batch-grid detail" id="fsaBatchGrid">${batchRows(course).map(batchCard).join('')}</div></section><section class="fsa-detail-block"><span class="eyebrow">Recorded Course Access</span><h2>Your recorded option becomes a <em>private learner workspace.</em></h2><p>After enrollment, Recorded courses appear in your learner dashboard with lessons, notes, downloadable resources, project work, progress and certificates.</p><div class="fsa-detail-private-grid"><div class="fsa-private-preview">${['Course roadmap','Recorded lesson library','Downloadable notes and lab files','Project submission workspace','Progress & completion certificate'].map((item,i)=>`<div class="fsa-private-row"><span>${i===0?icon('book'):i===1?icon('video'):i===2?icon('download'):i===3?icon('project'):icon('award')}</span><div><strong>${item}</strong><small>${i===1?'Recorded learning':i===2?'Learner resources':i===3?'Private activity':'Course area'}</small></div><b>${i===0?'<em class="preview-open">Preview</em>':icon('lock')}</b></div>`).join('')}</div><div class="fsa-private-copy"><span class="fsa-mode-icon">${icon('video')}</span><h3>Recorded learner access</h3><p>Enroll in a Recorded course and open it anytime from My Courses in your student dashboard.</p><a class="button button-primary button-block" href="#/courses?mode=recorded">Browse Recorded Courses</a><a class="button button-secondary button-block" href="#/login">Student Sign In</a></div></div></section></div><aside class="fsa-detail-enroll-card reveal"><div class="fsa-detail-enroll-head"><small>Choose learning mode</small><div class="fsa-detail-mode-switch">${modeButtons}</div></div><div class="fsa-detail-mode-copy" id="detailModeCopy">${modeCopy}</div><div class="fsa-detail-price"><small>Course fee from</small><strong>${money(course.price)}</strong>${Number(course.originalPrice||0)>Number(course.price||0)?`<del>${money(course.originalPrice)}</del>`:''}</div><div class="fsa-detail-enroll-list">${['Practical projects','Completion certificate','Career-focused guidance','Mode-specific learning access'].map(item=>`<span>${icon('check')} ${item}</span>`).join('')}</div><button class="button button-primary button-block" data-action="add-cart" data-id="${course.id}">Add Course</button><button class="button button-secondary button-block" data-action="open-call-popup">Ask About This Course</button><small class="fsa-detail-note">Delivery-mode availability can be connected to your backend per course.</small></aside></div></section>
       ${courseDetailReviewSection(course)}
       <section class="fsa-courses-faq-section detail"><div class="container fsa-faq-layout"><div><span class="eyebrow">Course FAQ</span><h2>${escapeHtml(course.title)} <em>questions.</em></h2><p>Course-specific answers for Live Streamed, Recorded and Offline Classroom learning.</p></div>${faqMarkup(faqs)}</div></section>
       <section class="fsa-related-section"><div class="container"><div class="fsa-course-section-head"><div><span class="eyebrow">Continue Exploring</span><h2>Related <em>courses.</em></h2></div><a class="button button-outline" href="#/courses">View All Courses ${icon('arrow')}</a></div><div class="fsa-course-catalog-grid related">${related.map(catalogCourseCard).join('')}</div></div></section>`;
@@ -1952,9 +1960,39 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   }
 
 
+  function normalizePurchaseMode(value='') {
+    const raw=String(value||'').trim().toLowerCase().replace(/[_\s]+/g,'-');
+    if(['recorded','self-paced','on-demand'].includes(raw)) return 'recorded';
+    if(['live','live-streamed','live-online','online-live'].includes(raw)) return 'live';
+    if(['offline','classroom','offline-classroom','physical'].includes(raw)) return 'offline';
+    return '';
+  }
+  function defaultCoursePurchaseMode(course){
+    const configured=Array.isArray(course?.deliveryModes)&&course.deliveryModes.length?course.deliveryModes:(Array.isArray(course?.delivery_modes)?course.delivery_modes:[]);
+    const first=normalizePurchaseMode(configured[0]||course?.deliveryMode||'');
+    if(first) return first;
+    const d=courseDelivery(course||{});
+    return d.classroom?'offline':d.live?'live':d.recorded?'recorded':'offline';
+  }
+  function coursePurchaseMode(course){
+    return normalizePurchaseMode(state.cartModes?.[course?.id]) || defaultCoursePurchaseMode(course);
+  }
+  function courseForCart(course){
+    if(!course) return null;
+    const mode=coursePurchaseMode(course);
+    const pricing=course?.pricingByMode?.[mode] || course?.pricing_by_mode?.[mode] || null;
+    return {
+      ...course,
+      cartMode:mode,
+      price:pricing && pricing.enabled!==false ? Number(pricing.price||0) : Number(course.price||0),
+      originalPrice:pricing && pricing.enabled!==false ? Number(pricing.originalPrice||pricing.original_price||0) : Number(course.originalPrice||0),
+      duration:pricing && pricing.enabled!==false && pricing.duration ? pricing.duration : course.duration
+    };
+  }
+  function purchaseModeLabel(mode){ return mode==='recorded'?'Recorded':mode==='live'?'Live Streamed':'Offline / Physical'; }
   function cartTotals() {
-    const courseItems = state.cart.map(courseById).filter(Boolean);
-    const subtotal = courseItems.reduce((sum,c)=>sum+c.price,0);
+    const courseItems = state.cart.map(courseById).filter(Boolean).map(courseForCart).filter(Boolean);
+    const subtotal = courseItems.reduce((sum,c)=>sum+Number(c.price||0),0);
     const discount = state.coupon === 'FSA10' ? Math.round(subtotal * .10) : 0;
     return { courseItems, subtotal, discount, total: subtotal-discount };
   }
@@ -1962,14 +2000,14 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   function renderCart() {
     setChrome('public');
     const t = cartTotals();
-    app.innerHTML = `${pageHero({eyebrow:'Your Cart',title:'Review your course selection.',text:'Check your selected courses before submitting your enrollment request.',center:true})}<section class="page-section"><div class="container cart-page-grid"><div>${t.courseItems.length ? `<div class="cart-list">${t.courseItems.map(c=>`<article class="cart-item"><div class="cart-item-image">${imageMarkup(c.image,c.title,initials(c.title))}</div><div><span class="course-category">${c.category}</span><h3>${c.title}</h3><p>${c.duration} · ${c.projects} projects · ${c.instructor}</p><div class="item-actions"><button class="link-button" data-action="move-wishlist" data-id="${c.id}">Move to wishlist</button><button class="link-button" data-action="remove-cart" data-id="${c.id}">Remove</button></div></div><div class="cart-item-price"><strong>${money(c.price)}</strong><del>${money(c.originalPrice)}</del></div></article>`).join('')}</div>` : `<div class="empty-state"><span class="empty-icon">${icon('cart')}</span><h3>Your cart is empty</h3><p>Explore courses and add the learning path you want to join.</p><a class="button button-primary" href="#/courses">Explore Courses</a></div>`}</div><aside class="summary-card"><h3>Enrollment summary</h3><div class="coupon-row"><input class="form-control" id="couponInput" value="${state.coupon||''}" placeholder="Promotional code"><button class="button button-secondary button-sm" data-action="apply-coupon">Apply</button></div><div class="form-help">Enter a valid academy promotional code.</div><div class="summary-lines"><div class="summary-line"><span>Subtotal</span><strong>${money(t.subtotal)}</strong></div><div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line"><span>Final fee</span><strong>Confirmed by academy</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><a class="button button-primary button-block ${t.subtotal===0?'disabled':''}" href="${t.courseItems.length?'#/checkout':'#/courses'}">Continue to Enrollment ${icon('arrow')}</a><div class="demo-notice" style="margin-top:14px">${icon('shield')} Your enrollment details are sent securely to the academy administration team.</div></aside></div></section>`;
+    app.innerHTML = `${pageHero({eyebrow:'Your Cart',title:'Review your course selection.',text:'Check your selected courses before submitting your enrollment request.',center:true})}<section class="page-section"><div class="container cart-page-grid"><div>${t.courseItems.length ? `<div class="cart-list">${t.courseItems.map(c=>`<article class="cart-item"><div class="cart-item-image">${imageMarkup(c.image,c.title,initials(c.title))}</div><div><span class="course-category">${c.category}</span><h3>${c.title}</h3><p>${purchaseModeLabel(c.cartMode)} · ${c.duration} · ${c.projects} projects · ${c.instructor}</p><div class="item-actions"><button class="link-button" data-action="move-wishlist" data-id="${c.id}">Move to wishlist</button><button class="link-button" data-action="remove-cart" data-id="${c.id}">Remove</button></div></div><div class="cart-item-price"><strong>${money(c.price)}</strong><del>${money(c.originalPrice)}</del></div></article>`).join('')}</div>` : `<div class="empty-state"><span class="empty-icon">${icon('cart')}</span><h3>Your cart is empty</h3><p>Explore courses and add the learning path you want to join.</p><a class="button button-primary" href="#/courses">Explore Courses</a></div>`}</div><aside class="summary-card"><h3>Enrollment summary</h3><div class="coupon-row"><input class="form-control" id="couponInput" value="${state.coupon||''}" placeholder="Promotional code"><button class="button button-secondary button-sm" data-action="apply-coupon">Apply</button></div><div class="form-help">Enter a valid academy promotional code.</div><div class="summary-lines"><div class="summary-line"><span>Subtotal</span><strong>${money(t.subtotal)}</strong></div><div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line"><span>Final fee</span><strong>Confirmed by academy</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><a class="button button-primary button-block ${t.subtotal===0?'disabled':''}" href="${t.courseItems.length?'#/checkout':'#/courses'}">Continue to Enrollment ${icon('arrow')}</a><div class="demo-notice" style="margin-top:14px">${icon('shield')} Your enrollment details are sent securely to the academy administration team.</div></aside></div></section>`;
   }
   function renderCheckout() {
     if (!state.loggedIn) { toast('Sign in or create an account before checkout.','error'); routeTo('/login'); return; }
     setChrome('public');
     const t = cartTotals();
     if (!t.courseItems.length) { renderCart(); toast('Add a course before continuing.','error'); return; }
-    app.innerHTML = `${pageHero({eyebrow:'Course Enrollment',title:'Submit your enrollment details.',text:'Share your contact and payment preference. The academy team will confirm fees, schedule and next steps.',center:true})}<section class="page-section"><div class="container checkout-grid"><form id="checkoutForm" novalidate><section class="form-section"><h2>Contact information</h2><div class="form-grid"><div class="form-group"><label for="checkoutName">Full name</label><input class="form-control" id="checkoutName" name="name" required value="${escapeHtml(state.user.name === 'Academy Learner' ? '' : state.user.name)}"></div><div class="form-group"><label for="checkoutEmail">Email address</label><input class="form-control" id="checkoutEmail" name="email" type="email" required value="${escapeHtml(state.user.email)}"></div><div class="form-group full"><label for="checkoutPhone">Phone number</label><input class="form-control" id="checkoutPhone" name="phone" required value="${escapeHtml(state.user.phone)}"></div></div></section><section class="form-section"><h2>Location information</h2><div class="form-grid"><div class="form-group"><label>Country</label><select class="form-control" name="country" required><option value="India">India</option><option value="Pakistan">Pakistan</option><option value="United Arab Emirates">United Arab Emirates</option><option value="Other">Other</option></select></div><div class="form-group"><label>State</label><input class="form-control" name="state" value="Telangana" required></div><div class="form-group full"><label>Address</label><input class="form-control" name="address" placeholder="Your address" required></div><div class="form-group"><label>City</label><input class="form-control" name="city" value="${escapeHtml(state.user.city)}" required></div><div class="form-group"><label>Postal code</label><input class="form-control" name="postal" inputmode="numeric" required></div></div></section><section class="form-section"><h2>Preferred payment method</h2><div class="payment-options"><label class="payment-option"><input type="radio" name="payment" value="upi" checked><span class="payment-icon">${icon('phone')}</span><span><strong>UPI</strong><small>Receive payment instructions after confirmation</small></span></label><label class="payment-option"><input type="radio" name="payment" value="bank"><span class="payment-icon">${icon('briefcase')}</span><span><strong>Bank transfer</strong><small>Academy account details will be shared securely</small></span></label><label class="payment-option"><input type="radio" name="payment" value="branch"><span class="payment-icon">${icon('map')}</span><span><strong>Pay at branch</strong><small>Complete payment at your preferred academy location</small></span></label></div><div class="form-group" style="margin-top:15px"><label>Additional message</label><textarea class="form-control" name="message" placeholder="Preferred batch timing, branch or any questions"></textarea></div></section><button class="button button-primary button-lg button-block" type="submit">Place Course Order ${icon('check')}</button></form><aside class="summary-card"><h3>Your selection</h3><div class="summary-lines">${t.courseItems.map(c=>`<div class="summary-line"><span>${c.title}</span><strong>${money(c.price)}</strong></div>`).join('')}<div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><div class="demo-notice">${icon('shield')} Your order will remain pending until the academy confirms payment. Paid orders automatically activate course access.</div></aside></div></section>`;
+    app.innerHTML = `${pageHero({eyebrow:'Course Enrollment',title:'Submit your enrollment details.',text:'Share your contact and payment preference. The academy team will confirm fees, schedule and next steps.',center:true})}<section class="page-section"><div class="container checkout-grid"><form id="checkoutForm" novalidate><section class="form-section"><h2>Contact information</h2><div class="form-grid"><div class="form-group"><label for="checkoutName">Full name</label><input class="form-control" id="checkoutName" name="name" required value="${escapeHtml(state.user.name === 'Academy Learner' ? '' : state.user.name)}"></div><div class="form-group"><label for="checkoutEmail">Email address</label><input class="form-control" id="checkoutEmail" name="email" type="email" required value="${escapeHtml(state.user.email)}"></div><div class="form-group full"><label for="checkoutPhone">Phone number</label><input class="form-control" id="checkoutPhone" name="phone" required value="${escapeHtml(state.user.phone)}"></div></div></section><section class="form-section"><h2>Location information</h2><div class="form-grid"><div class="form-group"><label>Country</label><select class="form-control" name="country" required><option value="India">India</option><option value="Pakistan">Pakistan</option><option value="United Arab Emirates">United Arab Emirates</option><option value="Other">Other</option></select></div><div class="form-group"><label>State</label><input class="form-control" name="state" value="Telangana" required></div><div class="form-group full"><label>Address</label><input class="form-control" name="address" placeholder="Your address" required></div><div class="form-group"><label>City</label><input class="form-control" name="city" value="${escapeHtml(state.user.city)}" required></div><div class="form-group"><label>Postal code</label><input class="form-control" name="postal" inputmode="numeric" required></div></div></section><section class="form-section"><h2>Preferred payment method</h2><div class="payment-options"><label class="payment-option"><input type="radio" name="payment" value="upi" checked><span class="payment-icon">${icon('phone')}</span><span><strong>UPI</strong><small>Receive payment instructions after confirmation</small></span></label><label class="payment-option"><input type="radio" name="payment" value="bank"><span class="payment-icon">${icon('briefcase')}</span><span><strong>Bank transfer</strong><small>Academy account details will be shared securely</small></span></label><label class="payment-option"><input type="radio" name="payment" value="branch"><span class="payment-icon">${icon('map')}</span><span><strong>Pay at branch</strong><small>Complete payment at your preferred academy location</small></span></label></div><div class="form-group" style="margin-top:15px"><label>Additional message</label><textarea class="form-control" name="message" placeholder="Preferred batch timing, branch or any questions"></textarea></div></section><button class="button button-primary button-lg button-block" type="submit">Place Course Order ${icon('check')}</button></form><aside class="summary-card"><h3>Your selection</h3><div class="summary-lines">${t.courseItems.map(c=>`<div class="summary-line"><span>${c.title}<small style="display:block;color:var(--muted);margin-top:3px">${purchaseModeLabel(c.cartMode)}</small></span><strong>${money(c.price)}</strong></div>`).join('')}<div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><div class="demo-notice">${icon('shield')} Your order will remain pending until the academy confirms payment. Paid orders automatically activate course access.</div></aside></div></section>`;
   }
   function renderCheckoutSuccess() {
     setChrome('public');
@@ -2292,6 +2330,81 @@ window.FSA_BUILD='v93-classroom-recording-parity';
         overflow:hidden;
         text-overflow:ellipsis;
         white-space:nowrap;
+      }
+
+      /* v110 — Admin-style nested Instructor navigation. */
+      body[data-mode="dashboard"] .dashboard-nav-group{
+        display:grid;
+        gap:2px;
+        margin:0;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-parent{
+        position:relative;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-parent b{
+        width:17px;
+        height:17px;
+        margin-left:auto;
+        display:grid;
+        place-items:center;
+        opacity:.72;
+        transition:transform .18s ease,opacity .18s ease;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-parent b svg{
+        width:14px;
+        height:14px;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-group.is-open .dashboard-nav-parent b{
+        transform:rotate(180deg);
+        opacity:1;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-submenu{
+        display:none;
+        gap:2px;
+        margin:0 0 5px 24px;
+        padding:3px 0 3px 13px;
+        border-left:1px solid rgba(255,255,255,.22);
+      }
+      body[data-mode="dashboard"] .dashboard-nav-group.is-open .dashboard-nav-submenu,
+      body[data-mode="dashboard"] .dashboard-nav-group.is-active .dashboard-nav-submenu{
+        display:grid;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-submenu a{
+        position:relative;
+        min-height:34px!important;
+        margin:0!important;
+        padding:0 10px 0 17px!important;
+        gap:8px!important;
+        border-radius:9px!important;
+        background:transparent!important;
+        box-shadow:none!important;
+        color:rgba(255,255,255,.73)!important;
+        font-size:10px!important;
+        font-weight:650!important;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-submenu a::before{
+        content:'';
+        position:absolute;
+        left:4px;
+        top:50%;
+        width:5px;
+        height:5px;
+        margin-top:-2.5px;
+        border-radius:50%;
+        background:rgba(255,255,255,.35);
+      }
+      body[data-mode="dashboard"] .dashboard-nav-submenu a:hover{
+        background:rgba(255,255,255,.08)!important;
+        color:#fff!important;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-submenu a.active{
+        background:rgba(255,255,255,.13)!important;
+        color:#fff!important;
+        box-shadow:none!important;
+      }
+      body[data-mode="dashboard"] .dashboard-nav-submenu a.active::before{
+        background:#fff;
+        box-shadow:0 0 0 3px rgba(255,255,255,.12);
       }
 
       .dashboard-sidebar-footer{
@@ -2756,9 +2869,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
       ['dashboard','Dashboard','dashboard','#/dashboard'],
       ['my-courses','My Courses','book','#/my-courses'],
       ['live-classes','Live Classes','radio','#/live-classes'],
-      ['recorded-lectures','Recorded Lectures','play','#/recorded-lectures'],
-      ['my-quizzes','My Quizzes','note','#/my-quizzes'],
-      ['my-assignments','Assignments','project','#/my-assignments']
+      ['recorded-lectures','Recorded Lectures','play','#/recorded-lectures']
     ];
     const account = [
       ['wishlist','Wishlist','heart','#/wishlist'],
@@ -4282,71 +4393,81 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     document.head.appendChild(style);
   }
 
-  function studentCourseWorkspaceData(course){
+  function studentEnrollmentForCourse(courseId,preferredMode=''){
+    const id=Number(courseId||0),mode=String(preferredMode||'').toLowerCase();
+    const rows=(state.studentEnrollmentRows||[]).filter(e=>Number(e.course_id)===id&&['active','completed'].includes(String(e.status||''))&&e.access_allowed!==false);
+    if(mode){const exact=rows.find(e=>String(e.delivery_mode||'').toLowerCase()===mode);if(exact)return exact;}
+    return rows[0]||null;
+  }
+
+  function studentRecordedCourseEntry(courseId){
+    const rows=(state.studentRecordedLectures||[]).filter(x=>Number(x.course_id)===Number(courseId)).sort((a,b)=>Number(a.sort_order)-Number(b.sort_order)||Number(a.id)-Number(b.id));
+    const next=nextRecordedLecture(rows)||rows[0]||null;
+    return `#/recorded-lectures/${Number(courseId)}/${Number(next?.id||0)}`;
+  }
+
+  function studentCourseWorkspaceData(course,enrollmentOverride=null){
     const courseId=Number(course?.id||0);
     const delivery=courseDelivery(course||{});
+    const enrollment=enrollmentOverride||studentEnrollmentForCourse(courseId);
+    const purchasedMode=String(enrollment?.delivery_mode||'');
     const liveRows=uniqueStudentLiveRows(studentLiveRows()).filter(item=>Number(item?.course_id||0)===courseId);
     const recordings=(Array.isArray(state.studentRecordings)?state.studentRecordings:[]).filter(item=>Number(item?.course_id||0)===courseId);
+    const recordedLectures=(state.studentRecordedLectures||[]).filter(item=>Number(item?.course_id||0)===courseId);
     const live=liveRows.filter(item=>liveStatus(item)==='live').sort((a,b)=>new Date(a.starts_at||0)-new Date(b.starts_at||0))[0]||null;
     const upcoming=liveRows.filter(item=>liveStatus(item)==='scheduled').sort((a,b)=>new Date(a.starts_at||0)-new Date(b.starts_at||0));
     const ended=liveRows.filter(item=>liveStatus(item)==='ended');
-    const percent=progressPercent(courseId);
+    const percent=purchasedMode==='recorded'?recordedCourseProgress(recordedLectures):progressPercent(courseId);
     return {
-      delivery,
-      liveRows,
-      recordings,
-      live,
-      upcoming,
-      ended,
-      percent,
-      isLiveCourse:!!(delivery.live||liveRows.length),
-      isRecordedCourse:!!(delivery.recorded||recordings.length),
+      delivery,enrollment,purchasedMode,recordedLectures,liveRows,recordings,live,upcoming,ended,percent,
+      isLiveCourse:purchasedMode==='live',
+      isRecordedCourse:purchasedMode==='recorded',
+      isOfflineCourse:purchasedMode==='offline',
       completed:percent>=100
     };
   }
 
-  function studentPurchasedCourseCardMarkup(course,{compact=false}={}){
-    const data=studentCourseWorkspaceData(course);
+  function studentPurchasedCourseCardMarkup(course,{compact=false,enrollment=null}={}){
+    const data=studentCourseWorkspaceData(course,enrollment);
     const slug=String(course?.slug||'').trim();
+    const courseId=Number(course?.id||0);
     const progress=Math.max(0,Math.min(100,Number(data.percent||0)));
     const readyRecordings=data.recordings.filter(item=>String(item?.recording_url||'').trim()).length;
     const processingRecordings=Math.max(0,data.recordings.length-readyRecordings);
     const lessonCount=allLessonKeys(course||{}).length;
-    const doneCount=completedLessons(Number(course?.id||0));
-    const modes=[];
-    if(data.isLiveCourse)modes.push('<span>Live</span>');
-    if(data.isRecordedCourse)modes.push('<span>Recorded</span>');
-    if(data.delivery.classroom)modes.push('<span>Classroom</span>');
+    const doneCount=completedLessons(courseId);
+    const taskCount=(state.studentCoursework||[]).filter(item=>Number(item?.course_id||0)===courseId).length;
+    const recordedDone=data.recordedLectures.filter(x=>x.completed).length;
+    const modeLabel=data.isRecordedCourse?'Recorded':data.isLiveCourse?'Live':'Offline / Physical';
     const badge=data.live?'Live now':data.completed?'Completed':progress>0?'In progress':'Active';
     const next=data.upcoming[0]||null;
-    const openHref=slug?`#/learn/${encodeURIComponent(slug)}`:'#/my-courses';
-    const liveAction=data.live
-      ? `<button class="button button-primary button-sm" type="button" data-action="student-course-live-open" data-course-id="${Number(course?.id||0)}" data-live-id="${Number(data.live.id||0)}">${icon('radio')} Join Live</button>`
-      : next
-        ? `<button class="button button-secondary button-sm" type="button" data-action="student-course-live-open" data-course-id="${Number(course?.id||0)}">${icon('calendar')} Schedule</button>`
-        : '';
+    const openHref=data.isRecordedCourse
+      ? studentRecordedCourseEntry(courseId)
+      : data.isLiveCourse
+        ? '#/live-classes'
+        : (slug?`#/learn/${encodeURIComponent(slug)}`:'#/my-courses');
+    const openLabel=data.isRecordedCourse?'Open Recorded Course':data.isLiveCourse?'Open Live Course':'Open Physical Course';
+    let metaItems='';
+    if(data.isRecordedCourse){
+      metaItems=`<span>${icon('play')} ${data.recordedLectures.length} lecture${data.recordedLectures.length===1?'':'s'}</span><span>${icon('check')} ${recordedDone} completed</span><span>${icon('note')} ${taskCount} task${taskCount===1?'':'s'}</span><span>${icon('book')} Recorded access</span>`;
+    }else if(data.isLiveCourse){
+      metaItems=`<span>${icon('radio')} ${data.liveRows.length} class${data.liveRows.length===1?'':'es'}</span><span>${icon('play')} ${readyRecordings} recording${readyRecordings===1?'':'s'}${processingRecordings?` · ${processingRecordings} processing`:''}</span>${next?`<span>${icon('calendar')} ${escapeHtml(classroomDate(next.starts_at))}</span>`:`<span>${icon('calendar')} No upcoming class</span>`}<span>${icon('note')} ${taskCount} task${taskCount===1?'':'s'}</span>`;
+    }else{
+      metaItems=`<span>${icon('book')} ${doneCount}${lessonCount?` / ${lessonCount}`:''} lessons</span><span>${icon('check')} ${progress}% complete</span><span>${icon('note')} ${taskCount} task${taskCount===1?'':'s'}</span><span>${icon('users')} Physical classroom</span>`;
+    }
     return `<article class="student-purchased-course-card ${compact?'is-compact':''}">
       <div class="student-purchased-course-media">
         ${imageMarkup(course?.image,`${course?.title||'Course'} course`,initials(course?.title||'Course'))}
         <span class="student-course-status-badge ${data.live?'live':''}">${escapeHtml(badge)}</span>
       </div>
       <div class="student-purchased-course-body">
-        <span class="course-category">${escapeHtml(course?.category||'Full Stack Academy')}</span>
+        <div class="student-course-card-heading"><span class="course-category">${escapeHtml(course?.category||'Full Stack Academy')}</span><span class="student-purchase-mode mode-${escapeHtml(String(data.purchasedMode||'offline'))}">${escapeHtml(modeLabel)}</span></div>
         <h3>${escapeHtml(course?.title||'Course')}</h3>
-        <p>${escapeHtml(course?.short||course?.description||'Your private learning workspace with course content, Live classes, recordings and assessments.')}</p>
-        <div class="student-course-mode-row">${modes.join('')||'<span>Course access</span>'}</div>
-        <div class="student-course-progress-line"><span>Course progress</span><strong>${progress}%</strong></div>
+        <p>${escapeHtml(course?.short||course?.description||'Your private learning workspace with course content and assessments.')}</p>
+        <div class="student-course-progress-line"><span>${escapeHtml(modeLabel)} progress</span><strong>${progress}%</strong></div>
         <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
-        <div class="student-course-meta-grid">
-          <span>${icon('book')} ${doneCount}${lessonCount?` / ${lessonCount}`:''} lessons</span>
-          <span>${icon('play')} ${readyRecordings} recording${readyRecordings===1?'':'s'}${processingRecordings?` · ${processingRecordings} processing`:''}</span>
-          ${next?`<span>${icon('calendar')} ${escapeHtml(classroomDate(next.starts_at))}</span>`:`<span>${icon('calendar')} No upcoming class</span>`}
-          <span>${icon('note')} ${(state.studentCoursework||[]).filter(item=>Number(item?.course_id||0)===Number(course?.id||0)).length} task${(state.studentCoursework||[]).filter(item=>Number(item?.course_id||0)===Number(course?.id||0)).length===1?'':'s'}</span>
-        </div>
-        <div class="student-course-card-actions">
-          <a class="button button-primary button-sm" href="${openHref}">${icon('book')} Open Course</a>
-          ${liveAction}
-        </div>
+        <div class="student-course-meta-grid">${metaItems}</div>
+        <div class="student-course-card-actions"><a class="button button-primary button-sm" href="${openHref}">${icon(data.isRecordedCourse?'play':data.isLiveCourse?'radio':'book')} ${openLabel}</a></div>
       </div>
     </article>`;
   }
@@ -4813,22 +4934,25 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   }
 
   function dashboardCourseworkCard(item){
-    const meta=courseworkState(item),href=`#/learn/${encodeURIComponent(item.course_slug||'')}?classroom=${encodeURIComponent(item.type+':'+item.id)}`;
-    return `<article class="premium-task-card"><span class="premium-task-icon ${item.type}">${icon(item.type==='quiz'?'note':'project')}</span><div><span class="course-category">${escapeHtml(item.course_title||'Course')}</span><h3>${escapeHtml(item.title||'Coursework')}</h3><p>${escapeHtml(courseworkDueLabel(item))} · <span class="coursework-state ${meta.tone}">${escapeHtml(meta.label)}</span></p></div><a class="button button-secondary button-sm" href="${href}">Open</a></article>`;
+    const meta=courseworkState(item),enrollment=(state.studentEnrollmentRows||[]).find(e=>Number(e.course_id)===Number(item.course_id)&&['active','completed'].includes(String(e.status||''))),mode=String(enrollment?.delivery_mode||'offline').toLowerCase();
+    const href=mode==='recorded'?studentRecordedCourseEntry(item.course_id):mode==='live'?'#/live-classes':`#/learn/${encodeURIComponent(item.course_slug||'')}`;
+    return `<article class="premium-task-card"><span class="premium-task-icon ${item.type}">${icon(item.type==='quiz'?'note':'project')}</span><div><span class="course-category">${escapeHtml(item.course_title||'Course')}</span><h3>${escapeHtml(item.title||'Coursework')}</h3><p>${escapeHtml(courseworkDueLabel(item))} · <span class="coursework-state ${meta.tone}">${escapeHtml(meta.label)}</span></p></div><a class="button button-secondary button-sm" href="${href}">Open Course</a></article>`;
   }
 
   function renderDashboard() {
     ensureLiveV80Styles();ensureLiveV81Styles();ensureStudentCoursesV84Styles();
-    const enrolled=enrolledCourses(),liveRows=studentLiveRows(),liveNowRows=uniqueStudentLiveRows(liveRows).filter(item=>liveStatus(item)==='live'),upcomingLiveRows=uniqueStudentLiveRows(liveRows).filter(item=>['live','scheduled'].includes(liveStatus(item)));
-    const completed=enrolled.filter(c=>progressPercent(c.id)===100),inProgress=enrolled.filter(c=>progressPercent(c.id)>0&&progressPercent(c.id)<100),continueCourse=inProgress[0]||enrolled[0]||null;
+    const enrollmentEntries=(state.studentEnrollmentRows||[]).filter(e=>['active','completed'].includes(String(e.status||''))&&e.access_allowed!==false).map(enrollment=>({course:courseById(Number(enrollment.course_id)),enrollment})).filter(x=>x.course);
+    const enrolled=enrollmentEntries.map(x=>x.course),liveRows=studentLiveRows(),liveNowRows=uniqueStudentLiveRows(liveRows).filter(item=>liveStatus(item)==='live'),upcomingLiveRows=uniqueStudentLiveRows(liveRows).filter(item=>['live','scheduled'].includes(liveStatus(item)));
+    const dashboardEntries=enrollmentEntries.map(x=>({...x,workspace:studentCourseWorkspaceData(x.course,x.enrollment)}));
+    const completed=dashboardEntries.filter(x=>x.workspace.percent===100),inProgress=dashboardEntries.filter(x=>x.workspace.percent>0&&x.workspace.percent<100),continueEntry=inProgress[0]||dashboardEntries[0]||null;
     const quizzes=studentCoursework('quiz'),assignments=studentCoursework('assignment'),pendingWork=studentCoursework().filter(item=>!item.completed).slice(0,5);
-    const continuePanel=continueCourse?(()=>{const percent=progressPercent(continueCourse.id);return `<article class="premium-resume-card"><div class="premium-resume-media">${imageMarkup(continueCourse.image,continueCourse.title,initials(continueCourse.title))}<span>${percent}% complete</span></div><div class="premium-resume-copy"><span class="eyebrow">Continue learning</span><h2>${escapeHtml(continueCourse.title)}</h2><p>${completedLessons(continueCourse.id)} of ${allLessonKeys(continueCourse).length} lessons completed. Continue exactly where you stopped.</p><div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div><div class="premium-resume-actions"><a class="button button-primary" href="#/learn/${continueCourse.slug}">${percent===100?'Review course':'Resume course'} ${icon('arrow')}</a><a class="button button-secondary" href="#/my-courses">All courses</a></div></div></article>`})():`<div class="empty-state premium-empty"><span class="empty-icon">${icon('book')}</span><h3>Your learning workspace is ready</h3><p>${state.pendingEnrollments.length?'A course order is waiting for activation.':'Enroll in a course to unlock lessons, quizzes and assignments.'}</p><a class="button button-primary" href="${state.pendingEnrollments.length?'#/purchase-history':'#/courses'}">${state.pendingEnrollments.length?'View orders':'Browse courses'}</a></div>`;
+    const continuePanel=continueEntry?(()=>{const continueCourse=continueEntry.course,workspace=continueEntry.workspace,percent=Math.max(0,Math.min(100,Number(workspace.percent||0))),href=workspace.isRecordedCourse?studentRecordedCourseEntry(continueCourse.id):workspace.isLiveCourse?'#/live-classes':`#/learn/${continueCourse.slug}`,progressCopy=workspace.isRecordedCourse?`${workspace.recordedLectures.filter(x=>x.completed).length} of ${workspace.recordedLectures.length} lectures completed.`:workspace.isLiveCourse?'Continue with your Live classroom and schedule.':`${completedLessons(continueCourse.id)} of ${allLessonKeys(continueCourse).length} lessons completed.`;return `<article class="premium-resume-card"><div class="premium-resume-media">${imageMarkup(continueCourse.image,continueCourse.title,initials(continueCourse.title))}<span>${percent}% complete</span></div><div class="premium-resume-copy"><span class="eyebrow">Continue learning</span><h2>${escapeHtml(continueCourse.title)}</h2><p>${progressCopy} Continue exactly where you stopped.</p><div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div><div class="premium-resume-actions"><a class="button button-primary" href="${href}">${percent===100?'Review course':'Resume course'} ${icon('arrow')}</a><a class="button button-secondary" href="#/my-courses">All courses</a></div></div></article>`})():`<div class="empty-state premium-empty"><span class="empty-icon">${icon('book')}</span><h3>Your learning workspace is ready</h3><p>${state.pendingEnrollments.length?'A course order is waiting for activation.':'Enroll in a course to unlock lessons, quizzes and assignments.'}</p><a class="button button-primary" href="${state.pendingEnrollments.length?'#/purchase-history':'#/courses'}">${state.pendingEnrollments.length?'View orders':'Browse courses'}</a></div>`;
     const liveNotice=upcomingLiveRows.length?(()=>{const item=liveNowRows[0]||upcomingLiveRows.filter(x=>liveStatus(x)==='scheduled').sort((a,b)=>new Date(a.starts_at||0)-new Date(b.starts_at||0))[0],isLive=item&&liveStatus(item)==='live';return `<div class="premium-live-banner"><span class="live-dot"></span><div><small>${isLive?'LIVE NOW':'NEXT LIVE CLASS'}</small><strong>${escapeHtml(item?.title||'Live Class')}</strong><span>${escapeHtml(item?.course_title||'Course')} · ${classroomDate(item?.starts_at)}</span></div><button class="button ${isLive?'button-primary':'button-secondary'} button-sm" type="button" data-action="student-course-live-open" data-course-id="${item?.course_id||''}" data-live-id="${isLive?item?.id||'':''}">${isLive?'Join Live':'View Schedule'}</button></div>`;})():'';
-    const content=`<section class="premium-dashboard-hero"><div><span class="eyebrow light">Student Workspace</span><h2>Good to see you, ${escapeHtml(state.user.name.split(' ')[0])}.</h2><p>Courses, Live classes, quizzes, assignments and certificates — all from one clean workspace.</p></div><div class="premium-hero-actions"><a href="#/my-assignments" class="button button-secondary">Assignments</a><a href="#/my-quizzes" class="button button-primary">Quizzes</a></div></section>
+    const content=`<section class="premium-dashboard-hero"><div><span class="eyebrow light">Student Workspace</span><h2>Good to see you, ${escapeHtml(state.user.name.split(' ')[0])}.</h2><p>Courses, Live classes, quizzes, assignments and certificates — all from one clean workspace.</p></div><div class="premium-hero-actions"><a href="#/my-courses" class="button button-primary">My Courses</a></div></section>
       ${liveNotice}
       <div class="dashboard-metrics premium-metrics">${[[enrolled.length,'Active courses','book','Learning now'],[pendingWork.length,'Open tasks','clock','Needs attention'],[quizzes.filter(x=>x.completed).length,'Quizzes taken','note','Auto-scored'],[assignments.filter(x=>x.completed).length,'Assignments sent','project','Submitted']].map(m=>`<article class="metric-card"><div class="metric-card-top"><span>${m[1]}</span><i class="metric-card-icon">${icon(m[2])}</i></div><strong>${m[0]}</strong><small>${m[3]}</small></article>`).join('')}</div>
-      <div class="premium-dashboard-grid"><section>${continuePanel}</section><aside class="panel premium-deadlines"><div class="panel-head"><div><span class="eyebrow">Next up</span><h2>Coursework</h2></div><a href="#/my-assignments">View all</a></div>${pendingWork.length?`<div class="premium-task-list">${pendingWork.map(dashboardCourseworkCard).join('')}</div>`:`<div class="empty-state compact"><p>No open coursework right now.</p></div>`}</aside></div>
-      <div class="premium-dashboard-grid lower"><section class="panel"><div class="panel-head"><div><span class="eyebrow">Progress</span><h2>Your courses</h2></div><a href="#/my-courses">Manage</a></div>${enrolled.length?`<div class="premium-course-progress">${enrolled.slice(0,4).map(c=>`<a href="#/learn/${c.slug}"><span><strong>${escapeHtml(c.title)}</strong><small>${completedLessons(c.id)} lessons complete</small></span><span class="course-progress-number">${progressPercent(c.id)}%</span><div class="progress-track"><div class="progress-fill" style="width:${progressPercent(c.id)}%"></div></div></a>`).join('')}</div>`:'<p class="muted">No active courses yet.</p>'}</section><aside class="panel premium-achievement"><span class="eyebrow">Achievement</span><span class="premium-achievement-icon">${icon('award')}</span><strong>${completed.length}</strong><h3>Course${completed.length===1?'':'s'} completed</h3><p>Keep progressing to unlock more certificates.</p><a href="#/certificates">View certificates ${icon('arrow')}</a></aside></div>`;
+      <div class="premium-dashboard-grid"><section>${continuePanel}</section><aside class="panel premium-deadlines"><div class="panel-head"><div><span class="eyebrow">Next up</span><h2>Coursework</h2></div><a href="#/my-courses">Open courses</a></div>${pendingWork.length?`<div class="premium-task-list">${pendingWork.map(dashboardCourseworkCard).join('')}</div>`:`<div class="empty-state compact"><p>No open coursework right now.</p></div>`}</aside></div>
+      <div class="premium-dashboard-grid lower"><section class="panel"><div class="panel-head"><div><span class="eyebrow">Progress</span><h2>Your courses</h2></div><a href="#/my-courses">Manage</a></div>${dashboardEntries.length?`<div class="premium-course-progress">${dashboardEntries.slice(0,4).map(({course:c,workspace:ws})=>{const href=ws.isRecordedCourse?studentRecordedCourseEntry(c.id):ws.isLiveCourse?'#/live-classes':`#/learn/${c.slug}`,pct=ws.percent,mode=ws.isRecordedCourse?'Recorded':ws.isLiveCourse?'Live':'Physical',copy=ws.isRecordedCourse?`${ws.recordedLectures.filter(x=>x.completed).length} recorded lectures complete`:ws.isLiveCourse?'Live classroom access':`${completedLessons(c.id)} lessons complete`;return `<a href="${href}"><span><strong>${escapeHtml(c.title)} · ${mode}</strong><small>${copy}</small></span><span class="course-progress-number">${pct}%</span><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div></a>`}).join('')}</div>`:'<p class="muted">No active courses yet.</p>'}</section><aside class="panel premium-achievement"><span class="eyebrow">Achievement</span><span class="premium-achievement-icon">${icon('award')}</span><strong>${completed.length}</strong><h3>Course${completed.length===1?'':'s'} completed</h3><p>Keep progressing to unlock more certificates.</p><a href="#/certificates">View certificates ${icon('arrow')}</a></aside></div>`;
     dashboardShell('dashboard',content,'Learning Dashboard','A premium overview of everything that needs your attention.');
     initLiveCountdowns();
   }
@@ -4836,8 +4960,11 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   function renderMyCourses() {
     ensureStudentCoursesV84Styles();
 
-    const all=enrolledCourses();
-    const allData=all.map(course=>({course,data:studentCourseWorkspaceData(course)}));
+    const activeRows=(state.studentEnrollmentRows||[]).filter(item=>['active','completed'].includes(String(item.status||''))&&item.access_allowed!==false);
+    const allData=activeRows.length
+      ? activeRows.map(enrollment=>({course:courseById(Number(enrollment.course_id)),enrollment})).filter(x=>x.course).map(x=>({...x,data:studentCourseWorkspaceData(x.course,x.enrollment)}))
+      : enrolledCourses().map(course=>({course,enrollment:null,data:studentCourseWorkspaceData(course)}));
+    const all=allData.map(x=>x.course);
 
     const totalLiveCourses=allData.filter(x=>x.data.isLiveCourse).length;
     const totalRecordings=allData.reduce((sum,x)=>sum+x.data.recordings.length,0);
@@ -4848,7 +4975,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const filtered=allData.filter(({data})=>{
       if(tab==='all')return true;
       if(tab==='live')return data.isLiveCourse;
-      if(tab==='recorded')return data.isRecordedCourse || data.recordings.length>0;
+      if(tab==='recorded')return data.isRecordedCourse;
       if(tab==='progress')return data.percent>0 && data.percent<100;
       if(tab==='complete')return data.percent===100;
       return true;
@@ -4877,7 +5004,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     </div>`;
 
     const body=filtered.length
-      ? `<div class="student-course-library-grid">${filtered.map(({course})=>studentPurchasedCourseCardMarkup(course)).join('')}</div>`
+      ? `<div class="student-course-library-grid">${filtered.map(({course,enrollment})=>studentPurchasedCourseCardMarkup(course,{enrollment})).join('')}</div>`
       : `<div class="student-courses-empty">
           <span class="empty-icon">${icon('book')}</span>
           <h3>No courses in this view</h3>
@@ -4946,9 +5073,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const teaching=[
       ['instructor-dashboard','Overview','dashboard'],
       ['instructor-courses','My Courses','book'],
-      ['instructor-recorded-lectures','Recorded Lectures','video'],
-      ['instructor-quizzes','Quizzes','note'],
-      ['instructor-assignments','Assignments','project']
+      ['instructor-recorded-lectures','Recorded Lectures','video']
     ];
     const management=[
       ['instructor-certificates','Certificates','award'],
@@ -4967,9 +5092,9 @@ window.FSA_BUILD='v93-classroom-recording-parity';
       <nav class="dashboard-nav">
         <span class="dashboard-nav-label">Teaching</span>
         ${renderLinks(teaching.slice(0,2))}
-        <div class="dashboard-nav-group ${['instructor-live','instructor-recordings'].includes(active)?'is-active':''}">
-          <a class="dashboard-nav-parent ${['instructor-live','instructor-recordings'].includes(active)?'active':''}" href="#/instructor-live">${icon('radio')}<span>Live Classes</span><b>${icon('chevronDown')}</b></a>
-          <div class="dashboard-nav-submenu">
+        <div class="dashboard-nav-group ${['instructor-live','instructor-recordings'].includes(active)?'is-active is-open':''}">
+          <button class="dashboard-nav-parent ${['instructor-live','instructor-recordings'].includes(active)?'active':''}" type="button" data-action="toggle-instructor-live-submenu" aria-expanded="${['instructor-live','instructor-recordings'].includes(active)?'true':'false'}">${icon('radio')}<span>Live Classes</span><b>${icon('chevronDown')}</b></button>
+          <div class="dashboard-nav-submenu" aria-label="Live Classes submenu">
             <a class="${active==='instructor-live'?'active':''}" href="#/instructor-live"><span>Live Classroom</span></a>
             <a class="${active==='instructor-recordings'?'active':''}" href="#/instructor-recordings"><span>Live Recordings</span></a>
           </div>
@@ -5006,14 +5131,14 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const publishedAssignments=assignments.filter(x=>x.status!=='draft');
     const recentAssessments=[...quizzes.map(x=>({...x,_type:'Quiz'})),...assignments.map(x=>({...x,_type:'Assignment'}))]
       .sort((a,b)=>new Date(b.updated_at||b.created_at||0)-new Date(a.updated_at||a.created_at||0)).slice(0,5);
-    const content=`<section class="premium-dashboard-hero instructor-premium-hero"><div><span class="eyebrow light">Instructor Workspace</span><h2>Teach, assess and review from one place.</h2><p>Your assigned courses, live classes, recordings, multi-step quizzes and student submissions stay connected to the same classroom.</p></div><div class="premium-hero-actions"><button class="button button-secondary" data-action="instructor-assignment-new" ${courses.length?'':'disabled'}>+ Assignment</button><button class="button button-primary" data-action="instructor-quiz-new" ${courses.length?'':'disabled'}>+ Quiz</button></div></section>
+    const content=`<section class="premium-dashboard-hero instructor-premium-hero"><div><span class="eyebrow light">Instructor Workspace</span><h2>Teach, assess and review from one place.</h2><p>Your assigned courses, live classes, recordings, multi-step quizzes and student submissions stay connected to the same classroom.</p></div><div class="premium-hero-actions"><a class="button button-primary" href="#/instructor-courses">Manage Course Curriculum</a></div></section>
       <div class="dashboard-metrics premium-metrics">${[[courses.length,'Assigned courses','book'],[(d.students||[]).length,'Students','users'],[toGrade.length,'To grade','project'],[publishedQuizzes.length,'Published quizzes','note']].map(m=>`<article class="premium-metric-card"><i>${icon(m[2])}</i><div><strong>${m[0]}</strong><span>${m[1]}</span></div></article>`).join('')}</div>
       <div class="premium-dashboard-grid">
-        <section class="panel"><div class="panel-head"><div><span class="eyebrow">Teaching tools</span><h2>Quick actions</h2></div><a href="#/instructor-courses">All courses</a></div><div class="instructor-quick-grid premium"><a href="#/instructor-courses">${icon('book')}<span><strong>Assigned Courses</strong><small>Prepare lessons and manage coursework course-by-course.</small></span></a><a href="#/instructor-live">${icon('radio')}<span><strong>Live Classes</strong><small>Schedule and start your embedded Zoom classroom.</small></span></a><a href="#/instructor-recordings">${icon('play')}<span><strong>Recordings</strong><small>Publish completed class recordings for students.</small></span></a><a href="#/instructor-quizzes">${icon('note')}<span><strong>Quizzes</strong><small>Build multi-question auto-scored assessments.</small></span></a><a href="#/instructor-assignments">${icon('project')}<span><strong>Assignments</strong><small>Collect files, grade work and leave feedback.</small></span></a><a href="#/instructor-students">${icon('users')}<span><strong>Students</strong><small>Review learners attached to your courses.</small></span></a></div></section>
+        <section class="panel"><div class="panel-head"><div><span class="eyebrow">Teaching tools</span><h2>Quick actions</h2></div><a href="#/instructor-courses">All courses</a></div><div class="instructor-quick-grid premium"><a href="#/instructor-courses">${icon('book')}<span><strong>Assigned Courses</strong><small>Prepare lessons and manage coursework course-by-course.</small></span></a><a href="#/instructor-live">${icon('radio')}<span><strong>Live Classes</strong><small>Schedule and start your embedded Zoom classroom.</small></span></a><a href="#/instructor-recordings">${icon('play')}<span><strong>Recordings</strong><small>Publish completed class recordings for students.</small></span></a><a href="#/instructor-students">${icon('users')}<span><strong>Students</strong><small>Review learners attached to your courses.</small></span></a></div></section>
         <aside class="panel premium-instructor-summary"><div class="panel-head"><h2>Classroom status</h2></div><div class="premium-summary-line"><strong>${toGrade.length}</strong><span>assignment submission${toGrade.length===1?'':'s'} waiting for grading</span></div><div class="premium-summary-line"><strong>${upcoming.length}</strong><span>scheduled or live class${upcoming.length===1?'':'es'}</span></div><div class="premium-summary-line"><strong>${recordings.length}</strong><span>recorded class${recordings.length===1?'':'es'} available</span></div><div class="premium-summary-line"><strong>${publishedAssignments.length}</strong><span>published assignment${publishedAssignments.length===1?'':'s'}</span></div></aside>
       </div>
       <div class="premium-dashboard-grid lower">
-        <section class="panel"><div class="panel-head"><div><span class="eyebrow">Assessments</span><h2>Recent coursework</h2></div><a href="#/instructor-assignments">Manage</a></div>${recentAssessments.length?`<div class="premium-assessment-feed">${recentAssessments.map(item=>`<a href="${item._type==='Quiz'?'#/instructor-quizzes':'#/instructor-assignments'}"><span class="classroom-row-icon">${icon(item._type==='Quiz'?'note':'project')}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.course_title||'Course')}${item.due_at?` · ${classroomDate(item.due_at)}`:''}</small></span><b>${item._type}</b></a>`).join('')}</div>`:'<p class="muted">No quiz or assignment has been created yet.</p>'}</section>
+        <section class="panel"><div class="panel-head"><div><span class="eyebrow">Assessments</span><h2>Recent coursework</h2></div><a href="#/instructor-courses">Manage in courses</a></div>${recentAssessments.length?`<div class="premium-assessment-feed">${recentAssessments.map(item=>`<a href="#/instructor-course-manage/${Number(item.course_id||0)}"><span class="classroom-row-icon">${icon(item._type==='Quiz'?'note':'project')}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.course_title||'Course')}${item.due_at?` · ${classroomDate(item.due_at)}`:''}</small></span><b>${item._type}</b></a>`).join('')}</div>`:'<p class="muted">No quiz or assignment has been created yet.</p>'}</section>
         <section class="panel"><div class="panel-head"><div><span class="eyebrow">Live teaching</span><h2>Next classes</h2></div><a href="#/instructor-live">Open Live Classes</a></div>${upcoming.length?`<div class="premium-live-mini">${upcoming.slice(0,5).map(item=>`<a href="#/instructor-live"><span class="live-dot"></span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.course_title||'Course')} · ${classroomDate(item.starts_at)}</small></span><b>${escapeHtml(liveStatus(item))}</b></a>`).join('')}</div>`:'<p class="muted">No live class is scheduled yet.</p>'}</section>
       </div>`;
     instructorShell('instructor-dashboard',content,`Welcome, ${escapeHtml(state.user.name.split(' ')[0])}.`,'A premium teaching workspace for your assigned academy courses.');
@@ -5323,10 +5448,52 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     lessonEntries(course||{}).forEach(item=>options.push(`<option value="${item.key}" ${String(selected)===item.key?'selected':''}>${escapeHtml(item.moduleTitle)} — ${escapeHtml(item.title)}</option>`));return options.join('');
   }
 
+  function instructorModeEnabled(course,mode){
+    const modes=Array.isArray(course?.deliveryModes)&&course.deliveryModes.length?course.deliveryModes:(Array.isArray(course?.delivery_modes)?course.delivery_modes:[course?.deliveryMode||'offline']);
+    return modes.includes(mode);
+  }
+  function instructorModeStatus(enabled){return `<span class="instructor-mode-status ${enabled?'is-enabled':'is-disabled'}">${enabled?'Enabled':'Not enabled by Admin'}</span>`;}
+  function instructorModeCard(course,mode,stats={}){
+    const enabled=instructorModeEnabled(course,mode);
+    const labels={offline:['Offline / Physical','Build the full classroom course content students use after an Offline enrollment.','classroom'],live:['Live','Schedule and teach Zoom classes for this assigned course.','radio'],recorded:['Recorded','Manage the Bunny Stream recorded-course lecture library.','video']};
+    const [title,desc,iconName]=labels[mode];
+    let action='';
+    if(mode==='offline') action=`<button class="button ${enabled?'button-primary':'button-secondary'} button-sm" type="button" data-action="instructor-offline-course-edit" data-id="${course.id}" ${enabled?'':'disabled'}>${icon('edit')} Prepare Offline Course</button>`;
+    if(mode==='live') action=enabled?`<a class="button button-primary button-sm" href="#/instructor-live">${icon('radio')} Open Live Classroom</a>`:`<button class="button button-secondary button-sm" disabled>${icon('radio')} Live not enabled</button>`;
+    if(mode==='recorded') action=enabled?`<a class="button button-primary button-sm" href="#/instructor-recorded-lectures">${icon('video')} Manage Recorded Lectures</a>`:`<button class="button button-secondary button-sm" disabled>${icon('video')} Recorded not enabled</button>`;
+    const meta=mode==='offline'?`${Number(course.lessons||0)} approved lesson${Number(course.lessons||0)===1?'':'s'}`:mode==='live'?`${Number(stats.live||0)} scheduled/live class${Number(stats.live||0)===1?'':'es'}`:`${Number(stats.recorded||0)} recorded lecture${Number(stats.recorded||0)===1?'':'s'}`;
+    return `<article class="instructor-mode-card ${enabled?'is-enabled':'is-disabled'}" data-mode="${mode}"><div class="instructor-mode-icon">${icon(iconName)}</div><div class="instructor-mode-copy"><div class="instructor-mode-title"><strong>${title}</strong>${instructorModeStatus(enabled)}</div><p>${desc}</p><small>${meta}</small></div><div class="instructor-mode-action">${action}</div></article>`;
+  }
+
+  function instructorCourseSequence(courseId){
+    const lectures=(state.instructorData.recorded_lectures||[]).filter(x=>Number(x.course_id)===Number(courseId)).map(x=>({...x,_type:'lecture',_order:Number(x.sort_order||0)}));
+    const quizzes=(state.instructorData.quizzes||[]).filter(x=>Number(x.course_id)===Number(courseId)).map(x=>({...x,_type:'quiz',_order:Number(x.sequence_order??999)}));
+    const assignments=(state.instructorData.assignments||[]).filter(x=>Number(x.course_id)===Number(courseId)).map(x=>({...x,_type:'assignment',_order:Number(x.sequence_order??999)}));
+    return [...lectures,...quizzes,...assignments].sort((a,b)=>a._order-b._order||Number(a.id)-Number(b.id));
+  }
+  function sequenceTypeMeta(item){if(item._type==='lecture')return {label:'Video lecture',icon:'play',tone:'lecture'};if(item._type==='assignment')return {label:'Assignment',icon:'project',tone:'assignment'};if(item.quiz_type==='final')return {label:'Final quiz',icon:'award',tone:'final'};return {label:'Checkpoint quiz',icon:'note',tone:'quiz'};}
+  function renderInstructorCourseManager(courseId){
+    const course=instructorCourses().find(c=>Number(c.id)===Number(courseId));if(!course){instructorShell('instructor-courses','<div class="panel empty-state"><h3>Course not available</h3></div>','Manage Course','Course curriculum');return;}
+    const sequence=instructorCourseSequence(courseId),nextOrder=sequence.length?Math.max(...sequence.map(x=>Number(x._order||0)))+1:1;
+    const rows=sequence.length?sequence.map((item,index)=>{const meta=sequenceTypeMeta(item),published=item.status!=='draft',subtitle=item._type==='lecture'?`${Number(item.duration_minutes||0)||'—'} min · video lecture`:item._type==='quiz'?`${(item.questions||[]).length} questions · ${item.can_skip?'skippable':'required before continuing'}`:`${Number(item.points||100)} points${item.due_at?` · Due ${classroomDate(item.due_at)}`:''}`,edit=item._type==='lecture'?'instructor-recorded-lecture-edit':item._type==='quiz'?'instructor-quiz-edit':'instructor-assignment-edit',del=item._type==='lecture'?'instructor-recorded-lecture-delete':item._type==='quiz'?'instructor-quiz-delete':'instructor-assignment-delete';return `<article class="coursera-sequence-item ${meta.tone}"><div class="coursera-sequence-index">${index+1}</div><span class="coursera-sequence-icon">${icon(meta.icon)}</span><div class="coursera-sequence-copy"><div><span class="course-category">${meta.label}</span>${item._type==='quiz'&&item.quiz_type==='final'?'<span class="final-quiz-badge">Final</span>':''}${item._type==='quiz'&&!item.can_skip?'<span class="required-badge">Required</span>':''}</div><h3>${escapeHtml(item.title||meta.label)}</h3><p>${escapeHtml(subtitle)}</p><small>Position ${Number(item._order||0)} · ${published?'Published':'Draft'}</small></div><div class="coursera-sequence-actions">${item._type==='lecture'?`<a class="button button-secondary button-sm" href="#/instructor-recorded-lectures/${courseId}/${item.id}">Preview</a>`:item._type==='quiz'?`<button class="button button-secondary button-sm" type="button" data-action="course-quiz-results" data-id="${item.id}">Results</button>`:`<button class="button button-secondary button-sm" type="button" data-action="course-assignment-submissions" data-id="${item.id}">Submissions</button>`}<button class="button button-secondary button-sm" type="button" data-action="${edit}" data-id="${item.id}" data-course="${courseId}">${icon('edit')} Edit</button><button class="button button-ghost button-sm is-danger" type="button" data-action="${del}" data-id="${item.id}" data-course="${courseId}">${icon('trash')}</button></div><div class="coursera-insert-after"><span>Insert after</span><button type="button" data-action="course-sequence-add-quiz" data-course="${courseId}" data-sequence="${Number(item._order||0)+0.1}">+ Quiz</button><button type="button" data-action="course-sequence-add-assignment" data-course="${courseId}" data-sequence="${Number(item._order||0)+0.1}">+ Assignment</button></div></article>`;}).join(''):`<div class="panel empty-state"><h3>Start building the course</h3><p>Add videos, quizzes and assignments in the order students should follow.</p></div>`;
+    const content=`<div class="course-manager-head"><a class="button button-secondary button-sm" href="#/instructor-courses">${icon('arrowLeft')} My Courses</a><div><span class="eyebrow">Course curriculum</span><h2>${escapeHtml(course.title)}</h2><p>One Coursera-style sequence. Put quizzes and assignments between any videos.</p></div></div><div class="course-manager-toolbar"><button class="button button-primary" type="button" data-action="instructor-recorded-lecture-new" data-course-id="${courseId}">${icon('plus')} Video Lecture</button><button class="button button-secondary" type="button" data-action="course-sequence-add-quiz" data-course="${courseId}" data-sequence="${nextOrder}">${icon('note')} Checkpoint Quiz</button><button class="button button-secondary" type="button" data-action="course-sequence-add-assignment" data-course="${courseId}" data-sequence="${nextOrder}">${icon('project')} Assignment</button><button class="button button-secondary final-quiz-button" type="button" data-action="course-sequence-add-final-quiz" data-course="${courseId}" data-sequence="${Math.max(9999,nextOrder)}">${icon('award')} Final Quiz</button></div><section class="course-sequence-list">${rows}</section>`;
+    instructorShell('instructor-courses',content,'Manage Course','Lectures, quizzes and assignments in one ordered learning path.');
+  }
+
+  function openCourseQuizResults(quizId){const quiz=(state.instructorData.quizzes||[]).find(x=>Number(x.id)===Number(quizId)),rows=(state.instructorData.quiz_attempts||[]).filter(x=>Number(x.quiz_id)===Number(quizId));if(!quiz)return;openClassroomModal(`${quiz.title} — Results`,`${rows.length} submitted attempt${rows.length===1?'':'s'}`,rows.length?`<div class="history-table-wrap"><table class="history-table"><thead><tr><th>Student</th><th>Score</th><th>Percent</th><th>Submitted</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.student_name||r.student_email||'Student')}</td><td>${Number(r.score||0)}/${Number(r.max_score||0)}</td><td><strong>${Number(r.percent||0)}%</strong></td><td>${classroomDate(r.submitted_at)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state compact"><p>No student has attempted this quiz yet.</p></div>');}
+  function openCourseAssignmentSubmissions(assignmentId){const a=(state.instructorData.assignments||[]).find(x=>Number(x.id)===Number(assignmentId)),rows=(state.instructorData.submissions||[]).filter(x=>Number(x.assignment_id)===Number(assignmentId));if(!a)return;openClassroomModal(`${a.title} — Submissions`,`${rows.length} submission${rows.length===1?'':'s'}`,rows.length?`<div class="history-table-wrap"><table class="history-table"><thead><tr><th>Student</th><th>Status</th><th>Grade</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.student_name||r.student_email||'Student')}</td><td><span class="status-pill">${escapeHtml(r.status||'submitted')}</span></td><td>${r.grade===null||r.grade===undefined?'—':`${Number(r.grade)}/${Number(r.points||a.points||0)}`}</td><td><button class="button button-secondary button-sm" type="button" data-action="instructor-grade-submission" data-id="${r.id}">Review</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state compact"><p>No submissions yet.</p></div>');}
+
   function renderInstructorCourses(){
-    const courses=instructorCourses(), quizzes=state.instructorData.quizzes||[], assignments=state.instructorData.assignments||[];
-    const content=`<div class="instructor-page-actions"><div><span class="eyebrow">Assigned courses</span><p>Every assigned course now has its own quiz and assignment tools. Course setup and instructor assignment remain controlled by academy administration.</p></div></div>${courses.length?`<div class="instructor-course-grid">${courses.map(c=>{const quizCount=quizzes.filter(q=>Number(q.course_id)===Number(c.id)).length,assignmentCount=assignments.filter(a=>Number(a.course_id)===Number(c.id)).length;return `<article class="panel instructor-course-card"><div class="instructor-course-cover">${c.image?imageMarkup(c.image,c.title,initials(c.title)):`<span>${icon('book')}</span>`}</div><div class="instructor-course-body"><span class="course-category">${escapeHtml(c.category)}</span><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.short||'Assigned academy course')}</p><div class="instructor-course-meta"><span>${c.lessons||0} lessons</span><span>${escapeHtml(c.approvalStatus||c.approval_status||'approved')}</span></div><div class="coursework-quick-actions"><button type="button" data-action="instructor-quiz-new" data-course="${c.id}">${icon('note')}<span><strong>Add Quiz</strong><small>${quizCount} quiz${quizCount===1?'':'zes'} in this course</small></span></button><button type="button" data-action="instructor-assignment-new" data-course="${c.id}">${icon('project')}<span><strong>Add Assignment</strong><small>${assignmentCount} assignment${assignmentCount===1?'':'s'} in this course</small></span></button></div><div class="row-actions"><button class="button button-primary button-sm" data-action="instructor-content-edit" data-id="${c.id}">${icon('lock')} Prepare Course Content</button><a class="button button-secondary button-sm" href="#/instructor-live">Live Classes</a>${c.visibility!=='private'&&c.status==='published'?`<a class="button button-secondary button-sm" href="#/course/${encodeURIComponent(c.slug)}" target="_blank">View Course</a>`:''}</div></div></article>`}).join('')}</div>`:`<div class="empty-state"><span class="empty-icon">${icon('book')}</span><h3>No course assigned yet</h3><p>Ask Admin Staff or your branch administration to assign a course to your instructor account. Once assigned, it will appear here automatically from MySQL.</p></div>`}`;
-    instructorShell('instructor-courses',content,'My Courses','Prepare lessons, quizzes and assignments for every assigned course.');
+    const courses=instructorCourses(), quizzes=state.instructorData.quizzes||[], assignments=state.instructorData.assignments||[], liveRows=state.instructorData.live_sessions||[], recordedRows=state.instructorData.recorded_lectures||[];
+    const content=`<section class="instructor-course-page-intro"><div><span class="eyebrow">Assigned courses</span><h2>Your teaching workspaces</h2><p>Every assigned course shows all three delivery types. Admin controls which modes are sold; you prepare the learning content for the modes enabled on your course.</p></div><div class="instructor-mode-legend"><span>${icon('classroom')} Offline</span><span>${icon('radio')} Live</span><span>${icon('video')} Recorded</span></div></section>${courses.length?`<div class="instructor-course-grid instructor-mode-course-grid">${courses.map(c=>{
+      const quizCount=quizzes.filter(q=>Number(q.course_id)===Number(c.id)).length;
+      const assignmentCount=assignments.filter(a=>Number(a.course_id)===Number(c.id)).length;
+      const liveCount=liveRows.filter(row=>Number(row.course_id)===Number(c.id)).length;
+      const recordedCount=recordedRows.filter(row=>Number(row.course_id)===Number(c.id)).length;
+      const pending=String(c.approvalStatus||'approved')==='pending';
+      return `<article class="panel instructor-course-card instructor-course-card-v111"><header class="instructor-course-summary"><div class="instructor-course-thumb">${c.image?imageMarkup(c.image,c.title,initials(c.title)):`<span>${icon('book')}</span>`}</div><div class="instructor-course-summary-copy"><div class="instructor-course-summary-top"><span class="course-category">${escapeHtml(c.category)}</span><span class="status-pill ${pending?'status-pending':''}">${pending?'Content pending approval':escapeHtml(c.approvalStatus||'approved')}</span></div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.short||'Assigned academy course')}</p><div class="instructor-course-summary-meta"><span>${icon('book')} ${Number(c.lessons||0)} lessons</span><span>${icon('users')} Assigned instructor course</span>${c.branchName?`<span>${icon('map')} ${escapeHtml(c.branchName)}</span>`:''}</div></div>${c.visibility!=='private'&&c.status==='published'?`<a class="button button-secondary button-sm instructor-course-view" href="#/course/${encodeURIComponent(c.slug)}" target="_blank">View Course</a>`:''}</header><div class="instructor-three-modes">${instructorModeCard(c,'offline',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'live',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'recorded',{live:liveCount,recorded:recordedCount})}</div><footer class="instructor-coursework-strip coursera-coursework-strip"><div><span>${icon('book')}</span><strong>Course curriculum</strong><small>${recordedCount} lecture${recordedCount===1?'':'s'} · ${quizCount} quiz${quizCount===1?'':'zes'} · ${assignmentCount} assignment${assignmentCount===1?'':'s'}</small></div><div class="instructor-course-card-actions">${instructorModeEnabled(c,'offline')?`<button class="button button-secondary button-sm" type="button" data-action="instructor-offline-course-edit" data-id="${c.id}">${icon('edit')} Edit Course</button>`:''}<a class="button button-primary button-sm" href="#/instructor-course-manage/${c.id}">Manage Course Curriculum ${icon('arrow')}</a></div></footer></article>`;
+    }).join('')}</div>`:`<div class="empty-state"><span class="empty-icon">${icon('book')}</span><h3>No course assigned yet</h3><p>Ask Admin Staff or your branch administration to assign a course to your instructor account. Once assigned, it will appear here automatically from MySQL.</p></div>`}`;
+    instructorShell('instructor-courses',content,'My Courses','Manage Offline course content, Live teaching and Recorded lectures for every assigned course.');
   }
 
   function renderInstructorLive(){
@@ -5382,13 +5549,30 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     </div><button class="button button-primary button-block" type="submit">${recording?'Update Recording':'Add Recording'}</button></form>`);
   }
 
+  function recordedLectureSource(raw){
+    let value=String(raw||'').trim();
+    if(!value)return {kind:'unknown',url:''};
+    const iframe=value.match(/<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i);
+    if(iframe)value=iframe[1];
+    value=value.replace(/&amp;/g,'&').trim();
+    let parsed=null;try{parsed=new URL(value,window.location.href);}catch(_){return {kind:'unknown',url:value};}
+    const host=String(parsed.hostname||'').toLowerCase();
+    const lower=value.toLowerCase();
+    if((host==='iframe.mediadelivery.net'||host==='player.mediadelivery.net') && /^\/embed\/[^/]+\/[^/?#]+/i.test(parsed.pathname))return {kind:'bunny',url:parsed.toString()};
+    if(/\.(mp4|webm|ogg)(\?|#|$)/i.test(lower))return {kind:'video',url:value};
+    const yt=value.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([^&?/]+)/i);
+    if(yt)return {kind:'youtube',url:`https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt[1])}?rel=0`};
+    const vm=value.match(/vimeo\.com\/(\d+)/i);
+    if(vm&&!host.includes('player.vimeo.com'))return {kind:'vimeo',url:`https://player.vimeo.com/video/${vm[1]}`};
+    if(host.includes('player.vimeo.com'))return {kind:'vimeo',url:value};
+    return {kind:'iframe',url:value};
+  }
+
   function recordedLectureEmbed(url,title){
-    const safe=escapeHtml(url||''), lower=String(url||'').toLowerCase();
-    if(/\.(mp4|webm|ogg)(\?|#|$)/i.test(lower)) return `<video id="recordedLectureVideo" controls playsinline preload="metadata" src="${safe}" aria-label="${escapeHtml(title||'Recorded lecture')}"></video>`;
-    let embed=String(url||'');
-    const yt=embed.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([^&?/]+)/i); if(yt) embed=`https://www.youtube-nocookie.com/embed/${yt[1]}?rel=0`;
-    const vm=embed.match(/vimeo\.com\/(\d+)/i); if(vm&&!embed.includes('player.vimeo.com')) embed=`https://player.vimeo.com/video/${vm[1]}`;
-    return `<iframe src="${escapeHtml(embed)}" title="${escapeHtml(title||'Recorded lecture')}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+    const source=recordedLectureSource(url),safe=escapeHtml(source.url||'');
+    if(source.kind==='video')return `<video id="recordedLectureVideo" controls playsinline preload="metadata" src="${safe}" aria-label="${escapeHtml(title||'Recorded lecture')}"></video>`;
+    if(source.kind==='bunny')return `<iframe id="recordedLectureBunnyPlayer" class="recorded-lecture-bunny" data-provider="bunny" src="${safe}" title="${escapeHtml(title||'Recorded lecture')}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+    return `<iframe src="${safe}" title="${escapeHtml(title||'Recorded lecture')}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
   }
 
   function recordedLectureGroups(rows=[]){
@@ -5407,79 +5591,532 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     return Math.round(total/items.length);
   }
 
+  function recordedTimeLabel(seconds=0){
+    const value=Math.max(0,Math.floor(Number(seconds)||0));
+    const hours=Math.floor(value/3600),minutes=Math.floor((value%3600)/60),secs=value%60;
+    return hours>0?`${hours}:${String(minutes).padStart(2,'0')}:${String(secs).padStart(2,'0')}`:`${minutes}:${String(secs).padStart(2,'0')}`;
+  }
+
   function nextRecordedLecture(items=[]){
     if(!items.length)return null;
-    const watched=[...items].filter(x=>x.last_watched_at).sort((a,b)=>new Date(b.last_watched_at)-new Date(a.last_watched_at));
+    const watched=[...items].filter(x=>x.last_watched_at||Number(x.last_position_seconds||0)>0).sort((a,b)=>{
+      const ad=a.last_watched_at?new Date(a.last_watched_at).getTime():0,bd=b.last_watched_at?new Date(b.last_watched_at).getTime():0;
+      if(ad!==bd)return bd-ad;
+      return Number(b.last_position_seconds||0)-Number(a.last_position_seconds||0);
+    });
     const active=watched.find(x=>!x.completed);if(active)return active;
     return items.find(x=>!x.completed)||watched[0]||items[0];
   }
 
+
+  function latestRecordedLectureActivity(items=state.studentRecordedLectures||[]){
+    const rows=[...(Array.isArray(items)?items:[])].filter(x=>x.last_watched_at||Number(x.last_position_seconds||0)>0||Number(x.watched_percent||0)>0);
+    if(!rows.length)return null;
+    rows.sort((a,b)=>{
+      const ad=a.last_watched_at?new Date(a.last_watched_at).getTime():0,bd=b.last_watched_at?new Date(b.last_watched_at).getTime():0;
+      if(ad!==bd)return bd-ad;
+      return Number(b.last_position_seconds||0)-Number(a.last_position_seconds||0);
+    });
+    return rows.find(x=>!x.completed)||rows[0]||null;
+  }
+
+  function recordedStudentResumePath(){
+    const recent=latestRecordedLectureActivity();
+    return recent?`/recorded-lectures/${Number(recent.course_id)}/${Number(recent.id)}`:'';
+  }
+
+  function rememberRecordedStudentLocation(courseId,lectureId,seconds=0){
+    try{
+      localStorage.setItem('fsaRecordedStudentReturn',JSON.stringify({
+        user:String(state.user?.email||state.user?.id||''),courseId:Number(courseId)||0,lectureId:Number(lectureId)||0,seconds:Math.max(0,Math.floor(Number(seconds)||0)),savedAt:Date.now()
+      }));
+    }catch(_){}
+  }
+
+  function renderRecordedLecturesEntry(){
+    const path=recordedStudentResumePath();
+    if(path){
+      const hash=`#${path}`;
+      if(window.location.hash!==hash){history.replaceState(null,'',hash);state.currentPath=path;}
+      const p=path.split('/').filter(Boolean);
+      renderRecordedLecturePlayer(Number(p[1]||0),Number(p[2]||0));
+      return;
+    }
+    renderRecordedLecturesArchive();
+  }
+
+  let recordedLectureTrackingCleanup=null;
+  let recordedLecturePreviewCleanup=null;
+  let recordedDiscussionCleanup=null;
+  let recordedLectureSeekHandler=null;
+  let recordedLecturePlaybackContext={lectureId:0,seconds:0,duration:0,playing:false};
+
+  function stopRecordedDiscussion(){
+    if(typeof recordedDiscussionCleanup==='function'){try{recordedDiscussionCleanup();}catch(_){}}
+    recordedDiscussionCleanup=null;
+  }
+  function stopRecordedLecturePreview(){
+    if(typeof recordedLecturePreviewCleanup==='function'){try{recordedLecturePreviewCleanup();}catch(_){}}
+    recordedLecturePreviewCleanup=null;
+  }
+  function setRecordedPlayingState(lectureId,playing){
+    recordedLecturePlaybackContext.playing=Boolean(playing);
+    document.querySelectorAll(`[data-recorded-lecture-id="${Number(lectureId)||0}"]`).forEach(el=>el.classList.toggle('is-playing',Boolean(playing)));
+  }
+  function updateRecordedDiscussionClock(seconds){
+    const label=recordedTimeLabel(seconds);
+    document.querySelectorAll('[data-role="discussion-current-time"]').forEach(el=>el.textContent=label);
+  }
+
+  function stopRecordedLectureTracking(){
+    if(typeof recordedLectureTrackingCleanup==='function'){
+      try{recordedLectureTrackingCleanup();}catch(_){}
+    }
+    recordedLectureTrackingCleanup=null;
+    recordedLectureSeekHandler=null;
+    recordedLecturePlaybackContext={lectureId:0,seconds:0,duration:0,playing:false};
+  }
+
   function renderRecordedLecturesArchive(){
+    stopRecordedLectureTracking();stopRecordedLecturePreview();stopRecordedDiscussion();
     const groups=recordedLectureGroups(state.studentRecordedLectures);
-    const content=`<section class="recorded-lecture-archive-head"><div><span class="eyebrow">On-demand learning</span><h2>Recorded Course Archive</h2><p>Only enrolled courses with published recorded lectures appear here. Your watch position and completion progress are stored in the backend.</p></div></section>${groups.length?`<div class="recorded-lecture-course-grid">${groups.map(group=>{
+    const content=`<section class="recorded-lecture-archive-head"><div><span class="eyebrow">On-demand learning</span><h2>Recorded Course Archive</h2><p>Only courses purchased in Recorded mode appear here. Offline and Live purchases stay in their own classrooms. Bunny Stream playback and your exact watch position are stored in the backend.</p></div></section>${groups.length?`<div class="recorded-lecture-course-grid">${groups.map(group=>{
       const done=group.items.filter(x=>x.completed).length,pct=recordedCourseProgress(group.items),next=nextRecordedLecture(group.items);
-      const status=next?.completed?'Course complete':Number(next?.watched_percent||0)>0?`Resume ${escapeHtml(next.title)}`:`Next: ${escapeHtml(next?.title||'Lecture 1')}`;
-      return `<article class="panel recorded-lecture-course-card"><a class="recorded-lecture-course-cover" href="#/recorded-lectures/${group.id}">${group.image?imageMarkup(group.image,group.title,initials(group.title)):`<span>${icon('play')}</span>`}<b>${group.items.length} lecture${group.items.length===1?'':'s'}</b></a><div class="recorded-lecture-course-copy"><span class="eyebrow">Recorded course</span><h3>${escapeHtml(group.title)}</h3><div class="recorded-progress-line"><span><i style="width:${pct}%"></i></span><strong>${pct}%</strong></div><p>${done} of ${group.items.length} completed</p><small class="recorded-next-label">${status}</small><a class="button button-primary" href="#/recorded-lectures/${group.id}/${next?.id||group.items[0].id}">${pct?'Continue learning':'Start lectures'} ${icon('arrow')}</a></div></article>`;
+      const resumeAt=Math.max(0,Number(next?.last_position_seconds||0));
+      const status=next?.completed?'Course complete':resumeAt>5?`Resume ${escapeHtml(next.title)} at ${recordedTimeLabel(resumeAt)}`:Number(next?.watched_percent||0)>0?`Resume ${escapeHtml(next.title)}`:`Next: ${escapeHtml(next?.title||'Lecture 1')}`;
+      return `<article class="panel recorded-lecture-course-card"><a class="recorded-lecture-course-cover" href="#/recorded-lectures/${group.id}/${next?.id||group.items[0].id}">${group.image?imageMarkup(group.image,group.title,initials(group.title)):`<span>${icon('play')}</span>`}<b>${group.items.length} lecture${group.items.length===1?'':'s'}</b></a><div class="recorded-lecture-course-copy"><span class="eyebrow">Recorded course</span><h3>${escapeHtml(group.title)}</h3><div class="recorded-progress-line"><span><i style="width:${pct}%"></i></span><strong>${pct}%</strong></div><p>${done} of ${group.items.length} completed</p><small class="recorded-next-label">${status}</small><a class="button button-primary" href="#/recorded-lectures/${group.id}/${next?.id||group.items[0].id}">${pct?'Continue learning':'Start lectures'} ${icon('arrow')}</a></div></article>`;
     }).join('')}</div>`:`<div class="panel empty-state"><span class="empty-icon">${icon('play')}</span><h3>No recorded lectures yet</h3><p>When your instructor publishes lectures for an enrolled course, that course will appear here automatically.</p></div>`}`;
     dashboardShell('recorded-lectures',content,'Recorded Lectures','Your course-by-course on-demand learning library.');
   }
 
+  function recordedDiscussionMarkup(courseId,current,mode='student'){
+    const lectureId=Number(current?.id||0);
+    return `<section class="recorded-comments-panel" data-discussion-course="${Number(courseId)}" data-discussion-mode="${escapeHtml(mode)}">
+      <div class="recorded-comments-head">
+        <div><span class="eyebrow">Course discussion</span><h3>Questions & discussion</h3><p>Discuss this recorded course like a lesson comment section. Reply to classmates, attach files and reference the exact video time.</p></div>
+      </div>
+      <form id="recordedDiscussionForm" class="recorded-comment-composer" enctype="multipart/form-data">
+        <input type="hidden" name="course_id" value="${Number(courseId)}"><input type="hidden" name="lecture_id" value="${lectureId}"><input type="hidden" name="video_seconds" value="0"><input type="hidden" name="attach_timestamp" value="0"><input type="hidden" name="reply_to_id" value="0">
+        <div class="recorded-discussion-reply-preview" data-role="discussion-reply-preview" hidden><div><span>Replying to</span><strong data-role="discussion-reply-name"></strong><small data-role="discussion-reply-text"></small></div><button type="button" data-action="recorded-discussion-cancel-reply" aria-label="Cancel reply">${icon('x')}</button></div>
+        <textarea name="message" rows="3" maxlength="5000" placeholder="Add a comment or ask a question about this course…"></textarea>
+        <div class="recorded-comment-compose-row">
+          <div class="recorded-comment-tools">
+            <label class="recorded-discussion-attach" title="Attach file">${icon('upload')}<span>Attach file</span><input type="file" name="attachment" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif"></label>
+            <button class="recorded-discussion-time" type="button" data-action="recorded-discussion-timestamp">${icon('clock')}<span>Video time <b data-role="discussion-current-time">0:00</b></span></button>
+            <span class="recorded-discussion-file-name" data-role="discussion-file-name"></span>
+          </div>
+          <button class="recorded-discussion-send" type="submit"><span>Comment</span>${icon('arrow')}</button>
+        </div>
+        <div class="recorded-discussion-context" data-role="discussion-time-context" hidden>${icon('clock')} Linked to <strong>${escapeHtml(current?.title||'this lecture')}</strong> at <b data-role="discussion-attached-time">0:00</b><button type="button" data-action="recorded-discussion-remove-time">Remove</button></div>
+      </form>
+      <div class="recorded-comments-list" id="recordedDiscussionMessages"><div class="recorded-discussion-loading"><span></span><span></span><span></span> Loading discussion…</div></div>
+    </section>`;
+  }
+
+  function recordedDiscussionMessageHtml(message){
+    const role=message.sender_role==='instructor'?'Instructor':message.sender_role==='student'?'Student':'Academy';
+    const avatar=message.sender_avatar?`<img src="${escapeHtml(siteAssetUrl(message.sender_avatar))}" alt="">`:escapeHtml(initials(message.sender_name||'User'));
+    const attachment=message.has_attachment?`<a class="recorded-comment-attachment" href="${API_URL}?action=recorded_course_discussion_attachment&id=${Number(message.id)}" target="_blank" rel="noopener">${icon('download')}<span><strong>${escapeHtml(message.attachment_name||'Attachment')}</strong><small>Open attachment</small></span></a>`:'';
+    const timeChip=message.video_seconds!==null&&message.lecture_id?`<button class="recorded-comment-video-ref" type="button" data-action="recorded-discussion-jump" data-course-id="${Number(message.course_id)}" data-lecture-id="${Number(message.lecture_id)}" data-seconds="${Number(message.video_seconds)}">${icon('play')}<span>${escapeHtml(message.lecture_title||'Lecture')} · ${recordedTimeLabel(message.video_seconds)}</span></button>`:'';
+    const reply=message.reply_to_id?`<div class="recorded-comment-quoted"><strong>${escapeHtml(message.reply_sender_name||'Reply')}</strong><span>${escapeHtml((message.reply_message||'Original comment').slice(0,170))}</span></div>`:'';
+    const body=message.deleted?`<p class="recorded-comment-deleted">${icon('trash')} Comment removed by moderator</p>`:`${reply}${message.message?`<p class="recorded-comment-text">${textHtml(message.message)}</p>`:''}${timeChip}${attachment}`;
+    return `<article class="recorded-comment ${message.reply_to_id?'is-reply':''} ${message.sender_role==='instructor'?'is-instructor':''} ${message.deleted?'is-deleted':''}" data-message-id="${Number(message.id)}">
+      <div class="recorded-comment-avatar">${avatar}</div>
+      <div class="recorded-comment-main">
+        <div class="recorded-comment-meta"><strong>${escapeHtml(message.sender_name||'Academy Member')}</strong>${message.sender_role==='instructor'?'<span class="recorded-comment-role">Instructor</span>':''}<time>${message.created_at?new Date(message.created_at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''}</time></div>
+        ${body}
+        <div class="recorded-comment-actions">${!message.deleted?`<button type="button" data-action="recorded-discussion-reply" data-id="${Number(message.id)}" data-name="${escapeHtml(message.sender_name||'Member')}" data-text="${escapeHtml((message.message||message.attachment_name||'Attachment').slice(0,180))}">${icon('discussion')} Reply</button>`:''}${message.can_delete?`<button class="is-danger" type="button" data-action="recorded-discussion-delete" data-id="${Number(message.id)}">${icon('trash')} Delete</button>`:''}</div>
+      </div>
+    </article>`;
+  }
+
+  async function refreshRecordedDiscussion(courseId,{stickToBottom=false,silent=false}={}){
+    const box=document.getElementById('recordedDiscussionMessages');if(!box)return;
+    try{
+      const beforeBottom=box.scrollHeight-box.scrollTop-box.clientHeight<90;
+      const result=await apiRequest('recorded_course_discussion_list',{method:'POST',body:{course_id:Number(courseId)}});
+      if(!document.getElementById('recordedDiscussionMessages'))return;
+      const messages=Array.isArray(result.messages)?result.messages:[];
+      const signature=messages.map(m=>`${m.id}:${m.deleted?1:0}:${m.message?.length||0}:${m.video_seconds??''}`).join('|');
+      if(box.dataset.signature!==signature){
+        box.dataset.signature=signature;
+        box.innerHTML=messages.length?messages.map(recordedDiscussionMessageHtml).join(''):`<div class="recorded-discussion-empty">${icon('discussion')}<h3>Start the course discussion</h3><p>Ask the first question, share a resource or mention a moment from the video.</p></div>`;
+        if(stickToBottom||beforeBottom)box.scrollTop=box.scrollHeight;
+      }
+    }catch(error){if(!silent)box.innerHTML=`<div class="recorded-discussion-error">${escapeHtml(error.message)}</div>`;}
+  }
+
+  function initRecordedDiscussion(courseId,current,mode='student'){
+    stopRecordedDiscussion();
+    const box=document.getElementById('recordedDiscussionMessages');if(!box)return;
+    updateRecordedDiscussionClock(recordedLecturePlaybackContext.lectureId===Number(current?.id)?recordedLecturePlaybackContext.seconds:0);
+    refreshRecordedDiscussion(courseId,{stickToBottom:true});
+    const timer=setInterval(()=>refreshRecordedDiscussion(courseId,{silent:true}),4000);
+    recordedDiscussionCleanup=()=>clearInterval(timer);
+  }
+
+  function initInstructorRecordedPreview(lecture){
+    stopRecordedLecturePreview();
+    const video=document.getElementById('recordedLectureVideo'),bunny=document.getElementById('recordedLectureBunnyPlayer');
+    recordedLecturePlaybackContext={lectureId:Number(lecture.id),seconds:0,duration:0,playing:false};updateRecordedDiscussionClock(0);setRecordedPlayingState(lecture.id,false);
+    let active=true;
+    if(bunny&&window.playerjs&&typeof window.playerjs.Player==='function'){
+      const player=new window.playerjs.Player(bunny);const parse=d=>{try{return typeof d==='string'?JSON.parse(d):d||{};}catch(_){return {};}};
+      player.on('ready',()=>{try{const pending=JSON.parse(sessionStorage.getItem('fsaRecordedJump')||'null');if(pending&&Number(pending.lectureId)===Number(lecture.id)){sessionStorage.removeItem('fsaRecordedJump');setTimeout(()=>player.setCurrentTime(Math.max(0,Number(pending.seconds)||0)),250);}}catch(_){}});
+      const onTime=d=>{const t=parse(d);recordedLecturePlaybackContext.seconds=Math.max(0,Number(t.seconds||0));recordedLecturePlaybackContext.duration=Math.max(0,Number(t.duration||0));updateRecordedDiscussionClock(recordedLecturePlaybackContext.seconds);};
+      const onPlay=()=>setRecordedPlayingState(lecture.id,true),onPause=()=>setRecordedPlayingState(lecture.id,false),onEnded=()=>setRecordedPlayingState(lecture.id,false);
+      player.on('timeupdate',onTime);player.on('play',onPlay);player.on('pause',onPause);player.on('ended',onEnded);recordedLectureSeekHandler=seconds=>{try{player.setCurrentTime(Math.max(0,Number(seconds)||0));}catch(_){}};
+      recordedLecturePreviewCleanup=()=>{active=false;setRecordedPlayingState(lecture.id,false);recordedLectureSeekHandler=null;try{player.off('timeupdate',onTime);player.off('play',onPlay);player.off('pause',onPause);player.off('ended',onEnded);}catch(_){}};return;
+    }
+    if(video){video.addEventListener('loadedmetadata',()=>{try{const pending=JSON.parse(sessionStorage.getItem('fsaRecordedJump')||'null');if(pending&&Number(pending.lectureId)===Number(lecture.id)){sessionStorage.removeItem('fsaRecordedJump');setTimeout(()=>{video.currentTime=Math.max(0,Number(pending.seconds)||0);},100);}}catch(_){}} ,{once:true});const onTime=()=>{if(!active)return;recordedLecturePlaybackContext.seconds=video.currentTime||0;recordedLecturePlaybackContext.duration=video.duration||0;updateRecordedDiscussionClock(recordedLecturePlaybackContext.seconds);};const onPlay=()=>setRecordedPlayingState(lecture.id,true),onPause=()=>setRecordedPlayingState(lecture.id,false),onEnded=()=>setRecordedPlayingState(lecture.id,false);video.addEventListener('timeupdate',onTime);video.addEventListener('play',onPlay);video.addEventListener('pause',onPause);video.addEventListener('ended',onEnded);recordedLectureSeekHandler=seconds=>{try{video.currentTime=Math.max(0,Number(seconds)||0);}catch(_){}};recordedLecturePreviewCleanup=()=>{active=false;setRecordedPlayingState(lecture.id,false);recordedLectureSeekHandler=null;video.removeEventListener('timeupdate',onTime);video.removeEventListener('play',onPlay);video.removeEventListener('pause',onPause);video.removeEventListener('ended',onEnded);};}
+  }
+
+  function recordedLectureStrip(items=[],current,mode='student',courseId=0){
+    const rows=Array.isArray(items)?items:[];
+    return `<nav class="recorded-lecture-strip" aria-label="Course lectures"><div class="recorded-lecture-strip-track">${rows.map((r,i)=>{
+      const active=Number(r.id)===Number(current?.id),done=Boolean(r.completed),published=r.status!=='draft';
+      const href=mode==='instructor'?`#/instructor-recorded-lectures/${Number(courseId)}/${Number(r.id)}`:`#/recorded-lectures/${Number(courseId)}/${Number(r.id)}`;
+      const progress=mode==='student'?(done?'Completed':Number(r.watched_percent||0)>0?`${Math.round(Number(r.watched_percent||0))}% watched`:'Not started'):(published?'Published':'Draft');
+      return `<a class="recorded-lecture-step ${active?'active':''} ${done?'done':''}" data-recorded-lecture-id="${Number(r.id)}" href="${href}"><span class="recorded-lecture-step-number">${done?'✓':i+1}</span><span class="recorded-lecture-step-copy"><strong>${escapeHtml(r.title||`Lecture ${i+1}`)}</strong><small>${escapeHtml(progress)}</small></span>${active?`<span class="recorded-lecture-step-playing" aria-label="Current lecture"><i></i><i></i><i></i></span>`:''}</a>`;
+    }).join('')}</div></nav>`;
+  }
+
+  function recordedFileSize(bytes=0){
+    const n=Math.max(0,Number(bytes)||0);if(!n)return '';
+    if(n<1024)return `${n} B`;if(n<1048576)return `${(n/1024).toFixed(n<10240?1:0)} KB`;
+    return `${(n/1048576).toFixed(n<10485760?1:0)} MB`;
+  }
+
+  function recordedResourceListMarkup(current,mode='student'){
+    const resources=Array.isArray(current?.resources)?current.resources:[];
+    if(!resources.length)return `<div class="recorded-tab-empty">${icon('download')}<div><strong>No resources added yet</strong><p>Your instructor can attach PDFs, project files, archives, spreadsheets, images, source files or external links to each recorded lecture.</p></div></div>`;
+    return `<div class="recorded-resource-list">${resources.map(resource=>{
+      const url=resource.external_url?escapeHtml(resource.external_url):`${API_URL}?action=recorded_lecture_resource_download&id=${Number(resource.id)}`;
+      const meta=[resource.original_name||'',recordedFileSize(resource.size_bytes),resource.mime_type||''].filter(Boolean).join(' · ');
+      return `<article class="recorded-resource-card"><span class="recorded-resource-icon">${icon('download')}</span><div class="recorded-resource-copy"><strong>${escapeHtml(resource.title||resource.original_name||'Lecture resource')}</strong>${resource.description?`<p>${escapeHtml(resource.description)}</p>`:''}<small>${escapeHtml(meta||'Course resource')}</small></div><a class="button button-secondary button-sm" href="${url}" ${resource.external_url?'target="_blank" rel="noopener"':''}>Open</a>${mode==='instructor'?`<button class="button button-ghost button-sm is-danger" type="button" data-action="instructor-recorded-resource-delete" data-id="${Number(resource.id)}" data-lecture-id="${Number(current.id)}">${icon('trash')}</button>`:''}</article>`;
+    }).join('')}</div>`;
+  }
+
+  function recordedLectureTabContent(courseId,current,tab='overview',mode='student'){
+    if(tab==='notes'&&mode==='student')return `<div class="recorded-tab-panel"><div class="recorded-tab-heading"><span class="eyebrow">Private notes</span><h3>Your notes for ${escapeHtml(current.title)}</h3><p>Saved to your learner account and only visible to you.</p></div><textarea class="form-control recorded-note-area" id="recordedLectureNotes" placeholder="Write key ideas, questions, code snippets or revision notes...">${escapeHtml(current.note||'')}</textarea><button class="button button-primary button-sm" type="button" data-action="recorded-note-save" data-id="${Number(current.id)}">Save Notes</button></div>`;
+    if(tab==='resources')return `<div class="recorded-tab-panel"><div class="recorded-tab-heading"><span class="eyebrow">Downloads & resources</span><h3>Lecture resources</h3><p>Files and links shared specifically for this recorded lecture.</p></div>${recordedResourceListMarkup(current,mode)}</div>`;
+    if(tab==='discussion')return recordedDiscussionMarkup(courseId,current,mode);
+    return `<div class="recorded-tab-panel recorded-overview-tab recorded-overview-simple">${current.description?`<p>${escapeHtml(current.description)}</p>`:`<p class="muted">No lecture overview has been added yet.</p>`}</div>`;
+  }
+
+  function studentRecordedSequence(courseId){
+    const lectures=(state.studentRecordedLectures||[]).filter(x=>Number(x.course_id)===Number(courseId)).map(x=>({...x,_type:'lecture',_order:Number(x.sort_order||0),_complete:Boolean(x.completed)}));
+    const work=(state.studentCoursework||[]).filter(x=>Number(x.course_id)===Number(courseId)&&['quiz','assignment'].includes(x.type)).map(x=>({...x,_type:x.type,_order:Number(x.sequence_order??999),_complete:Boolean(x.completed)}));
+    return [...lectures,...work].sort((a,b)=>a._order-b._order||Number(a.id)-Number(b.id));
+  }
+  function recordedSequenceGate(sequence){const i=sequence.findIndex(x=>x._type==='quiz'&&!x.can_skip&&!x.completed&&Number(x.attempts_used||0)<1);return i<0?sequence.length:i;}
+  function courseworkItemById(type,id){return (state.studentCoursework||[]).find(x=>x.type===type&&Number(x.id)===Number(id));}
+  function recordedSequenceSidebar(courseId,currentLecture){
+    const sequence=studentRecordedSequence(courseId),gate=recordedSequenceGate(sequence);
+    return `<aside class="curriculum-sidebar recorded-course-sidebar coursera-student-sequence"><div class="curriculum-sidebar-head"><h2>Course content</h2><p class="muted">${sequence.filter(x=>x._complete).length} of ${sequence.length} items complete</p></div><div class="player-module-lessons">${sequence.map((item,index)=>{
+      const locked=index>gate,meta=sequenceTypeMeta(item),active=item._type==='lecture'&&Number(item.id)===Number(currentLecture?.id),complete=Boolean(item._complete);let attrs='';
+      if(item._type==='lecture')attrs=locked?'':`href="#/recorded-lectures/${courseId}/${item.id}"`;
+      else if(item._type==='quiz')attrs=locked?'':`href="#/recorded-lectures/${courseId}/${Number(currentLecture?.id||0)}" data-action="student-open-course-quiz" data-id="${item.id}"`;
+      else attrs=locked?'':`href="#/recorded-lectures/${courseId}/${Number(currentLecture?.id||0)}" data-action="student-open-course-assignment" data-id="${item.id}"`;
+      const status=locked?'Locked':complete?'Completed':item._type==='quiz'?(item.can_skip?'Optional quiz':'Required quiz'):item._type==='assignment'?'Assignment':Number(item.watched_percent||0)>0?`${Math.round(Number(item.watched_percent))}% watched`:(item.duration_minutes?`${Number(item.duration_minutes)} min`:'Lecture');
+      return `<a class="player-lesson recorded-sidebar-lesson course-sequence-student-item ${complete?'completed':''} ${active?'active':''} ${locked?'is-locked':''} ${meta.tone}" ${attrs}><span class="player-lesson-status">${locked?icon('lock'):complete?icon('check'):item._type==='quiz'?icon(item.quiz_type==='final'?'award':'note'):item._type==='assignment'?icon('project'):active?icon('play'):index+1}</span><span><strong>${escapeHtml(item.title||meta.label)}</strong><span>${escapeHtml(status)}</span></span>${active?'<span class="recorded-now-playing"><i></i><i></i><i></i></span>':''}</a>`;
+    }).join('')}</div></aside>`;
+  }
+
+  function recordedSequenceNavMarkup(item,courseId,currentLectureId,direction='next'){
+    const isPrev=direction==='previous',label=isPrev?'Previous':'Next',arrow=isPrev?`${icon('arrowLeft')} `:` ${icon('arrow')}`;
+    if(!item)return `<button class="button button-secondary button-sm" type="button" disabled>${isPrev?arrow:''}${label}${!isPrev?arrow:''}</button>`;
+    if(item._type==='lecture')return `<a class="button button-secondary button-sm" href="#/recorded-lectures/${courseId}/${item.id}">${isPrev?arrow:''}${label}${!isPrev?arrow:''}</a>`;
+    const action=item._type==='quiz'?'student-open-course-quiz':'student-open-course-assignment';
+    const itemLabel=item._type==='quiz'?(item.quiz_type==='final'?'Final Quiz':'Quiz'):'Assignment';
+    return `<button class="button button-secondary button-sm sequence-nav-coursework" type="button" data-action="${action}" data-id="${item.id}" title="${escapeHtml(item.title||itemLabel)}">${isPrev?arrow:''}${isPrev?label:`${itemLabel} · ${label}`}${!isPrev?arrow:''}</button>`;
+  }
+  function openRecordedStudentQuiz(quizId){const quiz=courseworkItemById('quiz',quizId);if(!quiz)return toast('Quiz is not available.','error');const questions=Array.isArray(quiz.questions)?quiz.questions:[];if(!questions.length)return toast('This quiz has no questions yet.','error');const left=Math.max(0,Number(quiz.attempts_allowed||1)-Number(quiz.attempts_used||0));if(left<1)return toast('No quiz attempts remaining.','error');openStudentClassroomModal(quiz.title,`<div class="quiz-wizard-intro"><span class="eyebrow">${quiz.quiz_type==='final'?'Final Quiz':'Course Checkpoint'}</span><p>${escapeHtml(quiz.description||'Complete this quiz to continue.')}</p><div class="quiz-rule-row"><span>${quiz.can_skip?'Optional · you may skip':'Required before later content unlocks'}</span><span>${left} attempt${left===1?'':'s'} remaining</span></div><div class="quiz-wizard-progress"><div><strong data-role="quiz-step-label">Question 1 of ${questions.length}</strong><span>${questions.length} questions</span></div><div class="progress-track"><div class="progress-fill" data-role="quiz-progress-fill" style="width:${Math.round(100/questions.length)}%"></div></div></div></div><form id="studentQuizForm" class="auth-form student-quiz-wizard" data-step="0" data-recorded-course="${quiz.course_id}"><input type="hidden" name="quiz_id" value="${quiz.id}"><div class="student-quiz-steps">${questions.map((q,index)=>`<fieldset class="student-quiz-step ${index===0?'active':''}" data-step="${index}"><legend><span>${index+1}</span><span>${escapeHtml(q.question)}</span></legend><div class="quiz-option-list">${(q.options||[]).map((option,oi)=>`<label><input type="radio" name="q_${escapeHtml(q.id)}" value="${oi}"><span class="quiz-option-letter">${String.fromCharCode(65+oi)}</span><span>${escapeHtml(option)}</span></label>`).join('')}</div><small class="quiz-question-points">${Number(q.points||1)} point${Number(q.points||1)===1?'':'s'}</small></fieldset>`).join('')}</div><div class="quiz-wizard-nav"><button class="button button-secondary" type="button" data-action="student-quiz-prev" hidden>${icon('arrowLeft')} Previous</button><span>Submit to unlock the next required course item.</span><button class="button button-primary" type="button" data-action="student-quiz-next" ${questions.length===1?'hidden':''}>Next ${icon('arrow')}</button><button class="button button-primary" type="submit" data-role="quiz-submit" ${questions.length>1?'hidden':''}>Submit Quiz</button></div></form>`);}
+  function openRecordedStudentAssignment(assignmentId){const a=courseworkItemById('assignment',assignmentId);if(!a)return toast('Assignment is not available.','error');openStudentClassroomModal(a.title,`<div class="assignment-brief premium"><div class="assignment-brief-top"><div><span class="course-category">Course Assignment</span><p>${textHtml(a.instructions||'Complete the assignment and submit your work below.')}</p></div><div class="assignment-meta"><span>${Number(a.points||0)} points</span>${a.due_at?`<span>Due ${classroomDate(a.due_at)}</span>`:'<span>No deadline</span>'}</div></div>${a.attachment_url?`<a class="assignment-resource-link" href="${escapeHtml(a.attachment_url)}" target="_blank" rel="noopener">${icon('download')}<span><strong>Instructor attachment</strong><small>Open the assignment resource</small></span>${icon('arrow')}</a>`:''}</div><form id="studentAssignmentForm" class="auth-form classroom-assignment-form" enctype="multipart/form-data" data-recorded-course="${a.course_id}"><input type="hidden" name="assignment_id" value="${a.id}"><input type="hidden" name="file_url" value=""><div class="form-group"><label>Written response</label><textarea class="form-control" rows="6" name="submission_text"></textarea></div><div class="form-group"><label>Attachment</label><label class="classroom-upload"><input type="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.jpg,.jpeg,.png,.webp"><span class="classroom-upload-icon">${icon('upload')}</span><span class="classroom-upload-copy"><strong>Choose a file</strong><small data-role="classroom-file-name">PDF, Office, ZIP, image or text · max 20 MB</small></span><span class="classroom-upload-button">Browse</span></label></div><button class="button button-primary button-block" type="submit">Turn In Assignment</button></form>`);}
+
+  function recordedCurriculumSidebar(rows,current,mode='student'){
+    const instructor=mode==='instructor',done=instructor?rows.filter(x=>x.status==='published').length:rows.filter(x=>x.completed).length;
+    const summary=instructor?`${done} of ${rows.length} lectures published`:`${done} of ${rows.length} lectures complete`;
+    return `<aside class="curriculum-sidebar recorded-course-sidebar"><div class="curriculum-sidebar-head"><h2>Course content</h2><p class="muted">${summary}</p></div><article class="player-module open"><button class="player-module-head" type="button"><span><strong>Recorded lectures</strong><span>${rows.length} lecture${rows.length===1?'':'s'}</span></span></button><div class="player-module-lessons">${rows.map((row,index)=>{
+      const active=Number(row.id)===Number(current.id),status=instructor?(row.status==='published'?'Published':'Draft'):(row.completed?'Completed':Number(row.watched_percent||0)>0?`${Math.round(Number(row.watched_percent))}% watched`:(row.duration_minutes?`${Number(row.duration_minutes)} min`:'Not started'));
+      const href=instructor?`#/instructor-recorded-lectures/${Number(row.course_id)}/${Number(row.id)}`:`#/recorded-lectures/${Number(row.course_id)}/${Number(row.id)}`;
+      return `<a class="player-lesson recorded-sidebar-lesson ${!instructor&&row.completed?'completed':''} ${active?'active':''}" href="${href}" data-recorded-lecture-id="${Number(row.id)}"><span class="player-lesson-status">${!instructor&&row.completed?icon('check'):active?icon('play'):index+1}</span><span><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(status)}</span></span>${active?'<span class="recorded-now-playing"><i></i><i></i><i></i></span>':''}</a>`;
+    }).join('')}</div></article></aside>`;
+  }
+
   function renderRecordedLecturePlayer(courseId,lectureId=0){
-    courseId=Number(courseId);const rows=(state.studentRecordedLectures||[]).filter(x=>Number(x.course_id)===courseId).sort((a,b)=>Number(a.sort_order)-Number(b.sort_order)||Number(a.id)-Number(b.id));
-    if(!rows.length){renderRecordedLecturesArchive();return;}
-    const current=rows.find(x=>Number(x.id)===Number(lectureId))||nextRecordedLecture(rows)||rows[0];
-    const index=rows.findIndex(x=>Number(x.id)===Number(current.id)),done=rows.filter(x=>x.completed).length,pct=recordedCourseProgress(rows);
-    const next=rows.slice(index+1).find(x=>!x.completed)||rows.find(x=>!x.completed&&Number(x.id)!==Number(current.id));
-    const content=`<div class="recorded-player-shell"><section class="recorded-player-main"><div class="recorded-player-stage">${recordedLectureEmbed(current.video_url,current.title)}</div><div class="recorded-player-info"><div><span class="eyebrow">Lecture ${index+1} of ${rows.length}</span><h2>${escapeHtml(current.title)}</h2><p>${escapeHtml(current.description||'Recorded lecture for this course.')}</p><div class="recorded-player-meta"><span>${current.duration_minutes?`${Number(current.duration_minutes)} min`:'Self-paced'}</span><span>${current.completed?'Completed':Number(current.watched_percent||0)>0?`${Math.round(Number(current.watched_percent))}% watched`:'Not started'}</span></div></div><div class="recorded-player-actions"><button class="button ${current.completed?'button-secondary':'button-primary'}" data-action="recorded-lecture-complete" data-id="${current.id}">${current.completed?'✓ Completed':'Mark as watched'}</button>${next?`<a class="button button-secondary" href="#/recorded-lectures/${courseId}/${next.id}">Next Lecture ${icon('arrow')}</a>`:''}</div></div></section><aside class="recorded-player-playlist"><div class="recorded-playlist-head"><a class="recorded-playlist-back" href="#/recorded-lectures">${icon('arrowLeft','recorded-playlist-back-icon')}<span>Back to archive</span></a><div class="recorded-playlist-course"><span class="eyebrow">Course lectures</span><h3>${escapeHtml(current.course_title)}</h3></div><div class="recorded-progress-summary"><div class="recorded-progress-copy"><strong>${pct}% complete</strong><span>${done} of ${rows.length} lectures watched</span></div><div class="recorded-progress-line"><span><i style="width:${pct}%"></i></span></div></div><small class="recorded-progress-save">Progress is saved automatically to your account.</small></div><div class="recorded-playlist-items">${rows.map((r,i)=>`<a class="recorded-playlist-item ${Number(r.id)===Number(current.id)?'active':''} ${r.completed?'done':''}" href="#/recorded-lectures/${courseId}/${r.id}"><span class="lecture-seq">${r.completed?'✓':i+1}</span><span><strong>${escapeHtml(r.title)}</strong><small>${r.duration_minutes?`${r.duration_minutes} min · `:''}${r.completed?'Completed':Number(r.watched_percent)>0?`${Math.round(Number(r.watched_percent))}% watched`:(Number(r.id)===Number(current.id)?'Now playing':'Not started')}</small><i><b style="width:${r.completed?100:Math.round(Number(r.watched_percent||0))}%"></b></i></span></a>`).join('')}</div></aside></div>`;
-    dashboardShell('recorded-lectures',content,current.course_title||'Recorded Lectures','Watch on the left, follow the course sequence on the right, and continue from your saved position.');
-    setTimeout(()=>initRecordedLectureTracking(current),0);
+    stopRecordedLectureTracking();stopRecordedLecturePreview();stopRecordedDiscussion();
+    courseId=Number(courseId);
+    const rows=(state.studentRecordedLectures||[]).filter(x=>Number(x.course_id)===courseId).sort((a,b)=>Number(a.sort_order)-Number(b.sort_order)||Number(a.id)-Number(b.id));
+    if(!rows.length){
+      const empty=`<div class="recorded-library-toolbar premium-recorded-toolbar"><a href="#/recorded-lectures/archive">${icon('arrowLeft')}<span>Recorded Course Archive</span></a></div><div class="panel empty-state recorded-private-empty"><span class="empty-icon">${icon('play')}</span><h3>No recorded lectures yet</h3><p>This account only receives recorded lessons for courses purchased in Recorded mode. Ask the academy if you expected access here.</p><a class="button button-primary" href="#/my-courses">Back to My Courses</a></div>`;
+      dashboardShell('recorded-lectures',empty,'Recorded Course','No recorded lectures are available for this purchase.');
+      return;
+    }
+
+    const courseSequence=studentRecordedSequence(courseId),gate=recordedSequenceGate(courseSequence);
+    let current=rows.find(x=>Number(x.id)===Number(lectureId))||nextRecordedLecture(rows)||rows[0];
+    let currentSequenceIndex=courseSequence.findIndex(x=>x._type==='lecture'&&Number(x.id)===Number(current.id));
+    if(currentSequenceIndex>gate){
+      const fallback=[...courseSequence.slice(0,gate+1)].reverse().find(x=>x._type==='lecture');
+      if(fallback){
+        current=rows.find(x=>Number(x.id)===Number(fallback.id))||current;
+        currentSequenceIndex=courseSequence.findIndex(x=>x._type==='lecture'&&Number(x.id)===Number(current.id));
+        setTimeout(()=>toast('Complete the required quiz before continuing to later course items.','error'),0);
+      }
+    }
+
+    const index=rows.findIndex(x=>Number(x.id)===Number(current.id));
+    const sequenceDone=courseSequence.filter(x=>x._complete).length,pct=courseSequence.length?Math.round((sequenceDone/courseSequence.length)*100):recordedCourseProgress(rows);
+    currentSequenceIndex=courseSequence.findIndex(x=>x._type==='lecture'&&Number(x.id)===Number(current.id));
+    const previousSequence=currentSequenceIndex>0?courseSequence[currentSequenceIndex-1]:null;
+    const nextSequence=currentSequenceIndex>=0&&currentSequenceIndex<courseSequence.length-1?courseSequence[currentSequenceIndex+1]:null;
+    const resumeAt=Math.max(0,Number(current.last_position_seconds||0));
+    const totalMinutes=rows.reduce((sum,x)=>sum+Number(x.duration_minutes||0),0);
+    const courseTitle=current.course_title||'Recorded Course';
+    rememberRecordedStudentLocation(courseId,current.id,resumeAt);
+    if(!['overview','notes','resources','discussion'].includes(state.recordedLessonTab))state.recordedLessonTab='overview';
+
+    const content=`<div class="recorded-library-toolbar premium-recorded-toolbar student-recorded-toolbar">
+        <a href="#/recorded-lectures/archive">${icon('arrowLeft')}<span>Recorded Course Archive</span></a>
+        <div class="recorded-toolbar-actions"><span class="recorded-toolbar-course">${escapeHtml(courseTitle)}</span><span class="recorded-learning-status ${pct>=100?'is-complete':pct>0?'is-active':'is-pending'}">${pct>=100?'Completed':pct>0?'In progress':'Not started'}</span></div>
+      </div>
+      <div class="recorded-course-overview compact-recorded-admin-stats recorded-student-course-stats">
+        <article><span>${icon('play')}</span><div><strong>${courseSequence.length}</strong><small>Course items</small></div></article>
+        <article><span>${icon('check')}</span><div><strong>${sequenceDone}</strong><small>Completed</small></div></article>
+        <article><span>${icon('clock')}</span><div><strong>${totalMinutes?`${totalMinutes}m`:'—'}</strong><small>Video duration</small></div></article>
+        <article><span>${icon('history')}</span><div><strong>${pct}%</strong><small>Course progress</small></div></article>
+      </div>
+      <section class="player-shell recorded-private-course-shell recorded-instructor-private-shell recorded-student-private-shell coursera-course-player">
+        <div class="player-layout recorded-private-layout">
+          <main class="lesson-stage recorded-private-stage">
+            <div class="recorded-private-video">${recordedLectureEmbed(current.video_url,current.title)}</div>
+            <div class="lesson-title-row recorded-private-title-row recorded-student-title-row">
+              <div><span class="course-category">Recorded Course${current.completed?' · Completed':''}</span><h1>${escapeHtml(current.title)}</h1><p>Lecture ${index+1} of ${rows.length}${current.duration_minutes?` · ${Number(current.duration_minutes)} min`:''}${resumeAt>5&&!current.completed?` · Resume from ${recordedTimeLabel(resumeAt)}`:''}</p></div>
+              <div class="lesson-nav-actions coursera-sequence-nav">
+                ${recordedSequenceNavMarkup(previousSequence,courseId,current.id,'previous')}
+                <button class="button ${current.completed?'button-secondary':'button-primary'} button-sm" type="button" data-action="recorded-lecture-complete" data-id="${current.id}" ${current.completed?'disabled':''}>${icon('check')} ${current.completed?'Completed':'Mark Complete'}</button>
+                ${recordedSequenceNavMarkup(nextSequence,courseId,current.id,'next')}
+              </div>
+            </div>
+            <div class="tabs recorded-private-tabs">${[['overview','Overview'],['notes','Notes'],['resources','Resources'],['discussion','Discussion']].map(([key,label])=>`<button class="tab-button ${state.recordedLessonTab===key?'active':''}" type="button" data-action="recorded-lesson-tab" data-tab="${key}">${label}</button>`).join('')}</div>
+            <div id="recordedLessonTabPanel">${recordedLectureTabContent(courseId,current,state.recordedLessonTab,'student')}</div>
+          </main>
+          ${recordedSequenceSidebar(courseId,current)}
+        </div>
+      </section>`;
+
+    dashboardShell('recorded-lectures',content,courseTitle,'Recorded course · Continue exactly where you left off.');
+    setTimeout(()=>{
+      initRecordedLectureTracking(current);
+      if(state.recordedLessonTab==='discussion')initRecordedDiscussion(courseId,current,'student');
+    },0);
   }
 
   function initRecordedLectureTracking(lecture){
+    stopRecordedLectureTracking();
     const video=document.getElementById('recordedLectureVideo');
-    const touch=async()=>{try{await apiRequest('student_recorded_lecture_progress',{method:'POST',body:{lecture_id:lecture.id,position_seconds:Number(lecture.last_position_seconds||0),watched_percent:Number(lecture.watched_percent||0),completed:Boolean(lecture.completed)}})}catch(_){}};
+    const bunny=document.getElementById('recordedLectureBunnyPlayer');
+    const saved=Math.max(0,Number(lecture.last_position_seconds||0));
+    const originalPercent=Math.max(0,Number(lecture.watched_percent||0));
+    let active=true;
+    recordedLecturePlaybackContext={lectureId:Number(lecture.id),seconds:saved,duration:0,playing:false};
+    updateRecordedDiscussionClock(saved);setRecordedPlayingState(lecture.id,false);
+
+    const updateLocal=(seconds,duration,completed=false)=>{
+      if(!active)return;
+      const safeSeconds=Math.max(0,Math.floor(Number(seconds)||0));
+      const percent=completed?100:(duration>0?Math.max(0,Math.min(100,(safeSeconds/duration)*100)):originalPercent);
+      lecture.last_position_seconds=safeSeconds;
+      lecture.watched_percent=Math.max(Number(lecture.watched_percent||0),percent);
+      if(completed||percent>=95)lecture.completed=true;
+      lecture.last_watched_at=new Date().toISOString();
+      rememberRecordedStudentLocation(lecture.course_id,lecture.id,safeSeconds);
+    };
+
+    const touch=async()=>{try{await apiRequest('student_recorded_lecture_progress',{method:'POST',body:{lecture_id:lecture.id,position_seconds:saved,watched_percent:originalPercent,completed:Boolean(lecture.completed)}})}catch(_){}};
+
+    if(bunny && window.playerjs && typeof window.playerjs.Player==='function'){
+      const player=new window.playerjs.Player(bunny);
+      let lastSave=0,lastSeconds=saved,lastDuration=0,finishing=false,resumePending=saved>5,resumeAttempts=0;
+      const timers=[];
+      const parseTiming=data=>{try{return typeof data==='string'?JSON.parse(data):data||{};}catch(_){return {};}};
+      const attemptResume=()=>{
+        if(!active||!resumePending||resumeAttempts>=6)return;
+        resumeAttempts++;
+        try{player.setCurrentTime(saved);}catch(_){}
+      };
+      const save=async(force=false,completed=false,keepalive=false)=>{
+        if(!active||!lastDuration||!isFinite(lastDuration))return;
+        if(resumePending && lastSeconds+3<saved)return;
+        const now=Date.now();if(!force&&now-lastSave<5000)return;lastSave=now;
+        const percent=completed?100:Math.max(0,Math.min(100,(lastSeconds/lastDuration)*100));
+        updateLocal(lastSeconds,lastDuration,completed||percent>=95);
+        try{await apiRequest('student_recorded_lecture_progress',{method:'POST',keepalive,body:{lecture_id:lecture.id,position_seconds:Math.floor(lastSeconds),watched_percent:percent,completed:completed||percent>=95}})}catch(_){}
+      };
+      const onReady=()=>{
+        touch();
+        try{const pending=JSON.parse(sessionStorage.getItem('fsaRecordedJump')||'null');if(pending&&Number(pending.lectureId)===Number(lecture.id)){sessionStorage.removeItem('fsaRecordedJump');setTimeout(()=>{try{player.setCurrentTime(Math.max(0,Number(pending.seconds)||0));}catch(_){}},350);}}catch(_){}
+        if(resumePending){
+          attemptResume();
+          [250,700,1400,2400].forEach(ms=>timers.push(setTimeout(attemptResume,ms)));
+        }
+      };
+      const onTimeUpdate=timingData=>{
+        const data=parseTiming(timingData);
+        const seconds=Math.max(0,Number(data.seconds||0)),duration=Math.max(0,Number(data.duration||0));
+        if(duration>0)lastDuration=duration;
+        lastSeconds=seconds;recordedLecturePlaybackContext.seconds=seconds;recordedLecturePlaybackContext.duration=lastDuration;updateRecordedDiscussionClock(seconds);
+        if(resumePending){
+          if(lastDuration>0 && saved>=lastDuration-3){resumePending=false;}
+          else if(seconds+3<saved){attemptResume();return;}
+          else resumePending=false;
+        }
+        save(false,false,false);
+      };
+      const onPlay=()=>setRecordedPlayingState(lecture.id,true);
+      const onPause=()=>{setRecordedPlayingState(lecture.id,false);save(true,false,false);};
+      const onEnded=async()=>{setRecordedPlayingState(lecture.id,false);if(finishing)return;finishing=true;resumePending=false;await save(true,true,false);await syncStudentData();renderRecordedLecturePlayer(lecture.course_id,lecture.id);initPage();};
+      const flush=()=>{save(true,false,true);};
+      const visibility=()=>{if(document.visibilityState==='hidden')flush();};
+      player.on('ready',onReady);player.on('timeupdate',onTimeUpdate);player.on('play',onPlay);player.on('pause',onPause);player.on('ended',onEnded);
+      recordedLectureSeekHandler=seconds=>{try{player.setCurrentTime(Math.max(0,Number(seconds)||0));}catch(_){}};
+      window.addEventListener('pagehide',flush);window.addEventListener('beforeunload',flush);document.addEventListener('visibilitychange',visibility);
+      recordedLectureTrackingCleanup=()=>{
+        save(true,false,true);
+        active=false;timers.forEach(clearTimeout);
+        window.removeEventListener('pagehide',flush);window.removeEventListener('beforeunload',flush);document.removeEventListener('visibilitychange',visibility);
+        setRecordedPlayingState(lecture.id,false);recordedLectureSeekHandler=null;
+        try{player.off('ready',onReady);player.off('timeupdate',onTimeUpdate);player.off('play',onPlay);player.off('pause',onPause);player.off('ended',onEnded);}catch(_){}
+      };
+      return;
+    }
+
     if(!video){touch();return;}
-    const saved=Number(lecture.last_position_seconds||0);let lastSave=0;
-    video.addEventListener('loadedmetadata',()=>{if(saved>0&&saved<video.duration-5)video.currentTime=saved;touch();});
-    const save=async(force=false)=>{if(!video.duration||!isFinite(video.duration))return;const now=Date.now();if(!force&&now-lastSave<8000)return;lastSave=now;const percent=Math.min(100,(video.currentTime/video.duration)*100);try{await apiRequest('student_recorded_lecture_progress',{method:'POST',body:{lecture_id:lecture.id,position_seconds:Math.floor(video.currentTime),watched_percent:percent,completed:percent>=95}})}catch(_){}};
-    video.addEventListener('timeupdate',()=>save(false));video.addEventListener('pause',()=>save(true));video.addEventListener('ended',async()=>{await save(true);await syncStudentData();renderRecordedLecturePlayer(lecture.course_id,lecture.id);initPage();});
+    let lastSave=0,resumePending=saved>5;
+    const applyResume=()=>{
+      if(!resumePending||!video.duration||!isFinite(video.duration))return;
+      const target=Math.min(saved,Math.max(0,video.duration-1));
+      if(target>5){try{video.currentTime=target;}catch(_){}}
+    };
+    const save=async(force=false,keepalive=false)=>{
+      if(!active||!video.duration||!isFinite(video.duration))return;
+      if(resumePending && video.currentTime+3<saved)return;
+      const now=Date.now();if(!force&&now-lastSave<5000)return;lastSave=now;
+      const percent=Math.min(100,(video.currentTime/video.duration)*100);
+      updateLocal(video.currentTime,video.duration,percent>=95);
+      try{await apiRequest('student_recorded_lecture_progress',{method:'POST',keepalive,body:{lecture_id:lecture.id,position_seconds:Math.floor(video.currentTime),watched_percent:percent,completed:percent>=95}})}catch(_){}
+    };
+    const onLoaded=()=>{applyResume();touch();try{const pending=JSON.parse(sessionStorage.getItem('fsaRecordedJump')||'null');if(pending&&Number(pending.lectureId)===Number(lecture.id)){sessionStorage.removeItem('fsaRecordedJump');setTimeout(()=>{try{video.currentTime=Math.max(0,Number(pending.seconds)||0);}catch(_){}},120);}}catch(_){}};
+    const onTime=()=>{recordedLecturePlaybackContext.seconds=video.currentTime||0;recordedLecturePlaybackContext.duration=video.duration||0;updateRecordedDiscussionClock(recordedLecturePlaybackContext.seconds);if(resumePending){if(video.currentTime+3<saved){applyResume();return;}resumePending=false;}save(false,false);};
+    const onPlay=()=>setRecordedPlayingState(lecture.id,true);
+    const onPause=()=>{setRecordedPlayingState(lecture.id,false);save(true,false);};
+    const onEnded=async()=>{setRecordedPlayingState(lecture.id,false);resumePending=false;await save(true,false);await syncStudentData();renderRecordedLecturePlayer(lecture.course_id,lecture.id);initPage();};
+    const flush=()=>{save(true,true);};
+    const visibility=()=>{if(document.visibilityState==='hidden')flush();};
+    video.addEventListener('loadedmetadata',onLoaded);video.addEventListener('loadeddata',applyResume);video.addEventListener('timeupdate',onTime);video.addEventListener('play',onPlay);video.addEventListener('pause',onPause);video.addEventListener('ended',onEnded);
+    recordedLectureSeekHandler=seconds=>{try{video.currentTime=Math.max(0,Number(seconds)||0);}catch(_){}};
+    window.addEventListener('pagehide',flush);window.addEventListener('beforeunload',flush);document.addEventListener('visibilitychange',visibility);
+    recordedLectureTrackingCleanup=()=>{
+      save(true,true);
+      active=false;window.removeEventListener('pagehide',flush);window.removeEventListener('beforeunload',flush);document.removeEventListener('visibilitychange',visibility);
+      setRecordedPlayingState(lecture.id,false);recordedLectureSeekHandler=null;
+      video.removeEventListener('loadedmetadata',onLoaded);video.removeEventListener('loadeddata',applyResume);video.removeEventListener('timeupdate',onTime);video.removeEventListener('play',onPlay);video.removeEventListener('pause',onPause);video.removeEventListener('ended',onEnded);
+    };
+  }
+
+  function recordedResourceEntryMarkup(index=0){
+    return `<article class="recorded-resource-entry" data-resource-entry="${index}"><div class="recorded-resource-entry-head"><div><strong>New resource</strong><small>Add one file or one external link, with its own title and description.</small></div><button class="recorded-resource-entry-remove" type="button" data-action="instructor-recorded-resource-entry-remove" aria-label="Remove resource">${icon('trash')}</button></div><div class="form-grid"><div class="form-group"><label>Resource title <small>Required</small></label><input class="form-control" type="text" maxlength="190" data-resource-title placeholder="Worksheet / Project files / Reading"></div><div class="form-group"><label>External resource URL <small>Optional if uploading a file</small></label><input class="form-control" type="url" data-resource-url placeholder="https://..."></div><div class="form-group full"><label>Resource description <small>Required</small></label><textarea class="form-control" rows="3" data-resource-description placeholder="Explain what this resource contains and how the student should use it."></textarea></div><div class="form-group full"><label>Resource file <small>Optional if using a URL · max 50 MB</small></label><label class="classroom-upload recorded-resource-upload"><input type="file" data-resource-file><span class="classroom-upload-icon">${icon('upload')}</span><span class="classroom-upload-copy"><strong>Choose one resource file</strong><small data-role="recorded-resource-file-name">PDF, Office, ZIP, project/source files, images, audio/video and other safe files</small></span><span class="classroom-upload-button">Browse</span></label></div></div></article>`;
   }
 
   function openInstructorRecordedLectureForm(item=null,presetCourseId=0){
     const courses=state.instructorData.courses||[];if(!courses.length){toast('No course is assigned to your instructor account.','error');return;}
-    const selectedCourseId=Number(item?.course_id||presetCourseId||courses[0]?.id||0);const same=(state.instructorData.recorded_lectures||[]).filter(x=>Number(x.course_id)===selectedCourseId);const next=same.length?Math.max(...same.map(x=>Number(x.sort_order||0)))+1:1;
-    openClassroomModal(item?'Edit recorded lecture':'Add recorded lecture','Add the video link, title and description. The lecture is attached only to a course assigned to your instructor account.',`<form id="recordedLectureForm" class="auth-form"><input type="hidden" name="id" value="${item?.id||''}"><div class="form-grid"><div class="form-group"><label>Course</label><select class="form-control" name="course_id" required>${courses.map(c=>`<option value="${c.id}" ${Number(c.id)===selectedCourseId?'selected':''}>${escapeHtml(c.title)}</option>`).join('')}</select></div><div class="form-group"><label>Sequence / order</label><input class="form-control" name="sort_order" type="number" min="1" value="${item?.sort_order||next}" required></div><div class="form-group full"><label>Lecture title</label><input class="form-control" name="title" required maxlength="190" value="${escapeHtml(item?.title||'')}" placeholder="Lecture 01 — Introduction"></div><div class="form-group full"><label>Video / lecture link</label><input class="form-control" name="video_url" type="url" required placeholder="https://..." value="${escapeHtml(item?.video_url||'')}"><small>Direct MP4/WebM links support exact resume position. YouTube, Vimeo and other secure embeds support completion tracking.</small></div><div class="form-group"><label>Duration (minutes)</label><input class="form-control" name="duration_minutes" type="number" min="0" value="${item?.duration_minutes||0}"></div><div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="published" ${item?.status!=='draft'?'selected':''}>Published</option><option value="draft" ${item?.status==='draft'?'selected':''}>Draft</option></select></div><div class="form-group full"><label>Description</label><textarea class="form-control" name="description" rows="5" placeholder="What will students learn in this lecture?">${escapeHtml(item?.description||'')}</textarea></div></div><div class="classroom-modal-actions"><button type="button" class="button button-secondary" data-action="classroom-modal-close">Cancel</button><button type="button" class="button button-primary" data-action="instructor-recorded-lecture-save">${item?'Save changes':'Publish lecture'}</button></div></form>`);
+    const selectedCourseId=Number(item?.course_id||presetCourseId||courses[0]?.id||0),same=(state.instructorData.recorded_lectures||[]).filter(x=>Number(x.course_id)===selectedCourseId),next=same.length?Math.max(...same.map(x=>Number(x.sort_order||0)))+1:1;
+    const source=recordedLectureSource(item?.video_url||''),isBunny=source.kind==='bunny',resources=Array.isArray(item?.resources)?item.resources:[];
+    const resourceList=resources.length?`<div class="recorded-form-existing-resources">${resources.map(resource=>`<article><span>${icon('download')}</span><div><strong>${escapeHtml(resource.title||resource.original_name||'Resource')}</strong>${resource.description?`<p>${escapeHtml(resource.description)}</p>`:''}<small>${escapeHtml(resource.original_name||resource.mime_type||'Lecture resource')}</small></div><button type="button" data-action="instructor-recorded-resource-delete" data-id="${Number(resource.id)}" data-lecture-id="${Number(item.id)}">${icon('trash')}</button></article>`).join('')}</div>`:'<p class="muted recorded-resource-help">No resources attached yet.</p>';
+    openClassroomModal(item?'Edit recorded lecture':'Add recorded lecture','Add the Bunny video, lecture details and optional downloadable resources. Students open the Recorded Course in a dedicated private course page.',`<form id="recordedLectureForm" class="auth-form" enctype="multipart/form-data"><input type="hidden" name="id" value="${item?.id||''}"><div class="form-grid">
+      <div class="form-group"><label>Course</label><select class="form-control" name="course_id" required>${courses.map(c=>`<option value="${c.id}" ${Number(c.id)===selectedCourseId?'selected':''}>${escapeHtml(c.title)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Sequence / order</label><input class="form-control" name="sort_order" type="number" min="1" value="${item?.sort_order||next}" required></div>
+      <div class="form-group full"><label>Lecture title</label><input class="form-control" name="title" required maxlength="190" value="${escapeHtml(item?.title||'')}" placeholder="Lecture 01 — Introduction"></div>
+      <div class="form-group full"><label>Bunny Stream iframe / embed URL</label><textarea class="form-control" name="video_url" rows="3" required placeholder='https://iframe.mediadelivery.net/embed/LIBRARY_ID/VIDEO_ID'>${escapeHtml(item?.video_url||'')}</textarea><small>${isBunny?'✓ Bunny Stream embed detected.':'Paste the Bunny iframe code or only its src URL. YouTube/Vimeo/direct links remain supported for old test lectures.'}</small></div>
+      <div class="form-group"><label>Duration (minutes)</label><input class="form-control" name="duration_minutes" type="number" min="0" value="${item?.duration_minutes||0}"></div>
+      <div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="published" ${item?.status!=='draft'?'selected':''}>Published</option><option value="draft" ${item?.status==='draft'?'selected':''}>Draft</option></select></div>
+      <div class="form-group full"><label>Description</label><textarea class="form-control" name="description" rows="5" placeholder="What will students learn in this lecture?">${escapeHtml(item?.description||'')}</textarea></div>
+      <div class="form-group full recorded-resource-field"><div class="recorded-resource-section-head"><div><label>Lecture resources</label><small>Each resource has its own title, description and either a file or external URL.</small></div><button class="button button-secondary button-sm" type="button" data-action="instructor-recorded-resource-entry-add">${icon('plus')} Add another resource</button></div>${resourceList}<div id="recordedResourceEntries">${recordedResourceEntryMarkup(0)}</div></div>
+    </div><div class="classroom-modal-actions"><button type="button" class="button button-secondary" data-action="classroom-modal-close">Cancel</button><button type="button" class="button button-primary" data-action="instructor-recorded-lecture-save">${item?'Save changes':'Publish lecture'}</button></div></form>`);
   }
 
   function instructorRecordedProgressTable(courseId,lectures){
     const students=(state.instructorData.students||[]).filter(s=>(s.course_ids||[]).map(Number).includes(Number(courseId)));
     const progress=state.instructorData.recorded_lecture_progress||[];
-    if(!students.length)return `<div class="empty-state compact"><h3>No enrolled students</h3><p>Watch progress will appear after students are enrolled in this course.</p></div>`;
-    return `<div class="recorded-progress-table-wrap"><table class="history-table recorded-progress-table"><thead><tr><th>Student</th><th>Completed</th><th>Progress</th><th>Current / Next</th><th>Last watched</th></tr></thead><tbody>${students.map(student=>{
+    if(!students.length)return `<div class="recorded-progress-empty"><span>${icon('users')}</span><div><h3>No enrolled students yet</h3><p>Student watch progress will appear here automatically as soon as a learner is enrolled in this course.</p></div></div>`;
+
+    const studentRows=students.map(student=>{
       const rows=progress.filter(p=>Number(p.user_id)===Number(student.id)&&Number(p.course_id)===Number(courseId));
       const byLecture=id=>rows.find(p=>Number(p.lecture_id)===Number(id));
       const completed=lectures.filter(l=>byLecture(l.id)?.completed).length;
       const pct=lectures.length?Math.round(lectures.reduce((sum,l)=>sum+(byLecture(l.id)?.completed?100:Number(byLecture(l.id)?.watched_percent||0)),0)/lectures.length):0;
       const latest=[...rows].filter(r=>r.last_watched_at).sort((a,b)=>new Date(b.last_watched_at)-new Date(a.last_watched_at))[0];
       const next=lectures.find(l=>!byLecture(l.id)?.completed);
-      const current=latest&&!latest.completed?`Watching: ${latest.lecture_title}`:next?`Next: ${next.title}`:'Course complete';
-      return `<tr><td><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.email||'')}</small></td><td>${completed}/${lectures.length}</td><td><div class="recorded-table-progress"><span><i style="width:${pct}%"></i></span><b>${pct}%</b></div></td><td>${escapeHtml(current)}</td><td>${latest?.last_watched_at?classroomDate(latest.last_watched_at):'Not started'}</td></tr>`;
-    }).join('')}</tbody></table></div>`;
+      const current=latest&&!latest.completed?`Watching · ${latest.lecture_title}`:next?`Next · ${next.title}`:'All lectures completed';
+      const status=pct>=100?'Completed':pct>0?'In progress':'Not started';
+      const statusClass=pct>=100?'is-complete':pct>0?'is-active':'is-idle';
+      return {student,completed,pct,latest,current,status,statusClass};
+    });
+
+    const avg=Math.round(studentRows.reduce((sum,row)=>sum+row.pct,0)/Math.max(1,studentRows.length));
+    const completedStudents=studentRows.filter(row=>row.pct>=100).length;
+    const activeStudents=studentRows.filter(row=>row.pct>0&&row.pct<100).length;
+
+    return `<div class="recorded-progress-dashboard">
+      <div class="recorded-progress-metrics">
+        <article><span class="recorded-metric-icon">${icon('users')}</span><div><strong>${studentRows.length}</strong><small>Enrolled learners</small></div></article>
+        <article><span class="recorded-metric-icon">${icon('check')}</span><div><strong>${completedStudents}</strong><small>Course completed</small></div></article>
+        <article><span class="recorded-metric-icon">${icon('play')}</span><div><strong>${activeStudents}</strong><small>Currently learning</small></div></article>
+        <article><span class="recorded-metric-icon">${icon('history')}</span><div><strong>${avg}%</strong><small>Average progress</small></div></article>
+      </div>
+      <div class="recorded-progress-table-wrap"><table class="recorded-progress-table"><thead><tr><th>Learner</th><th>Status</th><th>Lecture progress</th><th>Current / next</th><th>Last activity</th></tr></thead><tbody>${studentRows.map(({student,completed,pct,latest,current,status,statusClass})=>`<tr>
+        <td><button class="recorded-student-link" type="button" data-action="instructor-view-student" data-id="${student.id}"><span class="recorded-student-avatar">${escapeHtml(initials(student.name||'Student'))}</span><span><strong>${escapeHtml(student.name||'Student')}</strong><small>${escapeHtml(student.email||student.student_code||'Learner')}</small></span></button></td>
+        <td><span class="recorded-learning-status ${statusClass}">${status}</span></td>
+        <td><div class="recorded-table-progress"><div class="recorded-progress-label"><span>${completed}/${lectures.length} lectures</span><b>${pct}%</b></div><span class="recorded-table-track"><i style="width:${pct}%"></i></span></div></td>
+        <td><span class="recorded-current-next">${escapeHtml(current)}</span></td>
+        <td><span class="recorded-last-activity">${latest?.last_watched_at?classroomDate(latest.last_watched_at):'No activity yet'}</span></td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>`;
   }
 
   function renderInstructorRecordedLectures(courseId=0,lectureId=0){
+    stopRecordedLectureTracking();stopRecordedLecturePreview();stopRecordedDiscussion();
     const rows=state.instructorData.recorded_lectures||[],courses=state.instructorData.courses||[],groups=recordedLectureGroups(rows);
     courseId=Number(courseId||0);lectureId=Number(lectureId||0);
     if(!courseId){
       const content=`<div class="recorded-lecture-admin-head"><div><span class="eyebrow">On-demand course library</span><h2>Recorded Course Archive</h2><p>This is separate from Zoom Live Recordings. Only courses that already contain recorded lectures appear in this archive.</p></div><button class="button button-primary" data-action="instructor-recorded-lecture-new" ${courses.length?'':'disabled'}>${icon('plus')} Add Recorded Lecture</button></div>${groups.length?`<div class="recorded-lecture-course-grid">${groups.map(group=>{const published=group.items.filter(x=>x.status==='published').length;return `<article class="panel recorded-lecture-course-card"><a class="recorded-lecture-course-cover" href="#/instructor-recorded-lectures/${group.id}">${group.image?imageMarkup(group.image,group.title,initials(group.title)):`<span>${icon('play')}</span>`}<b>${group.items.length} lecture${group.items.length===1?'':'s'}</b></a><div class="recorded-lecture-course-copy"><span class="eyebrow">${published} published</span><h3>${escapeHtml(group.title)}</h3><p>${group.items.length-published} draft · sequence controlled by lecture order</p><a class="button button-primary" href="#/instructor-recorded-lectures/${group.id}">Manage Course ${icon('arrow')}</a></div></article>`;}).join('')}</div>`:`<div class="panel empty-state"><span class="empty-icon">${icon('play')}</span><h3>No recorded lectures yet</h3><p>Add the first lecture link to one of your assigned courses. That course will then appear here.</p><button class="button button-primary" data-action="instructor-recorded-lecture-new">+ Add First Lecture</button></div>`}`;
-      instructorShell('instructor-recorded-lectures',content,'Recorded Lectures','Build ordered recorded courses and monitor learner watch progress.');return;
+      instructorShell('instructor-recorded-lectures',content,'Recorded Lectures','Build ordered recorded courses and host a private course discussion.');return;
     }
     const group=groups.find(g=>Number(g.id)===courseId),course=courses.find(c=>Number(c.id)===courseId);
     if(!course){instructorShell('instructor-recorded-lectures',`<div class="panel empty-state"><h3>Course not available</h3><p>This course is not assigned to your instructor account.</p></div>`,'Recorded Lectures','Manage assigned recorded courses.');return;}
-    if(!group){const content=`<div class="recorded-library-toolbar"><a href="#/instructor-recorded-lectures">${icon('arrowLeft')} Archive</a><button class="button button-primary" data-action="instructor-recorded-lecture-new" data-course-id="${course.id}">+ Add Lecture</button></div><div class="panel empty-state"><h3>No lectures in ${escapeHtml(course.title)}</h3><p>Add the first video link to create the recorded course library.</p></div>`;instructorShell('instructor-recorded-lectures',content,course.title,'Recorded lecture management');return;}
+    if(!group){const content=`<div class="recorded-library-toolbar premium-recorded-toolbar"><a href="#/instructor-recorded-lectures">${icon('arrowLeft')} Archive</a><button class="button button-primary" data-action="instructor-recorded-lecture-new" data-course-id="${course.id}">+ Add Lecture</button></div><div class="panel empty-state"><h3>No lectures in ${escapeHtml(course.title)}</h3><p>Add the first video link to create the recorded course library.</p></div>`;instructorShell('instructor-recorded-lectures',content,course.title,'Recorded lecture management');return;}
     const current=group.items.find(x=>Number(x.id)===lectureId)||group.items[0],index=group.items.findIndex(x=>Number(x.id)===Number(current.id));
-    const content=`<div class="recorded-library-toolbar"><a href="#/instructor-recorded-lectures">${icon('arrowLeft')} Recorded Course Archive</a><button class="button button-primary" data-action="instructor-recorded-lecture-new" data-course-id="${course.id}">+ Add Lecture</button></div><div class="recorded-player-shell instructor-recorded-preview"><section class="recorded-player-main"><div class="recorded-player-stage">${recordedLectureEmbed(current.video_url,current.title)}</div><div class="recorded-player-info"><div><span class="eyebrow">Lecture ${index+1} of ${group.items.length} · ${escapeHtml(current.status)}</span><h2>${escapeHtml(current.title)}</h2><p>${escapeHtml(current.description||'No description added yet.')}</p></div><div class="recorded-player-actions"><button class="button button-primary" data-action="instructor-recorded-lecture-edit" data-id="${current.id}">${icon('edit')} Edit Lecture</button></div></div></section><aside class="recorded-player-playlist"><div class="recorded-playlist-head"><h3>${escapeHtml(group.title)}</h3><small>Lecture sequence shown to students</small></div><div class="recorded-playlist-items">${group.items.map((r,i)=>`<div class="recorded-playlist-item recorded-playlist-admin ${Number(r.id)===Number(current.id)?'active':''}"><a href="#/instructor-recorded-lectures/${course.id}/${r.id}"><span class="lecture-seq">${i+1}</span><span><strong>${escapeHtml(r.title)}</strong><small>${r.duration_minutes?`${r.duration_minutes} min · `:''}${escapeHtml(r.status)}</small></span></a><span class="recorded-playlist-admin-actions"><button data-action="instructor-recorded-lecture-edit" data-id="${r.id}" aria-label="Edit">${icon('edit')}</button><button data-action="instructor-recorded-lecture-delete" data-id="${r.id}" aria-label="Delete">${icon('trash')}</button></span></div>`).join('')}</div></aside></div><section class="panel recorded-progress-panel"><div class="panel-head"><div><span class="eyebrow">Learner progress</span><h2>Student watch progress</h2><p>See exactly where each enrolled student is and which lecture comes next.</p></div></div>${instructorRecordedProgressTable(course.id,group.items)}</section>`;
-    instructorShell('instructor-recorded-lectures',content,group.title,'Preview the lecture library, manage sequence and monitor student progress.');
+    const publishedCount=group.items.filter(x=>x.status==='published').length,totalMinutes=group.items.reduce((sum,x)=>sum+Number(x.duration_minutes||0),0),studentCount=(state.instructorData.students||[]).filter(s=>(s.course_ids||[]).map(Number).includes(Number(course.id))).length;
+    if(!['overview','resources','discussion'].includes(state.recordedLessonTab))state.recordedLessonTab='overview';
+    const content=`<div class="recorded-library-toolbar premium-recorded-toolbar"><a href="#/instructor-recorded-lectures">${icon('arrowLeft')}<span>Recorded Course Archive</span></a><div class="recorded-toolbar-actions"><span class="recorded-toolbar-course">${escapeHtml(group.title)}</span><button class="button button-primary" data-action="instructor-recorded-lecture-new" data-course-id="${course.id}">${icon('plus')} Add Lecture</button></div></div>
+      <div class="recorded-course-overview compact-recorded-admin-stats"><article><span>${icon('play')}</span><div><strong>${group.items.length}</strong><small>Lectures</small></div></article><article><span>${icon('check')}</span><div><strong>${publishedCount}</strong><small>Published</small></div></article><article><span>${icon('clock')}</span><div><strong>${totalMinutes?`${totalMinutes}m`:'—'}</strong><small>Duration</small></div></article><article><span>${icon('users')}</span><div><strong>${studentCount}</strong><small>Learners</small></div></article></div>
+      <section class="player-shell recorded-private-course-shell recorded-instructor-private-shell">
+        <div class="player-layout recorded-private-layout">
+          <main class="lesson-stage recorded-private-stage">
+            <div class="recorded-private-video">${recordedLectureEmbed(current.video_url,current.title)}</div>
+            <div class="lesson-title-row recorded-private-title-row recorded-instructor-title-row">
+              <div><span class="course-category">Recorded Course · ${escapeHtml(current.status||'draft')}</span><h1>${escapeHtml(current.title)}</h1><p>Lecture ${index+1} of ${group.items.length}${current.duration_minutes?` · ${Number(current.duration_minutes)} min`:''}</p></div>
+              <div class="lesson-nav-actions"><button class="button button-secondary button-sm" type="button" data-action="instructor-recorded-lecture-edit" data-id="${current.id}">${icon('edit')} Edit Lecture</button><button class="button button-ghost button-sm is-danger" type="button" data-action="instructor-recorded-lecture-delete" data-id="${current.id}">${icon('trash')} Delete</button></div>
+            </div>
+            <div class="tabs recorded-private-tabs">${[['overview','Overview'],['resources','Resources'],['discussion','Discussion']].map(([key,label])=>`<button class="tab-button ${state.recordedLessonTab===key?'active':''}" type="button" data-action="recorded-lesson-tab" data-tab="${key}">${label}</button>`).join('')}</div>
+            <div id="recordedLessonTabPanel">${recordedLectureTabContent(course.id,current,state.recordedLessonTab,'instructor')}</div>
+          </main>
+          ${recordedCurriculumSidebar(group.items,current,'instructor')}
+        </div>
+      </section>`;
+    instructorShell('instructor-recorded-lectures',content,group.title,'Manage Bunny lectures, lesson resources and course discussion.');
+    setTimeout(()=>{initInstructorRecordedPreview(current);if(state.recordedLessonTab==='discussion')initRecordedDiscussion(course.id,current,'instructor');},0);
   }
 
   function renderInstructorRecordings(){
@@ -5522,13 +6159,34 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     openClassroomModal(course?'Edit course page':'Create course','Public information and visibility are controlled here. Private lessons are edited separately.',`<form id="instructorCourseForm" class="auth-form"><input type="hidden" name="id" value="${course?.id||''}"><div class="form-grid"><div class="form-group"><label>Course title</label><input class="form-control" name="title" required value="${escapeHtml(course?.title||'')}"></div><div class="form-group"><label>URL slug</label><input class="form-control" name="slug" value="${escapeHtml(course?.slug||'')}"></div><div class="form-group"><label>Category</label><input class="form-control" name="category" required value="${escapeHtml(course?.category||'Web Development')}"></div><div class="form-group"><label>Badge</label><input class="form-control" name="badge" value="${escapeHtml(course?.badge||'')}"></div><div class="form-group"><label>Visibility</label><select class="form-control" name="visibility"><option value="public" ${course?.visibility!=='private'?'selected':''}>Public course page</option><option value="private" ${course?.visibility==='private'?'selected':''}>Private / enrolled students only</option></select></div><div class="form-group"><label>Publishing</label><select class="form-control" name="status"><option value="draft" ${course?.status==='draft'?'selected':''}>Draft</option><option value="published" ${course?.status!=='draft'?'selected':''}>Published</option></select></div><div class="form-group full"><label>Cover image URL</label><input class="form-control" name="image" value="${escapeHtml(course?.image||'')}" placeholder="https://... or uploads/media/..."></div><div class="form-group full"><label>Short description</label><textarea class="form-control" name="short">${escapeHtml(course?.short||'')}</textarea></div><div class="form-group full"><label>Full public description</label><textarea class="form-control" name="description" rows="6">${escapeHtml(course?.description||'')}</textarea></div><div class="form-group"><label>Price</label><input class="form-control" type="number" min="0" step="0.01" name="price" value="${course?.price||0}"></div><div class="form-group"><label>Original price</label><input class="form-control" type="number" min="0" step="0.01" name="originalPrice" value="${course?.originalPrice||0}"></div><div class="form-group"><label>Duration</label><input class="form-control" name="duration" value="${escapeHtml(course?.duration||'')}"></div><div class="form-group"><label>Hours</label><input class="form-control" type="number" min="0" name="hours" value="${course?.hours||0}"></div><div class="form-group"><label>Level</label><input class="form-control" name="level" value="${escapeHtml(course?.level||'Beginner')}"></div><div class="form-group"><label>Language</label><input class="form-control" name="language" value="${escapeHtml(course?.language||'English')}"></div></div><button class="button button-primary button-block" type="submit">${course?'Save Course Page':'Create Course'}</button></form>`);
   }
 
-  function recordingLines(lesson={}){return (Array.isArray(lesson.videos)?lesson.videos:[]).map(v=>`${v.title||'Recording'} | ${v.embedUrl||v.videoUrl||''}`).filter(x=>!x.endsWith('| ')).join('\n');}
-  function resourceLines(lesson={}){return (Array.isArray(lesson.resources)?lesson.resources:[]).map(r=>`${r.title||'Resource'} | ${r.url||''}`).join('\n');}
-  function instructorLessonEditor(lesson={}){return `<article class="ic-lesson"><div class="ic-builder-head"><strong>Lesson</strong><button type="button" data-action="ic-remove-lesson">Remove</button></div><div class="form-grid"><div class="form-group"><label>Lesson title</label><input class="form-control" data-field="ic-lesson-title" value="${escapeHtml(lesson.title||'')}"></div><div class="form-group"><label>Duration</label><input class="form-control" data-field="ic-lesson-duration" value="${escapeHtml(lesson.duration||'')}"></div><div class="form-group full"><label>Lesson overview</label><textarea class="form-control" rows="5" data-field="ic-lesson-content">${escapeHtml(lesson.content||'')}</textarea></div><div class="form-group full"><label>PDF lesson overview</label><div class="pdf-upload-row"><input class="form-control" data-field="ic-lesson-pdf" value="${escapeHtml(lesson.pdfUrl||'')}" placeholder="PDF URL or upload below"><label class="button button-secondary button-sm">Upload PDF<input class="sr-only" type="file" accept="application/pdf" data-field="ic-pdf-file"></label></div></div><div class="form-group full"><label>Recorded lesson videos <small>One per line: Title | embeddable HTTPS URL</small></label><textarea class="form-control" rows="4" data-field="ic-recordings" placeholder="Lesson recording | https://...">${escapeHtml(recordingLines(lesson))}</textarea></div><div class="form-group full"><label>Resources <small>One per line: Title | URL</small></label><textarea class="form-control" rows="3" data-field="ic-resources">${escapeHtml(resourceLines(lesson))}</textarea></div></div></article>`;}
-  function instructorModuleEditor(module={}){const lessons=Array.isArray(module.lessons)&&module.lessons.length?module.lessons:[{}];return `<section class="ic-module"><div class="ic-builder-head"><div><strong>Module</strong><input class="form-control" data-field="ic-module-title" value="${escapeHtml(module.title||'')}" placeholder="Module title"></div><button type="button" data-action="ic-remove-module">Remove module</button></div><div class="ic-lessons">${lessons.map(instructorLessonEditor).join('')}</div><button class="button button-secondary button-sm" type="button" data-action="ic-add-lesson">+ Add Lesson</button></section>`;}
-  function openInstructorContentForm(course){const modules=Array.isArray(course?.modules)?course.modules:[];openClassroomModal(`Private classroom — ${course.title}`,'Add protected lessons, PDF overviews, recorded video embeds and resources. Live classes, quizzes and assignments are managed from their own menu pages.',`<form id="instructorContentForm"><input type="hidden" name="course_id" value="${course.id}"><div class="ic-builder" id="instructorCurriculumBuilder">${modules.map(instructorModuleEditor).join('')}</div><button class="button button-secondary" type="button" data-action="ic-add-module">+ Add Module</button><button class="button button-primary" type="submit">Save Private Classroom</button></form>`);}
+  function instructorOfflineLines(items=[]){return Array.isArray(items)?items.map(item=>String(item||'').trim()).filter(Boolean).join('\n'):'';}
+  function instructorOfflineResourceLines(resources=[]){return Array.isArray(resources)?resources.map(r=>`${r.title||'Resource'} | ${r.url||''}`).filter(x=>!x.endsWith('| ')).join('\n'):'';}
+  function instructorOfflineLectureEditor(lecture={},index=0){return `<article class="io-lecture"><div class="io-builder-head"><div><span class="io-index">${index+1}</span><strong>Lecture video</strong></div><button type="button" data-action="io-remove-lecture">Remove</button></div><div class="form-grid"><div class="form-group"><label>Lecture tab title</label><input class="form-control" data-field="io-lecture-title" value="${escapeHtml(lecture.title||'')}" placeholder="Video 01 — Introduction"></div><div class="form-group"><label>Duration</label><input class="form-control" data-field="io-lecture-duration" value="${escapeHtml(lecture.duration||'')}" placeholder="18 min"></div><div class="form-group full"><label>Embed URL or iframe code</label><textarea class="form-control" rows="3" data-field="io-lecture-embed" placeholder="Paste hosted video iframe or HTTPS embed URL">${escapeHtml(lecture.embedUrl||lecture.videoUrl||'')}</textarea></div><div class="form-group full"><label>Text shown below this video</label><textarea class="form-control" rows="4" data-field="io-lecture-content" placeholder="Explanation, instructions or lecture summary">${escapeHtml(lecture.content||'')}</textarea></div><div class="form-group full offline-image-field"><label>Optional lecture image</label><div class="io-upload-line"><input class="form-control" data-field="io-lecture-image" value="${escapeHtml(lecture.image||'')}" placeholder="uploads/media/... or https://..."><label class="button button-secondary button-sm">Upload image<input class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" data-offline-image-upload></label></div></div></div></article>`;}
+  function instructorOfflineContentBlockEditor(block={},index=0){const type=['text','image','video','file','link'].includes(block.type)?block.type:'text';return `<article class="io-content-block"><div class="io-builder-head"><div><span class="io-index">${index+1}</span><strong>Rich content</strong></div><button type="button" data-action="io-remove-module-block">Remove</button></div><div class="form-grid"><div class="form-group"><label>Block type</label><select class="form-control" data-field="io-module-block-type"><option value="text" ${type==='text'?'selected':''}>Text / explanation</option><option value="image" ${type==='image'?'selected':''}>Image</option><option value="video" ${type==='video'?'selected':''}>Video / iframe</option><option value="file" ${type==='file'?'selected':''}>PDF / file</option><option value="link" ${type==='link'?'selected':''}>External link</option></select></div><div class="form-group"><label>Block heading</label><input class="form-control" data-field="io-module-block-title" value="${escapeHtml(block.title||'')}" placeholder="Optional heading"></div><div class="form-group full"><label>Description / text</label><textarea class="form-control" rows="4" data-field="io-module-block-text" placeholder="Explain this content block.">${escapeHtml(block.text||block.description||'')}</textarea></div><div class="form-group full"><label>Media / file / link URL</label><div class="io-upload-line"><input class="form-control" data-field="io-module-block-url" value="${escapeHtml(block.url||'')}" placeholder="https://... or uploads/media/..."><label class="button button-secondary button-sm">Upload image / PDF / file<input class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip" data-io-module-block-upload></label></div><small>For videos, paste the Bunny/YouTube/hosted iframe or HTTPS embed URL.</small></div></div></article>`;}
+  function instructorOfflineLessonEditor(lesson={}){const videos=Array.isArray(lesson.videos)&&lesson.videos.length?lesson.videos:[];return `<article class="io-lesson"><div class="io-builder-head"><strong>Lesson</strong><button type="button" data-action="io-remove-lesson">Remove lesson</button></div><div class="form-grid"><div class="form-group"><label>Lesson title</label><input class="form-control" data-field="io-lesson-title" value="${escapeHtml(lesson.title||'')}" placeholder="Lesson 01 — Foundations"></div><div class="form-group"><label>Total lesson duration</label><input class="form-control" data-field="io-lesson-duration" value="${escapeHtml(lesson.duration||'')}" placeholder="1h 20m"></div><div class="form-group full"><label>Lesson overview text</label><textarea class="form-control" rows="4" data-field="io-lesson-content">${escapeHtml(lesson.content||'')}</textarea></div><div class="form-group full offline-image-field"><label>Lesson cover image</label><div class="io-upload-line"><input class="form-control" data-field="io-lesson-image" value="${escapeHtml(lesson.image||'')}" placeholder="uploads/media/... or https://..."><label class="button button-secondary button-sm">Upload image<input class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" data-offline-image-upload></label></div></div><div class="form-group full"><label>Resources <small>One per line: Resource title | URL</small></label><textarea class="form-control" rows="3" data-field="io-lesson-resources" placeholder="Worksheet | https://example.com/file.pdf">${escapeHtml(instructorOfflineResourceLines(lesson.resources))}</textarea></div><div class="form-group full"><label class="io-checkbox"><input type="checkbox" data-field="io-lesson-preview" ${lesson.preview?'checked':''}><span><strong>Public curriculum preview</strong><small>Show this lesson title on the public course page.</small></span></label></div><div class="form-group full"><div class="io-subsection-head"><div><strong>Lecture Videos</strong><small>Add as many videos as required for this lesson.</small></div><button class="button button-secondary button-sm" type="button" data-action="io-add-lecture">+ Add Lecture Video</button></div><div class="io-lecture-list">${videos.map(instructorOfflineLectureEditor).join('')}</div><p class="io-empty" ${videos.length?'hidden':''}>No lecture videos added. This can remain a reading-only lesson.</p></div></div></article>`;}
+  function instructorOfflineModuleEditor(module={}){const lessons=Array.isArray(module.lessons)&&module.lessons.length?module.lessons:[{}],blocks=Array.isArray(module.contentBlocks)?module.contentBlocks:[];return `<section class="io-module"><div class="io-builder-head io-module-head"><div><span class="io-module-label">Module</span><input class="form-control" data-field="io-module-title" value="${escapeHtml(module.title||'')}" placeholder="Module heading"><input class="form-control io-duration" data-field="io-module-duration" value="${escapeHtml(module.duration||'')}" placeholder="Duration"></div><button type="button" data-action="io-remove-module">Remove module</button></div><div class="form-grid io-module-intro"><div class="form-group full"><label>Module description</label><textarea class="form-control" rows="4" data-field="io-module-description" placeholder="Explain what this module covers.">${escapeHtml(module.description||'')}</textarea></div><div class="form-group full"><label>Module key points <small>One point per line</small></label><textarea class="form-control" rows="4" data-field="io-module-points">${escapeHtml(instructorOfflineLines(module.points))}</textarea></div><div class="form-group full"><div class="io-subsection-head"><div><strong>Rich module content</strong><small>Add text, images, videos, PDFs/files and links before or around the lessons.</small></div><button class="button button-secondary button-sm" type="button" data-action="io-add-module-block">+ Add Content</button></div><div class="io-module-content-blocks">${blocks.map(instructorOfflineContentBlockEditor).join('')}</div></div></div><div class="io-lessons">${lessons.map(instructorOfflineLessonEditor).join('')}</div><button class="button button-secondary button-sm" type="button" data-action="io-add-lesson">+ Add Lesson</button></section>`;}
+  function instructorOfflineProjectEditor(project={},index=0){return `<article class="io-project"><div class="io-builder-head"><strong>Project ${index+1}</strong><button type="button" data-action="io-remove-project">Remove</button></div><div class="form-grid"><div class="form-group full"><label>Project title</label><input class="form-control" data-field="io-project-title" value="${escapeHtml(project.title||'')}"></div><div class="form-group full"><label>Project description</label><textarea class="form-control" rows="3" data-field="io-project-description">${escapeHtml(project.description||'')}</textarea></div></div></article>`;}
+  function instructorOfflineReviewEditor(review={}){return `<article class="io-review"><div class="io-builder-head"><strong>Course review</strong><button type="button" data-action="io-remove-review">Remove</button></div><div class="form-grid"><div class="form-group"><label>Student name</label><input class="form-control" data-field="io-review-name" value="${escapeHtml(review.name||'')}"></div><div class="form-group"><label>Student role</label><input class="form-control" data-field="io-review-role" value="${escapeHtml(review.role||'')}"></div><div class="form-group"><label>Rating</label><select class="form-control" data-field="io-review-rating">${[5,4,3,2,1].map(n=>`<option value="${n}" ${Number(review.rating||5)===n?'selected':''}>${n} / 5</option>`).join('')}</select></div><div class="form-group full"><label>Review text</label><textarea class="form-control" rows="3" data-field="io-review-text">${escapeHtml(review.text||'')}</textarea></div></div></article>`;}
+  function instructorOfflineDraft(course){
+    const pending=course?.pendingContentModes?.offline||course?.pendingModeContent?.offline||null;
+    const base=pending||(course?.contentModes?.offline||course?.contentByMode?.offline||{});
+    return {...base};
+  }
+  function openInstructorOfflineCourseForm(course){
+    const offline=instructorOfflineDraft(course);
+    const modules=(String(course.approvalStatus||'')==='pending'||String(course.approvalStatus||'')==='rejected')&&Array.isArray(course.pendingModules)&&course.pendingModules.length?course.pendingModules:(Array.isArray(course.modules)?course.modules:[]);
+    const projects=Array.isArray(offline.projectItems)?offline.projectItems:[];
+    const reviews=Array.isArray(offline.courseReviews)?offline.courseReviews:[];
+    openClassroomModal(`Prepare Offline Course — ${course.title}`,'The same content areas used in Admin are available here. Pricing, delivery-mode availability, branch and instructor assignment remain Admin-controlled. Your changes are submitted for the normal course-content approval flow.',`<form id="instructorOfflineCourseForm" class="instructor-offline-editor"><input type="hidden" name="course_id" value="${course.id}"><section class="io-admin-lock"><div>${icon('shield')}<span><strong>Admin-controlled setup</strong><small>${escapeHtml(course.title)} · ${escapeHtml(course.category)} · Offline mode ${instructorModeEnabled(course,'offline')?'enabled':'disabled'} · Pricing and ownership cannot be changed here.</small></span></div><span class="status-pill ${String(course.approvalStatus)==='pending'?'status-pending':''}">${escapeHtml(course.approvalStatus||'approved')}</span></section><nav class="io-editor-tabs"><button type="button" class="active" data-action="io-editor-tab" data-tab="details">Course Details</button><button type="button" data-action="io-editor-tab" data-tab="overview">Overview</button><button type="button" data-action="io-editor-tab" data-tab="projects">Projects & Reviews</button><button type="button" data-action="io-editor-tab" data-tab="curriculum">Modules & Lessons</button></nav><div class="io-editor-pane active" data-io-pane="details"><div class="io-section-head"><div><span class="eyebrow">Basic information</span><h3>Offline course presentation</h3><p>These are the same descriptive course fields used by the Admin editor for the Physical / Offline version.</p></div></div><div class="form-grid"><div class="form-group"><label>Badge</label><input class="form-control" name="badge" value="${escapeHtml(offline.badge||'')}" placeholder="Bestseller"></div><div class="form-group"><label>Duration</label><input class="form-control" name="duration" value="${escapeHtml(offline.duration||'')}" placeholder="3 Months"></div><div class="form-group"><label>Level</label><input class="form-control" name="level" value="${escapeHtml(offline.level||'')}" placeholder="Beginner"></div><div class="form-group"><label>Language</label><input class="form-control" name="language" value="${escapeHtml(offline.language||'English')}"></div><div class="form-group"><label>Learning hours</label><input class="form-control" type="number" min="0" name="hours" value="${Number(offline.hours||0)}"></div><div class="form-group"><label>Updated label</label><input class="form-control" name="updated" value="${escapeHtml(offline.updated||'')}" placeholder="October 2026"></div><div class="form-group full offline-image-field"><label>Course image</label><div class="io-upload-line"><input class="form-control" name="image" value="${escapeHtml(offline.image||'')}" placeholder="uploads/media/... or https://..."><label class="button button-secondary button-sm">Upload image<input class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" data-offline-image-upload></label></div></div><div class="form-group full"><label>Short description</label><textarea class="form-control" rows="3" name="short">${escapeHtml(offline.short||'')}</textarea></div></div></div><div class="io-editor-pane" data-io-pane="overview"><div class="io-section-head"><div><span class="eyebrow">Overview</span><h3>What students need to know</h3><p>Leave an optional section empty if it should stay hidden on the course page.</p></div></div><div class="form-grid"><div class="form-group full"><label>Main course heading</label><input class="form-control" name="contentHeading" value="${escapeHtml(offline.contentHeading||'')}" placeholder="What you will master in this course"></div><div class="form-group full"><label>Key points <small>One point per line</small></label><textarea class="form-control" rows="6" name="skills">${escapeHtml(instructorOfflineLines(offline.skills))}</textarea></div><div class="form-group full"><label>Main course content</label><textarea class="form-control" rows="8" name="description">${escapeHtml(offline.description||'')}</textarea></div><div class="form-group full"><label>Requirements <small>One per line</small></label><textarea class="form-control" rows="5" name="requirements">${escapeHtml(instructorOfflineLines(offline.requirements))}</textarea></div><div class="form-group full"><label>Who this course is for <small>One per line</small></label><textarea class="form-control" rows="5" name="audience">${escapeHtml(instructorOfflineLines(offline.audience))}</textarea></div></div></div><div class="io-editor-pane" data-io-pane="projects"><div class="io-section-head"><div><span class="eyebrow">Projects & Reviews</span><h3>Practical proof and learner feedback</h3><p>Add the project details and genuine course-specific reviews used by the Admin course editor.</p></div><div class="io-section-actions"><button class="button button-secondary button-sm" type="button" data-action="io-add-project">+ Project</button><button class="button button-secondary button-sm" type="button" data-action="io-add-review">+ Review</button></div></div><div class="io-projects" id="instructorOfflineProjects">${projects.map(instructorOfflineProjectEditor).join('')}</div><div class="io-reviews" id="instructorOfflineReviews">${reviews.map(instructorOfflineReviewEditor).join('')}</div></div><div class="io-editor-pane" data-io-pane="curriculum"><div class="io-section-head"><div><span class="eyebrow">Protected learning area</span><h3>Modules, lessons and lecture content</h3><p>Build the Offline learner classroom with the same lesson detail available to Admin: duration, overview, cover image, resources, public preview and multiple lecture videos.</p></div><button class="button button-secondary button-sm" type="button" data-action="io-add-module">+ Add Module</button></div><div class="io-modules" id="instructorOfflineModules">${modules.map(instructorOfflineModuleEditor).join('')}</div></div><footer class="io-editor-footer"><span>${icon('history')} Saves as a course-content request for approval.</span><button class="button button-primary" type="submit">Save & Submit Offline Content</button></footer></form>`);
+  }
   function splitLineItems(value){return String(value||'').split(/\r?\n/).map(line=>{const [first,...rest]=line.split('|');const url=rest.join('|').trim();return {title:first.trim(),url};}).filter(x=>x.url);}
-  function collectInstructorModules(form){return [...form.querySelectorAll('.ic-module')].map((module,mi)=>({title:module.querySelector('[data-field="ic-module-title"]')?.value.trim()||`Module ${mi+1}`,duration:'',lessons:[...module.querySelectorAll('.ic-lesson')].map(row=>{const rec=splitLineItems(row.querySelector('[data-field="ic-recordings"]')?.value||'');return {title:row.querySelector('[data-field="ic-lesson-title"]')?.value.trim()||'',duration:row.querySelector('[data-field="ic-lesson-duration"]')?.value.trim()||'',content:row.querySelector('[data-field="ic-lesson-content"]')?.value.trim()||'',pdfUrl:row.querySelector('[data-field="ic-lesson-pdf"]')?.value.trim()||'',preview:false,image:'',resources:splitLineItems(row.querySelector('[data-field="ic-resources"]')?.value||''),videos:rec.map((r,index)=>({title:r.title||`Recording ${index+1}`,duration:'',videoProvider:'embed',embedUrl:r.url,videoId:'',content:'',image:''}))};}).filter(l=>l.title)})).filter(m=>m.lessons.length||m.title);}
+  function instructorOfflineCollect(form){
+    const lines=name=>String(form.elements[name]?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const projects=[...form.querySelectorAll('.io-project')].map(row=>({title:row.querySelector('[data-field="io-project-title"]')?.value.trim()||'',description:row.querySelector('[data-field="io-project-description"]')?.value.trim()||''})).filter(x=>x.title||x.description);
+    const reviews=[...form.querySelectorAll('.io-review')].map(row=>({name:row.querySelector('[data-field="io-review-name"]')?.value.trim()||'',role:row.querySelector('[data-field="io-review-role"]')?.value.trim()||'',rating:Number(row.querySelector('[data-field="io-review-rating"]')?.value||5),text:row.querySelector('[data-field="io-review-text"]')?.value.trim()||''})).filter(x=>x.name||x.text);
+    const modules=[...form.querySelectorAll('.io-module')].map((mod,mi)=>({title:mod.querySelector('[data-field="io-module-title"]')?.value.trim()||`Module ${mi+1}`,duration:mod.querySelector('[data-field="io-module-duration"]')?.value.trim()||'',description:mod.querySelector('[data-field="io-module-description"]')?.value.trim()||'',points:String(mod.querySelector('[data-field="io-module-points"]')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),contentBlocks:[...mod.querySelectorAll(':scope > .io-module-intro .io-content-block')].map(block=>({type:block.querySelector('[data-field="io-module-block-type"]')?.value||'text',title:block.querySelector('[data-field="io-module-block-title"]')?.value.trim()||'',text:block.querySelector('[data-field="io-module-block-text"]')?.value.trim()||'',url:block.querySelector('[data-field="io-module-block-url"]')?.value.trim()||''})).filter(x=>x.title||x.text||x.url),lessons:[...mod.querySelectorAll(':scope > .io-lessons > .io-lesson')].map(lesson=>({title:lesson.querySelector('[data-field="io-lesson-title"]')?.value.trim()||'',duration:lesson.querySelector('[data-field="io-lesson-duration"]')?.value.trim()||'',preview:Boolean(lesson.querySelector('[data-field="io-lesson-preview"]')?.checked),content:lesson.querySelector('[data-field="io-lesson-content"]')?.value.trim()||'',image:lesson.querySelector('[data-field="io-lesson-image"]')?.value.trim()||'',resources:splitLineItems(lesson.querySelector('[data-field="io-lesson-resources"]')?.value||''),videos:[...lesson.querySelectorAll('.io-lecture')].map((lecture,index)=>({title:lecture.querySelector('[data-field="io-lecture-title"]')?.value.trim()||`Lecture ${String(index+1).padStart(2,'0')}`,duration:lecture.querySelector('[data-field="io-lecture-duration"]')?.value.trim()||'',videoProvider:'embed',videoId:'',embedUrl:lecture.querySelector('[data-field="io-lecture-embed"]')?.value.trim()||'',content:lecture.querySelector('[data-field="io-lecture-content"]')?.value.trim()||'',image:lecture.querySelector('[data-field="io-lecture-image"]')?.value.trim()||''})).filter(x=>x.title||x.embedUrl||x.content||x.image)})).filter(x=>x.title)})).filter(x=>x.title||x.lessons.length);
+    return {course_id:Number(form.elements.course_id?.value||0),content:{badge:String(form.elements.badge?.value||'').trim(),contentHeading:String(form.elements.contentHeading?.value||'').trim(),image:String(form.elements.image?.value||'').trim(),short:String(form.elements.short?.value||'').trim(),description:String(form.elements.description?.value||'').trim(),duration:String(form.elements.duration?.value||'').trim(),hours:Number(form.elements.hours?.value||0),level:String(form.elements.level?.value||'').trim(),language:String(form.elements.language?.value||'').trim(),updated:String(form.elements.updated?.value||'').trim(),skills:lines('skills'),requirements:lines('requirements'),audience:lines('audience'),projectItems:projects,courseReviews:reviews},modules};
+  }
 
   function openInstructorLiveForm(item=null){
     const courseId=item?.course_id||instructorCourses()[0]?.id||'';
@@ -5562,11 +6220,16 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   }
 
   function quizQuestionEditor(q={},index=0){const opts=Array.isArray(q.options)?q.options.join('\n'):'';return `<article class="quiz-question-editor"><div class="ic-builder-head"><strong>Question ${index+1}</strong><button type="button" data-action="quiz-remove-question">Remove</button></div><div class="form-grid"><div class="form-group full"><label>Question</label><input class="form-control" data-field="quiz-question" value="${escapeHtml(q.question||'')}"></div><div class="form-group"><label>Type</label><select class="form-control" data-field="quiz-type"><option value="mcq" ${q.type!=='true_false'?'selected':''}>Multiple choice</option><option value="true_false" ${q.type==='true_false'?'selected':''}>True / False</option></select></div><div class="form-group"><label>Correct answer #</label><input class="form-control" type="number" min="1" max="10" data-field="quiz-correct" value="${Number(q.correct??0)+1}"></div><div class="form-group"><label>Points</label><input class="form-control" type="number" min="1" max="100" data-field="quiz-points" value="${q.points||1}"></div><div class="form-group full"><label>Choices <small>One choice per line. For True/False this is ignored.</small></label><textarea class="form-control" rows="4" data-field="quiz-options">${escapeHtml(opts)}</textarea></div></div></article>`;}
-  function openInstructorQuizForm(q=null,preferredCourseId=''){const courseId=q?.course_id||preferredCourseId||instructorCourses()[0]?.id||'';const questions=Array.isArray(q?.questions)&&q.questions.length?q.questions:[{}];openClassroomModal(q?'Edit quiz':'Create quiz','Students get instant scores for multiple-choice and true/false questions.',`<form id="instructorQuizForm"><input type="hidden" name="id" value="${q?.id||''}"><div class="form-grid"><div class="form-group"><label>Course</label><select class="form-control" name="course_id" data-role="classroom-course-select" required>${instructorCourseOptions(courseId)}</select></div><div class="form-group"><label>Lesson (optional)</label><select class="form-control" name="lesson_key" data-role="classroom-lesson-select">${instructorLessonOptions(courseId,q?.lesson_key||'')}</select></div><div class="form-group full"><label>Quiz title</label><input class="form-control" name="title" required value="${escapeHtml(q?.title||'')}"></div><div class="form-group"><label>Due date</label><input class="form-control" type="datetime-local" name="due_at" value="${classroomDateInput(q?.due_at)}"></div><div class="form-group"><label>Attempts allowed</label><input class="form-control" type="number" min="1" max="10" name="attempts_allowed" value="${q?.attempts_allowed||1}"></div><div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="published" ${q?.status!=='draft'?'selected':''}>Published</option><option value="draft" ${q?.status==='draft'?'selected':''}>Draft</option></select></div><div class="form-group full"><label>Description</label><textarea class="form-control" name="description">${escapeHtml(q?.description||'')}</textarea></div></div><div id="quizQuestionBuilder">${questions.map(quizQuestionEditor).join('')}</div><button class="button button-secondary" type="button" data-action="quiz-add-question">+ Add Question</button><button class="button button-primary" type="submit">Save Quiz</button></form>`);}
+  function openInstructorQuizForm(q=null,preferredCourseId='',options={}){
+    const courseId=Number(q?.course_id||preferredCourseId||instructorCourses()[0]?.id||0),questions=Array.isArray(q?.questions)&&q.questions.length?q.questions:[{}],quizType=q?.quiz_type||options.quizType||'checkpoint',sequence=Number(q?.sequence_order??options.sequenceOrder??(quizType==='final'?9999:999)),canSkip=q?Boolean(q.can_skip):Boolean(options.canSkip);
+    openClassroomModal(q?'Edit quiz':quizType==='final'?'Add final quiz':'Add checkpoint quiz','Place this quiz anywhere in the course sequence. Required quizzes block later content until a learner submits an attempt.',`<form id="instructorQuizForm"><input type="hidden" name="id" value="${q?.id||''}"><input type="hidden" name="course_id" value="${courseId}"><div class="form-grid"><div class="form-group full"><label>Course</label><input class="form-control" value="${escapeHtml(instructorCourses().find(c=>Number(c.id)===courseId)?.title||'Assigned course')}" readonly></div><div class="form-group"><label>Quiz type</label><select class="form-control" name="quiz_type"><option value="checkpoint" ${quizType==='checkpoint'?'selected':''}>Checkpoint quiz</option><option value="final" ${quizType==='final'?'selected':''}>Final quiz</option></select></div><div class="form-group"><label>Position in course</label><input class="form-control" type="number" step="0.1" min="0" name="sequence_order" value="${sequence}"><small>1.5 places it between lecture 1 and lecture 2.</small></div><div class="form-group full"><label>Quiz title</label><input class="form-control" name="title" required value="${escapeHtml(q?.title||'')}"></div><div class="form-group"><label>Due date</label><input class="form-control" type="datetime-local" name="due_at" value="${classroomDateInput(q?.due_at)}"></div><div class="form-group"><label>Attempts allowed</label><input class="form-control" type="number" min="1" max="10" name="attempts_allowed" value="${q?.attempts_allowed||1}"></div><div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="published" ${q?.status!=='draft'?'selected':''}>Published</option><option value="draft" ${q?.status==='draft'?'selected':''}>Draft</option></select></div><div class="form-group"><label class="checkbox-line course-skip-toggle"><input type="checkbox" name="can_skip" value="1" ${canSkip?'checked':''}><span><strong>Allow learner to skip</strong><small>If off, later course items remain locked until one attempt is submitted.</small></span></label></div><div class="form-group full"><label>Description</label><textarea class="form-control" name="description">${escapeHtml(q?.description||'')}</textarea></div></div><div id="quizQuestionBuilder">${questions.map(quizQuestionEditor).join('')}</div><div class="coursework-form-footer"><button class="button button-secondary" type="button" data-action="quiz-add-question">+ Add Question</button><button class="button button-primary" type="submit">Save Quiz</button></div></form>`);
+  }
   function collectQuizQuestions(form){return [...form.querySelectorAll('.quiz-question-editor')].map((row,index)=>{const type=row.querySelector('[data-field="quiz-type"]')?.value||'mcq';return {id:`q${index+1}`,question:row.querySelector('[data-field="quiz-question"]')?.value.trim()||'',type,options:type==='true_false'?['True','False']:String(row.querySelector('[data-field="quiz-options"]')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),correct:Math.max(0,Number(row.querySelector('[data-field="quiz-correct"]')?.value||1)-1),points:Number(row.querySelector('[data-field="quiz-points"]')?.value||1)};}).filter(q=>q.question);}
 
-  function openInstructorAssignmentForm(a=null,preferredCourseId=''){const courseId=a?.course_id||preferredCourseId||instructorCourses()[0]?.id||'';openClassroomModal(a?'Edit assignment':'Create assignment','Students can submit a written response and/or an attachment. You can grade every submission here.',`<form id="instructorAssignmentForm" class="auth-form" enctype="multipart/form-data"><input type="hidden" name="id" value="${a?.id||''}"><div class="form-grid"><div class="form-group"><label>Course</label><select class="form-control" name="course_id" data-role="classroom-course-select" required>${instructorCourseOptions(courseId)}</select></div><div class="form-group"><label>Lesson (optional)</label><select class="form-control" name="lesson_key" data-role="classroom-lesson-select">${instructorLessonOptions(courseId,a?.lesson_key||'')}</select></div><div class="form-group full"><label>Assignment title</label><input class="form-control" name="title" required value="${escapeHtml(a?.title||'')}"></div><div class="form-group"><label>Due date</label><input class="form-control" type="datetime-local" name="due_at" value="${classroomDateInput(a?.due_at)}"></div><div class="form-group"><label>Points</label><input class="form-control" type="number" min="0" step="0.5" name="points" value="${a?.points??100}"></div><div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="published" ${a?.status!=='draft'?'selected':''}>Published</option><option value="draft" ${a?.status==='draft'?'selected':''}>Draft</option></select></div><div class="form-group full"><label>Instructions</label><textarea class="form-control" rows="6" name="instructions">${escapeHtml(a?.instructions||'')}</textarea></div><div class="form-group full"><label>Attachment URL</label><input class="form-control" name="attachment_url" value="${escapeHtml(a?.attachment_url||'')}"></div><div class="form-group full"><label>Or upload attachment</label><label class="classroom-upload"><input type="file" name="attachment" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.jpg,.jpeg,.png,.webp"><span class="classroom-upload-icon">${icon('upload')}</span><span class="classroom-upload-copy"><strong>Choose an assignment resource</strong><small data-role="classroom-file-name">PDF, Office, ZIP, image or text · max 20 MB</small></span><span class="classroom-upload-button">Browse</span></label></div></div><button class="button button-primary button-block" type="submit">Save Assignment</button></form>`);}
-
+  function openInstructorAssignmentForm(a=null,preferredCourseId='',options={}){
+    const courseId=Number(a?.course_id||preferredCourseId||instructorCourses()[0]?.id||0),sequence=Number(a?.sequence_order??options.sequenceOrder??999);
+    openClassroomModal(a?'Edit assignment':'Add assignment','Assignments live inside the course sequence and can be placed between any lectures.',`<form id="instructorAssignmentForm" class="auth-form" enctype="multipart/form-data"><input type="hidden" name="id" value="${a?.id||''}"><input type="hidden" name="course_id" value="${courseId}"><div class="form-grid"><div class="form-group full"><label>Course</label><input class="form-control" value="${escapeHtml(instructorCourses().find(c=>Number(c.id)===courseId)?.title||'Assigned course')}" readonly></div><div class="form-group"><label>Position in course</label><input class="form-control" type="number" step="0.1" min="0" name="sequence_order" value="${sequence}"><small>Use 2.5 to place it between item 2 and 3.</small></div><div class="form-group"><label>Points</label><input class="form-control" type="number" min="0" step="0.5" name="points" value="${a?.points??100}"></div><div class="form-group full"><label>Assignment title</label><input class="form-control" name="title" required value="${escapeHtml(a?.title||'')}"></div><div class="form-group"><label>Due date</label><input class="form-control" type="datetime-local" name="due_at" value="${classroomDateInput(a?.due_at)}"></div><div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="published" ${a?.status!=='draft'?'selected':''}>Published</option><option value="draft" ${a?.status==='draft'?'selected':''}>Draft</option></select></div><div class="form-group full"><label>Instructions</label><textarea class="form-control" rows="6" name="instructions">${escapeHtml(a?.instructions||'')}</textarea></div><div class="form-group full"><label>Attachment URL</label><input class="form-control" name="attachment_url" value="${escapeHtml(a?.attachment_url||'')}"></div><div class="form-group full"><label>Or upload attachment</label><label class="classroom-upload"><input type="file" name="attachment" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.jpg,.jpeg,.png,.webp"><span class="classroom-upload-icon">${icon('upload')}</span><span class="classroom-upload-copy"><strong>Choose an assignment resource</strong><small data-role="classroom-file-name">PDF, Office, ZIP, image or text · max 20 MB</small></span><span class="classroom-upload-button">Browse</span></label></div></div><button class="button button-primary button-block" type="submit">Save Assignment</button></form>`);
+  }
   function openInstructorGradeForm(sub){openClassroomModal(`Review — ${sub.assignment_title||'Assignment'}`,`${sub.student_name} · ${sub.course_title||'Course'}`,`<div class="submission-review"><h3>Student response</h3><p>${textHtml(sub.submission_text||'No written response.')}</p>${sub.file_url?`<a class="button button-secondary button-sm" href="${escapeHtml(sub.file_url)}" target="_blank" rel="noopener">${icon('download')} Open attachment</a>`:''}</div><form id="instructorGradeForm" class="auth-form"><input type="hidden" name="id" value="${sub.id}"><div class="form-group"><label>Grade out of ${sub.points}</label><input class="form-control" type="number" min="0" max="${sub.points}" step="0.5" name="grade" required value="${sub.grade??''}"></div><div class="form-group"><label>Feedback</label><textarea class="form-control" rows="5" name="feedback">${escapeHtml(sub.feedback||'')}</textarea></div><button class="button button-primary button-block" type="submit">Save Grade & Feedback</button></form>`);}
 
   async function renderPublicProfile(slug){
@@ -5667,6 +6330,14 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   }
   async function refreshSecureClassroom(){const slug=state.currentPath.split('/')[2];if(slug){delete state.playerCourses[slug];await renderPlayer(slug);}}
 
+  function courseRichBlockMarkup(block={}){
+    const type=block.type||'text',title=String(block.title||'').trim(),text=String(block.text||block.description||'').trim(),url=String(block.url||'').trim();
+    if(type==='image'&&url)return `<figure class="course-rich-block course-rich-image">${imageMarkup(url,title||'Course content','Course content')}${title||text?`<figcaption>${title?`<strong>${escapeHtml(title)}</strong>`:''}${text?`<span>${textHtml(text)}</span>`:''}</figcaption>`:''}</figure>`;
+    if(type==='video'&&url){const direct=/\.(?:mp4|webm|mov)(?:[?#].*)?$/i.test(url);return `<section class="course-rich-block course-rich-video">${title?`<h4>${escapeHtml(title)}</h4>`:''}<div class="course-rich-video-frame">${direct?`<video src="${escapeHtml(url)}" controls preload="metadata" playsinline></video>`:`<iframe src="${escapeHtml(url)}" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`}</div>${text?`<div class="lesson-rich-text">${textHtml(text)}</div>`:''}</section>`;}
+    if((type==='file'||type==='link')&&url)return `<article class="course-rich-block course-rich-file"><span>${icon(type==='file'?'download':'arrow')}</span><div>${title?`<strong>${escapeHtml(title)}</strong>`:'<strong>Course resource</strong>'}${text?`<p>${escapeHtml(text)}</p>`:''}</div><a class="button button-secondary button-sm" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open</a></article>`;
+    return `<section class="course-rich-block course-rich-text">${title?`<h4>${escapeHtml(title)}</h4>`:''}${text?`<div class="lesson-rich-text">${textHtml(text)}</div>`:''}</section>`;
+  }
+  function moduleIntroMarkup(course,lesson){const module=course.modules?.[lesson.mi]||{},points=Array.isArray(module.points)?module.points:[],blocks=Array.isArray(module.contentBlocks)?module.contentBlocks:[];if(!module.description&&!points.length&&!blocks.length)return '';return `<section class="module-intro-panel"><div class="module-intro-heading"><span class="eyebrow">${escapeHtml(module.title||'Module')}</span>${module.description?`<p>${textHtml(module.description)}</p>`:''}</div>${points.length?`<ul class="module-point-list">${points.map(point=>`<li>${icon('check')}<span>${escapeHtml(point)}</span></li>`).join('')}</ul>`:''}${blocks.length?`<div class="module-rich-blocks">${blocks.map(courseRichBlockMarkup).join('')}</div>`:''}</section>`;}
   function playerTabContent(course, lesson, tab) {
     const noteKey = `${course.id}:${lesson.key}`;
     const lecture=currentLectureFor(course,lesson);
@@ -5679,7 +6350,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     if (tab === 'discussion') return `<div class="lesson-tabs-content"><h3>Class discussion</h3><div class="form-section"><p class="muted">Discussion access is available for supported instructor-led batches. Contact academy support to ask a course question.</p><a class="button button-primary button-sm" href="mailto:${escapeHtml(siteSettings.support_email||'info@fullstackacademy.in')}?subject=${encodeURIComponent(course.title + ' course question')}">Email Course Support</a></div></div>`;
     const lectureContent=String(lecture?.content||'').trim();
     const lessonContent=String(lesson.content||'').trim();
-    return `<div class="lesson-tabs-content lesson-reading"><h3>${escapeHtml(lecture?.title||'About this lesson')}</h3>${lectureContent?`<div class="lesson-rich-text">${textHtml(lectureContent)}</div>`:''}${lecture?.image?`<div class="lesson-reading-image">${imageMarkup(lecture.image,lecture.title||lesson.title,initials(course.title))}</div>`:''}${lessonContent?`<div class="lesson-overview-block"><h4>Lesson overview</h4><div class="lesson-rich-text">${textHtml(lessonContent)}</div></div>`:(!lectureContent?`<p>This lesson is part of <strong>${escapeHtml(course.title)}</strong> and focuses on <strong>${escapeHtml(lesson.title)}</strong>.</p>`:'')}${!lecture?.image&&lesson.image?lessonImageMarkup(lesson,course):''}${lesson.pdfUrl?`<div class="lesson-overview-pdf"><span>${icon('note')}<span><strong>PDF lesson overview</strong><small>Open or download the instructor's lesson summary.</small></span></span><a class="button button-secondary button-sm" href="${escapeHtml(lesson.pdfUrl)}" target="_blank" rel="noopener">${icon('download')} Open PDF</a></div>`:''}</div>`;
+    return `<div class="lesson-tabs-content lesson-reading">${moduleIntroMarkup(course,lesson)}<h3>${escapeHtml(lecture?.title||'About this lesson')}</h3>${lectureContent?`<div class="lesson-rich-text">${textHtml(lectureContent)}</div>`:''}${lecture?.image?`<div class="lesson-reading-image">${imageMarkup(lecture.image,lecture.title||lesson.title,initials(course.title))}</div>`:''}${lessonContent?`<div class="lesson-overview-block"><h4>Lesson overview</h4><div class="lesson-rich-text">${textHtml(lessonContent)}</div></div>`:(!lectureContent?`<p>This lesson is part of <strong>${escapeHtml(course.title)}</strong> and focuses on <strong>${escapeHtml(lesson.title)}</strong>.</p>`:'')}${!lecture?.image&&lesson.image?lessonImageMarkup(lesson,course):''}${lesson.pdfUrl?`<div class="lesson-overview-pdf"><span>${icon('note')}<span><strong>PDF lesson overview</strong><small>Open or download the instructor's lesson summary.</small></span></span><a class="button button-secondary button-sm" href="${escapeHtml(lesson.pdfUrl)}" target="_blank" rel="noopener">${icon('download')} Open PDF</a></div>`:''}</div>`;
   }
   function playerCourseById(id){
     const cached=Object.values(state.playerCourses).map(item=>item.course).find(course=>Number(course.id)===Number(id));
@@ -5698,13 +6369,23 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const baseCourse = courseBySlug(slug);
     if (!baseCourse) return renderNotFound();
     if (!state.enrollments.includes(Number(baseCourse.id))) { toast('This course is not active in your account. Contact the academy for access.','error'); routeTo('/my-courses'); return; }
-    setChrome('player');
-    app.innerHTML='<section class="player-loading"><div class="loading-spinner"></div><strong>Opening your secure course…</strong></section>';
+    const offlineEnrollment=studentEnrollmentForCourse(baseCourse.id,'offline');
+    const fallbackEnrollment=studentEnrollmentForCourse(baseCourse.id);
+    const enrollment=offlineEnrollment||fallbackEnrollment;
+    const purchasedMode=String(enrollment?.delivery_mode||'offline').toLowerCase();
+    if(!offlineEnrollment&&purchasedMode==='recorded'){routeTo(studentRecordedCourseEntry(baseCourse.id).replace(/^#/,''));return;}
+    if(!offlineEnrollment&&purchasedMode==='live'){routeTo('/live-classes');return;}
+    dashboardShell('my-courses','<div class="panel player-loading offline-dashboard-loading"><div class="loading-spinner"></div><strong>Opening your secure course…</strong></div>',baseCourse.title,'Physical / Offline course');
     let course;
-    try{course=await securePlayerCourse(slug,baseCourse);}catch(error){app.innerHTML=`<section class="page-section section-surface" style="min-height:70vh;display:grid;align-items:center"><div class="container"><article class="success-card"><span class="success-icon">${icon('lock')}</span><span class="eyebrow">Course Access</span><h1>Course could not be opened.</h1><p>${escapeHtml(error.message)}</p><div class="cta-actions"><a class="button button-primary" href="#/my-courses">Back to My Courses</a><a class="button button-secondary" href="#/contact">Contact Academy</a></div></article></div></section>`;return;}
+    try{course=await securePlayerCourse(slug,baseCourse);}catch(error){
+      const failed=`<div class="panel empty-state premium-empty"><span class="empty-icon">${icon('lock')}</span><h3>Course could not be opened</h3><p>${escapeHtml(error.message)}</p><div class="cta-actions"><a class="button button-primary" href="#/my-courses">Back to My Courses</a><a class="button button-secondary" href="#/contact">Contact Academy</a></div></div>`;
+      dashboardShell('my-courses',failed,baseCourse.title,'Physical / Offline course');
+      return;
+    }
     const entries = lessonEntries(course);
     if (!entries.length) {
-      app.innerHTML = `<section class="page-section section-surface" style="min-height:70vh;display:grid;align-items:center"><div class="container"><article class="success-card"><span class="success-icon">${icon('book')}</span><span class="eyebrow">Course Content</span><h1>Lessons have not been added yet.</h1><p>The course is active in your account, but the administrator has not published any curriculum lessons.</p><div class="cta-actions"><a class="button button-primary" href="#/course/${encodeURIComponent(course.slug)}">View Course Details</a><a class="button button-secondary" href="#/my-courses">Back to My Courses</a></div></article></div></section>`;
+      const empty=`<div class="panel empty-state premium-empty"><span class="empty-icon">${icon('book')}</span><h3>Lessons have not been added yet</h3><p>The course is active in your account, but the academy has not published curriculum lessons yet.</p><div class="cta-actions"><a class="button button-primary" href="#/course/${encodeURIComponent(course.slug)}">View Course Details</a><a class="button button-secondary" href="#/my-courses">Back to My Courses</a></div></div>`;
+      dashboardShell('my-courses',empty,course.title,'Physical / Offline course');
       return;
     }
     const current = currentLessonFor(course);
@@ -5712,7 +6393,33 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const index = entries.findIndex(e=>e.key===current.key);
     const done = new Set(state.progress[course.id] || []);
     const percent = progressPercent(course.id);
-    app.innerHTML = `<section class="player-shell"><div class="player-topbar"><a class="button button-secondary button-sm" href="#/my-courses">${icon('arrowLeft')} Back</a><div class="player-course-title"><strong>${escapeHtml(course.title)}</strong><span>${escapeHtml(current.moduleTitle)} · ${escapeHtml(current.title)}</span></div><div class="player-progress-top"><div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div><span>${percent}% complete</span></div></div><div class="player-layout"><main class="lesson-stage">${lectureTabs(course,current,currentLecture)}${lectureVideoMarkup(course,current,currentLecture)}<div class="lesson-title-row"><div><span class="course-category">${escapeHtml(current.moduleTitle)}</span><h1>${escapeHtml(current.title)}</h1><p>Lesson ${index+1} of ${entries.length}${current.duration?` · ${escapeHtml(current.duration)}`:''}${lectureList(current).length?` · ${lectureList(current).length} video${lectureList(current).length===1?'':'s'}`:''}</p></div><div class="lesson-nav-actions"><button class="button button-secondary button-sm" data-action="previous-lesson" data-course="${course.id}" ${index===0?'disabled':''}>${icon('arrowLeft')} Previous</button><button class="button ${done.has(current.key)?'button-secondary':'button-primary'} button-sm" data-action="mark-complete" data-course="${course.id}" data-key="${current.key}">${icon('check')} ${done.has(current.key)?'Completed':'Mark Complete'}</button><button class="button button-secondary button-sm" data-action="next-lesson" data-course="${course.id}" ${index===entries.length-1?'disabled':''}>Next ${icon('arrow')}</button></div></div><div class="tabs">${[['overview','Overview'],['classroom','Classroom'],['notes','Notes'],['resources','Resources'],['discussion','Discussion']].map(t=>`<button class="tab-button ${state.lessonTab===t[0]?'active':''}" data-action="lesson-tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div><div id="lessonTabPanel">${playerTabContent(course,current,state.lessonTab)}</div></main><aside class="curriculum-sidebar"><div class="curriculum-sidebar-head"><h2>Course content</h2><p class="muted" style="font-size:10px;margin:5px 0 0">${completedLessons(course.id)} of ${entries.length} lessons complete</p></div>${course.modules.map((module,mi)=>`<article class="player-module ${mi===current.mi||mi===0?'open':''}"><button class="player-module-head" data-action="toggle-player-module"><span><strong>${mi+1}. ${escapeHtml(module.title)}</strong><span>${module.lessons.length} lessons${module.duration?` · ${escapeHtml(module.duration)}`:''}</span></span>${icon('chevronDown')}</button><div class="player-module-lessons">${module.lessons.map((lesson,li)=>{const key=`${mi}-${li}`,videoCount=lectureList(lesson).length;return `<button class="player-lesson ${done.has(key)?'completed':''} ${current.key===key?'active':''}" data-action="select-lesson" data-course="${course.id}" data-key="${key}"><span class="player-lesson-status">${done.has(key)?icon('check'):icon(videoCount?'play':'book')}</span><span><strong>${escapeHtml(lesson.title)}</strong><span>${escapeHtml(lesson.duration||'Reading')}${videoCount?` · ${videoCount} video${videoCount===1?'':'s'}`:''}</span></span>${lesson.preview?'<span class="preview-label">Preview</span>':''}</button>`}).join('')}</div></article>`).join('')}</aside></div></section>`;
+    const completedCount=completedLessons(course.id);
+    const totalVideos=entries.reduce((sum,item)=>sum+lectureList(item).length,0);
+    const content=`<div class="recorded-library-toolbar premium-recorded-toolbar offline-student-toolbar">
+        <a href="#/my-courses">${icon('arrowLeft')}<span>My Courses</span></a>
+        <div class="recorded-toolbar-actions"><span class="recorded-toolbar-course">Physical / Offline</span><span class="recorded-learning-status ${percent>=100?'is-complete':percent>0?'is-active':'is-pending'}">${percent>=100?'Completed':percent>0?'In progress':'Not started'}</span></div>
+      </div>
+      <div class="recorded-course-overview compact-recorded-admin-stats offline-student-course-stats">
+        <article><span>${icon('book')}</span><div><strong>${entries.length}</strong><small>Lessons</small></div></article>
+        <article><span>${icon('check')}</span><div><strong>${completedCount}</strong><small>Completed</small></div></article>
+        <article><span>${icon('play')}</span><div><strong>${totalVideos}</strong><small>Lecture videos</small></div></article>
+        <article><span>${icon('history')}</span><div><strong>${percent}%</strong><small>Course progress</small></div></article>
+      </div>
+      <section class="player-shell recorded-private-course-shell recorded-instructor-private-shell offline-private-course-shell offline-dashboard-parity-shell">
+        <div class="player-layout recorded-private-layout offline-private-layout offline-dashboard-parity-layout">
+          <main class="lesson-stage recorded-private-stage offline-private-stage">
+            <div class="offline-private-media">${lectureTabs(course,current,currentLecture)}${lectureVideoMarkup(course,current,currentLecture)}</div>
+            <div class="lesson-title-row recorded-private-title-row offline-private-title-row">
+              <div><span class="course-category">${escapeHtml(current.moduleTitle)}</span><h1>${escapeHtml(current.title)}</h1><p>Lesson ${index+1} of ${entries.length}${current.duration?` · ${escapeHtml(current.duration)}`:''}${lectureList(current).length?` · ${lectureList(current).length} video${lectureList(current).length===1?'':'s'}`:''}</p></div>
+              <div class="lesson-nav-actions"><button class="button button-secondary button-sm" data-action="previous-lesson" data-course="${course.id}" ${index===0?'disabled':''}>${icon('arrowLeft')} Previous</button><button class="button ${done.has(current.key)?'button-secondary':'button-primary'} button-sm" data-action="mark-complete" data-course="${course.id}" data-key="${current.key}">${icon('check')} ${done.has(current.key)?'Completed':'Mark Complete'}</button><button class="button button-secondary button-sm" data-action="next-lesson" data-course="${course.id}" ${index===entries.length-1?'disabled':''}>Next ${icon('arrow')}</button></div>
+            </div>
+            <div class="tabs recorded-private-tabs offline-private-tabs">${[['overview','Overview'],['classroom','Classroom'],['notes','Notes'],['resources','Resources'],['discussion','Discussion']].map(t=>`<button class="tab-button ${state.lessonTab===t[0]?'active':''}" data-action="lesson-tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+            <div id="lessonTabPanel">${playerTabContent(course,current,state.lessonTab)}</div>
+          </main>
+          <aside class="curriculum-sidebar recorded-course-sidebar offline-course-sidebar"><div class="curriculum-sidebar-head"><h2>Course content</h2><p class="muted">${completedCount} of ${entries.length} lessons complete</p></div>${course.modules.map((module,mi)=>`<article class="player-module ${mi===current.mi?'open':''}"><button class="player-module-head" data-action="toggle-player-module"><span><strong>${mi+1}. ${escapeHtml(module.title)}</strong><span>${module.lessons.length} lessons${module.duration?` · ${escapeHtml(module.duration)}`:''}</span></span>${icon('chevronDown')}</button><div class="player-module-lessons">${module.lessons.map((lesson,li)=>{const key=`${mi}-${li}`,videoCount=lectureList(lesson).length;return `<button class="player-lesson ${done.has(key)?'completed':''} ${current.key===key?'active':''}" data-action="select-lesson" data-course="${course.id}" data-key="${key}"><span class="player-lesson-status">${done.has(key)?icon('check'):current.key===key?icon('play'):icon(videoCount?'play':'book')}</span><span><strong>${escapeHtml(lesson.title)}</strong><span>${escapeHtml(lesson.duration||'Reading')}${videoCount?` · ${videoCount} video${videoCount===1?'':'s'}`:''}</span></span>${current.key===key?'<span class="recorded-now-playing"><i></i><i></i><i></i></span>':''}</button>`}).join('')}</div></article>`).join('')}</aside>
+        </div>
+      </section>`;
+    dashboardShell('my-courses',content,course.title,`${current.moduleTitle} · ${current.title} · Physical / Offline`);
     initPage();
   }
 
@@ -5762,21 +6469,31 @@ window.FSA_BUILD='v93-classroom-recording-parity';
       drawerFooter.innerHTML = `<a class="button button-primary button-block" href="#/courses">Explore Courses</a>`;
       return;
     }
-    items.innerHTML = `${t.courseItems.map(c=>`<article class="cart-mini-item"><span class="cart-mini-thumb">${imageMarkup(c.image,c.title,initials(c.title))}</span><span><strong>${c.title}</strong><span>${money(c.price)}</span></span><button data-action="remove-cart" data-id="${c.id}" aria-label="Remove ${c.title}">${icon('trash')}</button></article>`).join('')}`;
+    items.innerHTML = `${t.courseItems.map(c=>`<article class="cart-mini-item"><span class="cart-mini-thumb">${imageMarkup(c.image,c.title,initials(c.title))}</span><span><strong>${c.title}</strong><span>${purchaseModeLabel(c.cartMode)} · ${money(c.price)}</span></span><button data-action="remove-cart" data-id="${c.id}" aria-label="Remove ${c.title}">${icon('trash')}</button></article>`).join('')}`;
     drawerFooter.innerHTML = `<div class="cart-drawer-total"><span>Total</span><strong>${money(t.total)}</strong></div><a class="button button-primary button-block" href="#/cart">Review Cart</a><a class="button button-secondary button-block" href="#/checkout">Checkout</a>`;
   }
 
-  function addToCart(id, silent = false) {
+  function addToCart(id, silent = false, requestedMode = '') {
     id = Number(id);
+    const course=courseById(id);
+    const mode=normalizePurchaseMode(requestedMode) || defaultCoursePurchaseMode(course);
+    state.cartModes = state.cartModes && typeof state.cartModes==='object' ? state.cartModes : {};
+    const previous=normalizePurchaseMode(state.cartModes[id]);
+    state.cartModes[id]=mode;
+    write(LS.cartModes,state.cartModes);
     if (!state.cart.includes(id)) {
       state.cart.push(id); write(LS.cart,state.cart);
-      if (!silent) toast('Course added to your cart.');
-    } else if (!silent) toast('This course is already in your cart.');
+      if (!silent) toast(`${purchaseModeLabel(mode)} course added to your cart.`);
+    } else if (!silent) {
+      toast(previous && previous!==mode ? `Course updated to ${purchaseModeLabel(mode)}.` : 'This course is already in your cart.');
+    }
     updateHeader(); updateCartDrawer();
   }
 
   function removeFromCart(id) {
-    state.cart = state.cart.filter(x=>x!==Number(id)); write(LS.cart,state.cart);
+    id=Number(id);
+    state.cart = state.cart.filter(x=>x!==id); write(LS.cart,state.cart);
+    if(state.cartModes && typeof state.cartModes==='object'){ delete state.cartModes[id]; write(LS.cartModes,state.cartModes); }
     updateHeader(); updateCartDrawer();
     if (state.currentPath === '/cart') renderCart();
     toast('Course removed from cart.');
@@ -5832,6 +6549,14 @@ window.FSA_BUILD='v93-classroom-recording-parity';
 
   async function completeCheckout(form) {
     if (!state.loggedIn) { toast('Please sign in before placing an order.','error'); routeTo('/login'); return; }
+    try {
+      const studentSession=await apiRequest('auth_me',{query:{account_type:'student'}});
+      if(!studentSession.authenticated || studentSession.user?.role!=='student'){
+        toast('Please sign in with your Student Profile before placing a course order.','error');
+        routeTo('/login'); return;
+      }
+      state.user={...state.user,...studentSession.user};
+    } catch(error){ toast(error.message||'Please sign in with your Student Profile.','error'); routeTo('/login'); return; }
     if (!validateForm(form)) return;
     const t = cartTotals();
     const fd = new FormData(form);
@@ -5840,15 +6565,17 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Placing Order…'; }
     try {
       const result = await apiRequest('checkout_create', { method:'POST', body:{
-        course_ids: t.courseItems.map(course => course.id), plan_id: '', billing: '', coupon: state.coupon || '',
+        course_ids: t.courseItems.map(course => course.id),
+        course_items: t.courseItems.map(course => ({course_id:Number(course.id),delivery_mode:course.cartMode||defaultCoursePurchaseMode(course)})),
+        plan_id: '', billing: '', coupon: state.coupon || '',
         name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'),
         country: fd.get('country'), state: fd.get('state'), address: fd.get('address'), city: fd.get('city'), postal: fd.get('postal'),
         payment_method: fd.get('payment'), message: fd.get('message') || ''
       }});
       state.user.name = fd.get('name'); state.user.email = fd.get('email'); state.user.phone = fd.get('phone');
       write(LS.lastOrder,result.order);
-      state.cart = []; state.coupon = null;
-      write(LS.cart,[]);
+      state.cart = []; state.cartModes = {}; state.coupon = null;
+      write(LS.cart,[]); write(LS.cartModes,{});
       await syncStudentData();
       updateHeader(); updateCartDrawer();
       toast(result.message);
@@ -5874,7 +6601,12 @@ window.FSA_BUILD='v93-classroom-recording-parity';
         state.user = { ...state.user, ...result.user, joined: new Date(result.user.created_at || Date.now()).toLocaleDateString(siteSettings.locale || 'en-IN',{month:'long',year:'numeric'}) };
         state.loggedIn = true;
         if(result.user.role==='instructor') await syncInstructorData(); else await syncStudentData();
-        toast('Signed in successfully.'); routeTo(result.user.role==='instructor'?'/instructor-dashboard':'/dashboard');
+        toast('Signed in successfully.');
+        if(result.user.role==='instructor') routeTo('/instructor-dashboard');
+        else {
+          const resumePath=recordedStudentResumePath();
+          routeTo(resumePath||'/dashboard');
+        }
       } catch (error) { toast(error.message,'error'); }
       return;
     }
@@ -5970,6 +6702,10 @@ window.FSA_BUILD='v93-classroom-recording-parity';
       if(!validateForm(form))return;const fd=new FormData(form);const body=Object.fromEntries(fd.entries());body.student_id=Number(body.student_id);
       try{const result=await apiRequest('instructor_certificate_request',{method:'POST',body});toast(result.message);document.getElementById('instructorActionModal')?.remove();await syncInstructorData();renderInstructorRequests();initPage();}catch(error){toast(error.message,'error');}return;
     }
+    if(formId==='instructorOfflineCourseForm'){
+      const submit=form.querySelector('button[type="submit"]');const original=submit?.textContent||'Save & Submit Offline Content';if(submit){submit.disabled=true;submit.textContent='Saving…';}
+      try{const payload=instructorOfflineCollect(form);const r=await apiRequest('instructor_offline_course_save',{method:'POST',body:payload});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await Promise.all([syncInstructorData(),refreshCatalogData()]);renderInstructorCourses();initPage();}catch(error){toast(error.message,'error');if(submit){submit.disabled=false;submit.textContent=original;}}return;
+    }
     if(formId==='instructorCourseForm'){
       if(!validateForm(form))return;const fd=new FormData(form),body=Object.fromEntries(fd.entries());body.id=Number(body.id||0);body.price=Number(body.price||0);body.originalPrice=Number(body.originalPrice||0);body.hours=Number(body.hours||0);
       try{const r=await apiRequest('instructor_course_save',{method:'POST',body});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await Promise.all([syncInstructorData(),refreshCatalogData()]);renderInstructorCourses();initPage();}catch(error){toast(error.message,'error');}return;
@@ -6039,31 +6775,35 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     }
     if(formId==='instructorQuizForm'){
       if(!validateForm(form))return;const fd=new FormData(form),questions=collectQuizQuestions(form);if(!questions.length){toast('Add at least one valid quiz question.','error');return;}const body=Object.fromEntries(fd.entries());body.id=Number(body.id||0);body.course_id=Number(body.course_id||0);body.attempts_allowed=Number(body.attempts_allowed||1);body.due_at=sqlDateTime(body.due_at);body.questions=questions;
-      try{const r=await apiRequest('instructor_quiz_save',{method:'POST',body});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorQuizzes();initPage();}catch(error){toast(error.message,'error');}return;
+      try{const r=await apiRequest('instructor_quiz_save',{method:'POST',body});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorCourseManager(body.course_id);initPage();}catch(error){toast(error.message,'error');}return;
     }
     if(formId==='instructorAssignmentForm'){
       if(!validateForm(form))return;const fd=new FormData(form);fd.set('due_at',sqlDateTime(fd.get('due_at')));
-      try{const r=await apiRequest('instructor_assignment_save',{method:'POST',body:fd});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorAssignments();initPage();}catch(error){toast(error.message,'error');}return;
+      try{const r=await apiRequest('instructor_assignment_save',{method:'POST',body:fd});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorCourseManager(Number(fd.get('course_id')));initPage();}catch(error){toast(error.message,'error');}return;
     }
     if(formId==='instructorGradeForm'){
-      if(!validateForm(form))return;const fd=new FormData(form);try{const r=await apiRequest('instructor_submission_grade',{method:'POST',body:{id:Number(fd.get('id')),grade:Number(fd.get('grade')),feedback:fd.get('feedback')}});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorAssignments();initPage();}catch(error){toast(error.message,'error');}return;
+      if(!validateForm(form))return;const fd=new FormData(form);try{const r=await apiRequest('instructor_submission_grade',{method:'POST',body:{id:Number(fd.get('id')),grade:Number(fd.get('grade')),feedback:fd.get('feedback')}});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();const cid=Number(target.dataset.course||0);if(cid)renderInstructorCourseManager(cid);else renderInstructorCourses();initPage();}catch(error){toast(error.message,'error');}return;
     }
     if(formId==='studentQuizForm'){
-      const course=currentSecureCourse(),quiz=(course?.classroom?.quizzes||[]).find(q=>Number(q.id)===Number(new FormData(form).get('quiz_id')));if(!quiz)return;
+      const quizId=Number(new FormData(form).get('quiz_id')),course=currentSecureCourse(),quiz=(course?.classroom?.quizzes||[]).find(q=>Number(q.id)===quizId)||courseworkItemById('quiz',quizId);if(!quiz)return;
       const answers={};let missing=false;(quiz.questions||[]).forEach(q=>{const checked=form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);if(!checked)missing=true;else answers[q.id]=Number(checked.value);});
       if(missing){const firstMissing=(quiz.questions||[]).findIndex(q=>!form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`));setStudentQuizStep(form,Math.max(0,firstMissing));toast('Answer every quiz question before submitting.','error');return;}
       const submit=form.querySelector('[data-role="quiz-submit"]');if(submit){submit.disabled=true;submit.textContent='Calculating score…';}
       try{
         const r=await apiRequest('student_quiz_submit',{method:'POST',body:{quiz_id:Number(quiz.id),answers}});
         const percent=Number(r.percent||0),passed=percent>=50,results=Array.isArray(r.results)?r.results:[];
-        const slug=course.slug||state.currentPath.split('/')[2];
-        await syncStudentData();delete state.playerCourses[slug];state.lessonTab='classroom';await renderPlayer(slug);
+        const recordedCourseId=Number(form.dataset.recordedCourse||0),slug=course?.slug||'';
+        await syncStudentData();if(slug)delete state.playerCourses[slug];if(recordedCourseId){const current=(state.studentRecordedLectures||[]).find(x=>Number(x.course_id)===recordedCourseId);renderRecordedLecturePlayer(recordedCourseId,Number(current?.id||0));initPage();}else{state.lessonTab='classroom';await renderPlayer(slug);}
         openStudentClassroomModal(`${quiz.title} — Result`,`<div class="quiz-result-screen"><div class="quiz-result-icon ${passed?'pass':''}">${icon(passed?'check':'note')}</div><span class="eyebrow">Quiz completed</span><h2>${passed?'Assessment submitted':'Score recorded'}</h2><div class="quiz-result-score"><strong>${percent}%</strong><span>${r.score}/${r.max_score} points</span></div><p>Your answers were scored automatically. ${passed?'You can review each answer below.':'Review the correct answers below before your next attempt.'}</p>${results.length?`<div class="quiz-result-breakdown">${results.map((item,index)=>`<article class="${item.is_correct?'correct':'wrong'}"><span>${item.is_correct?'✓':'×'}</span><div><strong>${index+1}. ${escapeHtml(item.question)}</strong><small>Your answer: ${escapeHtml(item.given_text||'No answer')} · Correct: ${escapeHtml(item.correct_text||'')}</small></div><b>${Number(item.earned||0)}/${Number(item.points||0)}</b></article>`).join('')}</div>`:''}<div class="row-actions" style="justify-content:center"><button class="button button-primary" type="button" data-action="close-student-classroom-modal">Back to Classroom</button></div></div>`);
         toast(`Quiz submitted: ${r.score}/${r.max_score} (${percent}%).`);
       }catch(error){if(submit){submit.disabled=false;submit.textContent='Submit Quiz';}toast(error.message,'error');}return;
     }
+    if(formId==='recordedDiscussionForm'){
+      const fd=new FormData(form);const send=form.querySelector('.recorded-discussion-send');if(send){send.disabled=true;send.classList.add('is-sending');}
+      try{const r=await apiRequest('recorded_course_discussion_send',{method:'POST',body:fd});form.querySelector('textarea[name="message"]').value='';const file=form.querySelector('input[name="attachment"]');if(file)file.value='';const fileName=form.querySelector('[data-role="discussion-file-name"]');if(fileName)fileName.textContent='';form.querySelector('[name="reply_to_id"]').value='0';form.querySelector('[name="attach_timestamp"]').value='0';form.querySelector('[name="video_seconds"]').value='0';form.querySelector('[data-role="discussion-reply-preview"]')?.setAttribute('hidden','');form.querySelector('[data-role="discussion-time-context"]')?.setAttribute('hidden','');form.classList.remove('has-time');toast(r.message);await refreshRecordedDiscussion(Number(fd.get('course_id')),{stickToBottom:true});}catch(error){toast(error.message,'error');}finally{if(send){send.disabled=false;send.classList.remove('is-sending');}}return;
+    }
     if(formId==='studentAssignmentForm'){
-      const fd=new FormData(form);try{const r=await apiRequest('student_assignment_submit',{method:'POST',body:fd});toast(r.message);closeStudentClassroomModal();await refreshSecureClassroom();}catch(error){toast(error.message,'error');}return;
+      const fd=new FormData(form),recordedCourseId=Number(form.dataset.recordedCourse||0);try{const r=await apiRequest('student_assignment_submit',{method:'POST',body:fd});toast(r.message);closeStudentClassroomModal();await syncStudentData();if(recordedCourseId){const current=(state.studentRecordedLectures||[]).find(x=>Number(x.course_id)===recordedCourseId);renderRecordedLecturePlayer(recordedCourseId,Number(current?.id||0));initPage();}else await refreshSecureClassroom();}catch(error){toast(error.message,'error');}return;
     }
     if (formId === 'learningPreferencesForm') {
       const fd = new FormData(form); state.user.weeklyGoal = Math.max(1,Math.min(40,Number(fd.get('weeklyGoal')||5))); state.user.notifications = fd.get('notifications') === 'on';
@@ -6079,11 +6819,29 @@ window.FSA_BUILD='v93-classroom-recording-parity';
   }
   async function handleChange(event) {
     const input = event.target;
+    if(input.matches('.recorded-discussion-attach input[type="file"]')){
+      const form=input.closest('#recordedDiscussionForm'),name=form?.querySelector('[data-role="discussion-file-name"]');if(name)name.textContent=input.files?.[0]?.name||'';
+    }
+    if(input.matches('[data-resource-file]')){
+      const label=input.closest('.recorded-resource-upload'),name=label?.querySelector('[data-role="recorded-resource-file-name"]'),file=input.files?.[0];
+      if(name)name.textContent=file?file.name:'PDF, Office, ZIP, project/source files, images, audio/video and other safe files';
+      label?.classList.toggle('has-file',!!file);
+    }
     if(input.matches('.classroom-upload input[type="file"]')){
       const label=input.closest('.classroom-upload');
       const name=label?.querySelector('[data-role="classroom-file-name"]');
       if(name)name.textContent=input.files?.[0]?.name||'No file selected';
       label?.classList.toggle('has-file',!!input.files?.[0]);
+    }
+    if(input.matches('[data-io-module-block-upload]')&&input.files?.[0]){
+      const file=input.files[0];const fd=new FormData();fd.append('file',file);input.disabled=true;
+      try{const r=await apiRequest('instructor_classroom_upload',{method:'POST',body:fd});const urlInput=input.closest('.io-content-block')?.querySelector('[data-field="io-module-block-url"]');if(urlInput)urlInput.value=r.url;toast('Content file uploaded.');}catch(error){toast(error.message,'error');}finally{input.disabled=false;input.value='';}
+      return;
+    }
+    if(input.matches('[data-offline-image-upload]')&&input.files?.[0]){
+      const file=input.files[0];if(!/^image\/(jpeg|png|webp)$/i.test(file.type)){toast('Choose a JPG, PNG or WebP image.','error');input.value='';return;}const fd=new FormData();fd.append('file',file);input.disabled=true;
+      try{const r=await apiRequest('instructor_classroom_upload',{method:'POST',body:fd});const urlInput=input.closest('.offline-image-field')?.querySelector('input.form-control');if(urlInput)urlInput.value=r.url;toast('Image uploaded.');}catch(error){toast(error.message,'error');}finally{input.disabled=false;input.value='';}
+      return;
     }
     if(input.matches('#registerForm [name="account_type"]')){
       const instructor=input.value==='instructor';
@@ -6196,7 +6954,10 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     if (action === 'event-media-thumb') updateEventMedia(Number(target.dataset.index || 0));
     if (action === 'event-media-prev' || action === 'event-media-next') { const root=document.querySelector('[data-event-media-root]'); const current=Number(root?.dataset.current || 0); updateEventMedia(current + (action==='event-media-next'?1:-1)); }
     if (action === 'event-add-calendar') { const item=eventBySlug(target.dataset.slug); if(item){ downloadEventCalendar(item); toast('Calendar file downloaded.'); } }
-    if (action === 'add-cart') addToCart(target.dataset.id);
+    if (action === 'add-cart') {
+      const requestedMode=target.dataset.mode || (state.currentPath.startsWith('/course/') ? state.detailDeliveryMode : '');
+      addToCart(target.dataset.id,false,requestedMode);
+    }
     if (action === 'remove-cart') removeFromCart(target.dataset.id);
     if (action === 'open-cart') { updateCartDrawer(); openOverlay(cartDrawer); }
     if (action === 'buy-now') { addToCart(target.dataset.id,true); routeTo('/checkout'); }
@@ -6239,8 +7000,17 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     
     if (action === 'toggle-password') { const input=target.parentElement.querySelector('input'); input.type=input.type==='password'?'text':'password'; }
     if (action === 'toggle-account-menu') { target.closest('.account-menu')?.classList.toggle('open'); }
-    if (action === 'logout') { try { await apiRequest('auth_logout',{method:'POST',body:{}}); } catch (_) {} state.loggedIn=false; state.enrollments=[]; state.pendingEnrollments=[]; state.progress={}; state.orders=[]; state.assignedCourses=[]; state.studentCoursework=[]; state.studentLiveSessions=[]; state.studentRecordings=[];state.studentRecordedLectures=[]; state.playerCourses={}; state.instructorData={students:[],profile_requests:[],certificate_requests:[],certifications:[],courses:[],live_sessions:[],quizzes:[],quiz_attempts:[],assignments:[],submissions:[]}; try{await refreshCatalogData();}catch(_){} toast('Signed out successfully.'); routeTo('/'); }
+    if (action === 'logout') { try { await apiRequest('auth_logout',{method:'POST',body:{account_type:state.user?.role==='instructor'?'instructor':'student'}}); } catch (_) {} state.loggedIn=false; state.enrollments=[]; state.pendingEnrollments=[]; state.progress={}; state.orders=[]; state.assignedCourses=[]; state.studentCoursework=[]; state.studentLiveSessions=[]; state.studentRecordings=[];state.studentRecordedLectures=[]; state.playerCourses={}; state.instructorData={students:[],profile_requests:[],certificate_requests:[],certifications:[],courses:[],live_sessions:[],quizzes:[],quiz_attempts:[],assignments:[],submissions:[]}; try{await refreshCatalogData();}catch(_){} toast('Signed out successfully.'); routeTo('/'); }
     if (action === 'toggle-dashboard-nav') document.getElementById('dashboardSidebar')?.classList.toggle('open');
+    if (action === 'toggle-instructor-live-submenu') {
+      const group=target.closest('.dashboard-nav-group');
+      if(group){
+        const open=!group.classList.contains('is-open');
+        group.classList.toggle('is-open',open);
+        target.setAttribute('aria-expanded',open?'true':'false');
+      }
+      return;
+    }
     if (action === 'dashboard-route') {
       event.preventDefault();
       const path=String(target.dataset.route||'').trim()||'/dashboard';
@@ -6260,16 +7030,103 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     if(action==='close-classroom-modal')closeInstructorClassroomModal();
     if(action==='instructor-course-new'){toast('Courses are created and assigned from the academy backend.','error');}
     if(action==='instructor-course-edit'){toast('Course setup is managed from the academy backend.','error');}
-    if(action==='instructor-content-edit'){const c=instructorCourseById(target.dataset.id);if(c)openInstructorContentForm(c);}
+    if(action==='instructor-content-edit'||action==='instructor-offline-course-edit'){const c=instructorCourseById(target.dataset.id);if(c)openInstructorOfflineCourseForm(c);}
+    if(action==='io-editor-tab'){const form=target.closest('#instructorOfflineCourseForm');if(form){form.querySelectorAll('.io-editor-tabs button').forEach(btn=>btn.classList.toggle('active',btn===target));form.querySelectorAll('[data-io-pane]').forEach(pane=>pane.classList.toggle('active',pane.dataset.ioPane===target.dataset.tab));}return;}
+    if(action==='io-add-project'){document.getElementById('instructorOfflineProjects')?.insertAdjacentHTML('beforeend',instructorOfflineProjectEditor({},document.querySelectorAll('#instructorOfflineProjects .io-project').length));return;}
+    if(action==='io-remove-project'){target.closest('.io-project')?.remove();return;}
+    if(action==='io-add-review'){document.getElementById('instructorOfflineReviews')?.insertAdjacentHTML('beforeend',instructorOfflineReviewEditor({}));return;}
+    if(action==='io-remove-review'){target.closest('.io-review')?.remove();return;}
+    if(action==='io-add-module'){document.getElementById('instructorOfflineModules')?.insertAdjacentHTML('beforeend',instructorOfflineModuleEditor({lessons:[{}]}));return;}
+    if(action==='io-remove-module'){target.closest('.io-module')?.remove();return;}
+    if(action==='io-add-lesson'){target.closest('.io-module')?.querySelector('.io-lessons')?.insertAdjacentHTML('beforeend',instructorOfflineLessonEditor({}));return;}
+    if(action==='io-add-module-block'){const mod=target.closest('.io-module'),list=mod?.querySelector('.io-module-content-blocks');if(list)list.insertAdjacentHTML('beforeend',instructorOfflineContentBlockEditor({},list.querySelectorAll('.io-content-block').length));return;}
+    if(action==='io-remove-module-block'){target.closest('.io-content-block')?.remove();return;}
+    if(action==='io-remove-lesson'){target.closest('.io-lesson')?.remove();return;}
+    if(action==='io-add-lecture'){const lesson=target.closest('.io-lesson'),list=lesson?.querySelector('.io-lecture-list');if(list){list.insertAdjacentHTML('beforeend',instructorOfflineLectureEditor({},list.querySelectorAll('.io-lecture').length));lesson.querySelector('.io-empty')?.setAttribute('hidden','');}return;}
+    if(action==='io-remove-lecture'){const lesson=target.closest('.io-lesson');target.closest('.io-lecture')?.remove();if(lesson&&!lesson.querySelector('.io-lecture'))lesson.querySelector('.io-empty')?.removeAttribute('hidden');return;}
     if(action==='instructor-course-delete'){const c=instructorCourseById(target.dataset.id);if(c&&confirm(`Delete ${c.title}? This also removes its live classes, quizzes and assignments.`)){try{const r=await apiRequest('instructor_course_delete',{method:'POST',body:{id:c.id}});toast(r.message);await Promise.all([syncInstructorData(),refreshCatalogData()]);renderInstructorCourses();initPage();}catch(error){toast(error.message,'error');}}}
     if(action==='ic-add-module'){document.getElementById('instructorCurriculumBuilder')?.insertAdjacentHTML('beforeend',instructorModuleEditor({lessons:[{}]}));}
     if(action==='ic-remove-module')target.closest('.ic-module')?.remove();
     if(action==='ic-add-lesson')target.closest('.ic-module')?.querySelector('.ic-lessons')?.insertAdjacentHTML('beforeend',instructorLessonEditor({}));
     if(action==='ic-remove-lesson')target.closest('.ic-lesson')?.remove();
+    if(action==='recorded-community-tab'){
+      const shell=target.closest('.recorded-community-shell');if(shell){shell.querySelectorAll('.recorded-community-tabs button').forEach(btn=>btn.classList.toggle('active',btn===target));shell.querySelectorAll('[data-community-pane]').forEach(pane=>{const active=pane.dataset.communityPane===target.dataset.tab;pane.hidden=!active;pane.classList.toggle('active',active);});}return;
+    }
+    if(action==='recorded-discussion-timestamp'){
+      const form=target.closest('#recordedDiscussionForm');if(form){const seconds=Math.max(0,Math.floor(Number(recordedLecturePlaybackContext.seconds)||0));form.querySelector('[name="video_seconds"]').value=String(seconds);form.querySelector('[name="lecture_id"]').value=String(recordedLecturePlaybackContext.lectureId||form.querySelector('[name="lecture_id"]').value||0);form.querySelector('[name="attach_timestamp"]').value='1';const ctx=form.querySelector('[data-role="discussion-time-context"]');ctx?.removeAttribute('hidden');const t=form.querySelector('[data-role="discussion-attached-time"]');if(t)t.textContent=recordedTimeLabel(seconds);form.classList.add('has-time');}return;
+    }
+    if(action==='recorded-discussion-remove-time'){
+      const form=target.closest('#recordedDiscussionForm');if(form){form.querySelector('[name="attach_timestamp"]').value='0';form.querySelector('[name="video_seconds"]').value='0';form.querySelector('[data-role="discussion-time-context"]')?.setAttribute('hidden','');form.classList.remove('has-time');}return;
+    }
+    if(action==='recorded-discussion-reply'){
+      const form=document.getElementById('recordedDiscussionForm');if(form){form.querySelector('[name="reply_to_id"]').value=String(target.dataset.id||0);const preview=form.querySelector('[data-role="discussion-reply-preview"]');preview?.removeAttribute('hidden');const n=form.querySelector('[data-role="discussion-reply-name"]'),t=form.querySelector('[data-role="discussion-reply-text"]');if(n)n.textContent=target.dataset.name||'Member';if(t)t.textContent=target.dataset.text||'';form.querySelector('textarea[name="message"]')?.focus();}return;
+    }
+    if(action==='recorded-discussion-cancel-reply'){
+      const form=target.closest('#recordedDiscussionForm');if(form){form.querySelector('[name="reply_to_id"]').value='0';form.querySelector('[data-role="discussion-reply-preview"]')?.setAttribute('hidden','');}return;
+    }
+    if(action==='recorded-discussion-delete'&&confirm('Remove this message from the course discussion?')){
+      try{const r=await apiRequest('recorded_course_discussion_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);const form=document.getElementById('recordedDiscussionForm');await refreshRecordedDiscussion(Number(form?.querySelector('[name="course_id"]')?.value||0),{silent:true});}catch(error){toast(error.message,'error');}return;
+    }
+    if(action==='recorded-discussion-jump'){
+      const courseId=Number(target.dataset.courseId||0),lectureId=Number(target.dataset.lectureId||0),seconds=Number(target.dataset.seconds||0);const currentLecture=Number(recordedLecturePlaybackContext.lectureId||0);
+      if(currentLecture===lectureId&&typeof recordedLectureSeekHandler==='function'){recordedLectureSeekHandler(seconds);setTimeout(()=>document.querySelector('.recorded-private-video,.recorded-player-stage')?.scrollIntoView({behavior:'smooth',block:'center'}),30);}else{sessionStorage.setItem('fsaRecordedJump',JSON.stringify({lectureId,seconds}));const instructor=state.user?.role==='instructor';routeTo(`/${instructor?'instructor-recorded-lectures':'recorded-lectures'}/${courseId}/${lectureId}`);}return;
+    }
+    if(action==='recorded-lesson-tab'){
+      state.recordedLessonTab=target.dataset.tab||'overview';
+      document.querySelectorAll('[data-action="recorded-lesson-tab"]').forEach(btn=>btn.classList.toggle('active',btn===target));
+      const parts=state.currentPath.split('/').filter(Boolean),courseId=Number(parts[1]||0),lectureId=Number(parts[2]||0),instructor=state.currentPath.startsWith('/instructor-recorded-lectures');
+      const source=instructor?(state.instructorData.recorded_lectures||[]):(state.studentRecordedLectures||[]);
+      const current=source.find(x=>Number(x.id)===lectureId&&Number(x.course_id)===courseId);
+      const panel=document.getElementById('recordedLessonTabPanel');
+      stopRecordedDiscussion();
+      if(current&&panel){panel.innerHTML=recordedLectureTabContent(courseId,current,state.recordedLessonTab,instructor?'instructor':'student');if(state.recordedLessonTab==='discussion')initRecordedDiscussion(courseId,current,instructor?'instructor':'student');}
+      return;
+    }
+    if(action==='recorded-note-save'){
+      const id=Number(target.dataset.id||0),note=document.getElementById('recordedLectureNotes')?.value||'';
+      try{const r=await apiRequest('student_recorded_lecture_note_save',{method:'POST',body:{lecture_id:id,note}});const lecture=(state.studentRecordedLectures||[]).find(x=>Number(x.id)===id);if(lecture)lecture.note=note;toast(r.message);}catch(error){toast(error.message,'error');}
+      return;
+    }
+    if(action==='instructor-recorded-resource-entry-add'){
+      const wrap=document.getElementById('recordedResourceEntries');if(wrap){wrap.insertAdjacentHTML('beforeend',recordedResourceEntryMarkup(wrap.querySelectorAll('.recorded-resource-entry').length));}return;
+    }
+    if(action==='instructor-recorded-resource-entry-remove'){
+      const entry=target.closest('.recorded-resource-entry'),wrap=entry?.parentElement;if(entry&&wrap){if(wrap.querySelectorAll('.recorded-resource-entry').length>1)entry.remove();else{entry.querySelectorAll('input,textarea').forEach(el=>{el.value='';});entry.querySelector('[data-role="recorded-resource-file-name"]')?.replaceChildren(document.createTextNode('PDF, Office, ZIP, project/source files, images, audio/video and other safe files'));}}return;
+    }
+    if(action==='instructor-recorded-resource-delete'&&confirm('Remove this lecture resource?')){
+      try{const resourceId=Number(target.dataset.id||0),lectureId=Number(target.dataset.lectureId||0);const lecture=(state.instructorData.recorded_lectures||[]).find(x=>Number(x.id)===lectureId);const r=await apiRequest('instructor_recorded_resource_delete',{method:'POST',body:{id:resourceId}});toast(r.message);await syncInstructorData();const fresh=(state.instructorData.recorded_lectures||[]).find(x=>Number(x.id)===lectureId);if(document.getElementById('recordedLectureForm'))openInstructorRecordedLectureForm(fresh||lecture);else if(fresh)renderInstructorRecordedLectures(fresh.course_id,fresh.id);initPage();}catch(error){toast(error.message,'error');}
+      return;
+    }
     if(action==='instructor-recorded-lecture-new'){openInstructorRecordedLectureForm(null,Number(target.dataset.courseId||target.dataset.course||0));}
     if(action==='instructor-recorded-lecture-edit'){openInstructorRecordedLectureForm((state.instructorData.recorded_lectures||[]).find(x=>Number(x.id)===Number(target.dataset.id)));}
     if(action==='instructor-recorded-lecture-save'){
-      const form=document.getElementById('recordedLectureForm');if(form){const fd=new FormData(form),body=Object.fromEntries(fd.entries());body.id=Number(body.id||0);body.course_id=Number(body.course_id||0);body.sort_order=Number(body.sort_order||1);body.duration_minutes=Number(body.duration_minutes||0);try{const r=await apiRequest('instructor_recorded_lecture_save',{method:'POST',body});toast(r.message);document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorRecordedLectures(Number(body.course_id||0),Number(r.id||body.id||0));initPage();}catch(error){toast(error.message,'error');}}
+      const form=document.getElementById('recordedLectureForm');
+      if(form){
+        const fd=new FormData(form),resourceEntries=[...form.querySelectorAll('.recorded-resource-entry')];
+        const body={id:Number(fd.get('id')||0),course_id:Number(fd.get('course_id')||0),sort_order:Number(fd.get('sort_order')||1),duration_minutes:Number(fd.get('duration_minutes')||0),title:String(fd.get('title')||''),video_url:String(fd.get('video_url')||''),status:String(fd.get('status')||'published'),description:String(fd.get('description')||'')};
+        try{
+          target.disabled=true;target.textContent='Saving…';
+          const r=await apiRequest('instructor_recorded_lecture_save',{method:'POST',body}),lectureId=Number(r.id||body.id||0);
+          let uploaded=0;
+          for(const entry of resourceEntries){
+            const title=String(entry.querySelector('[data-resource-title]')?.value||'').trim();
+            const description=String(entry.querySelector('[data-resource-description]')?.value||'').trim();
+            const resourceUrl=String(entry.querySelector('[data-resource-url]')?.value||'').trim();
+            const file=entry.querySelector('[data-resource-file]')?.files?.[0]||null;
+            const hasAny=Boolean(title||description||resourceUrl||file);
+            if(!hasAny)continue;
+            if(!description)throw new Error('Add a description for every lecture resource.');
+            if(file&&resourceUrl)throw new Error('For each resource, choose either a file or an external URL, not both.');
+            if(!file&&!resourceUrl)throw new Error('Choose a file or enter an external URL for every resource you add.');
+            const rf=new FormData();rf.set('lecture_id',String(lectureId));rf.set('title',title||(file?.name||'External resource'));rf.set('description',description);
+            if(file)rf.set('file',file);else rf.set('external_url',resourceUrl);
+            await apiRequest('instructor_recorded_resource_upload',{method:'POST',body:rf});uploaded++;
+          }
+          toast(uploaded?`${r.message} ${uploaded} resource${uploaded===1?'':'s'} added.`:r.message);
+          document.getElementById('instructorClassroomModal')?.remove();await syncInstructorData();renderInstructorRecordedLectures(Number(body.course_id||0),lectureId);initPage();
+        }catch(error){toast(error.message,'error');}
+        finally{target.disabled=false;target.textContent=body.id?'Save changes':'Publish lecture';}
+      }
     }
     if(action==='instructor-recorded-lecture-delete'&&confirm('Delete this recorded lecture? Student progress for it will also be removed.')){try{const lecture=(state.instructorData.recorded_lectures||[]).find(x=>Number(x.id)===Number(target.dataset.id));const courseId=Number(lecture?.course_id||0);const r=await apiRequest('instructor_recorded_lecture_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);await syncInstructorData();renderInstructorRecordedLectures(courseId,0);initPage();}catch(error){toast(error.message,'error');}}
     if(action==='recorded-lecture-complete'){try{const id=Number(target.dataset.id),lecture=(state.studentRecordedLectures||[]).find(x=>Number(x.id)===id);const r=await apiRequest('student_recorded_lecture_progress',{method:'POST',body:{lecture_id:id,position_seconds:Number(lecture?.last_position_seconds||0),watched_percent:100,completed:true}});toast(r.message);await syncStudentData();if(lecture)renderRecordedLecturePlayer(lecture.course_id,id);initPage();}catch(error){toast(error.message,'error');}}
@@ -6319,16 +7176,23 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     }
     if(action==='instructor-live-edit')openInstructorLiveForm((state.instructorData.live_sessions||[]).find(x=>Number(x.id)===Number(target.dataset.id)));
     if(action==='instructor-live-delete'&&confirm('Remove this live class?')){try{const r=await apiRequest('instructor_live_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);await syncInstructorData();renderInstructorLive();initPage();}catch(error){toast(error.message,'error');}}
+    if(action==='course-quiz-results')openCourseQuizResults(Number(target.dataset.id));
+    if(action==='course-assignment-submissions')openCourseAssignmentSubmissions(Number(target.dataset.id));
+    if(action==='course-sequence-add-quiz')openInstructorQuizForm(null,target.dataset.course||'',{sequenceOrder:Number(target.dataset.sequence||999),quizType:'checkpoint'});
+    if(action==='course-sequence-add-final-quiz')openInstructorQuizForm(null,target.dataset.course||'',{sequenceOrder:Number(target.dataset.sequence||9999),quizType:'final'});
+    if(action==='course-sequence-add-assignment')openInstructorAssignmentForm(null,target.dataset.course||'',{sequenceOrder:Number(target.dataset.sequence||999)});
+    if(action==='student-open-course-quiz'){event.preventDefault();openRecordedStudentQuiz(Number(target.dataset.id));}
+    if(action==='student-open-course-assignment'){event.preventDefault();openRecordedStudentAssignment(Number(target.dataset.id));}
     if(action==='instructor-quiz-new')openInstructorQuizForm(null,target.dataset.course||'');
     if(action==='instructor-quiz-edit')openInstructorQuizForm((state.instructorData.quizzes||[]).find(x=>Number(x.id)===Number(target.dataset.id)));
-    if(action==='instructor-quiz-delete'&&confirm('Delete this quiz and its attempts?')){try{const r=await apiRequest('instructor_quiz_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);await syncInstructorData();renderInstructorQuizzes();initPage();}catch(error){toast(error.message,'error');}}
+    if(action==='instructor-quiz-delete'&&confirm('Delete this quiz and its attempts?')){try{const r=await apiRequest('instructor_quiz_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);await syncInstructorData();const cid=Number(target.dataset.course||0);if(cid)renderInstructorCourseManager(cid);else renderInstructorCourses();initPage();}catch(error){toast(error.message,'error');}}
     if(action==='quiz-add-question'){const list=document.getElementById('quizQuestionBuilder');list?.insertAdjacentHTML('beforeend',quizQuestionEditor({},list.querySelectorAll('.quiz-question-editor').length));}
     if(action==='quiz-remove-question')target.closest('.quiz-question-editor')?.remove();
     if(action==='student-quiz-next'){const form=target.closest('#studentQuizForm');if(form){const step=Number(form.dataset.step||0),current=form.querySelector(`.student-quiz-step[data-step="${step}"]`);if(current&&!current.querySelector('input[type="radio"]:checked')){toast('Choose an answer before continuing.','error');return;}setStudentQuizStep(form,step+1);}}
     if(action==='student-quiz-prev'){const form=target.closest('#studentQuizForm');if(form)setStudentQuizStep(form,Number(form.dataset.step||0)-1);}
     if(action==='instructor-assignment-new')openInstructorAssignmentForm(null,target.dataset.course||'');
     if(action==='instructor-assignment-edit')openInstructorAssignmentForm((state.instructorData.assignments||[]).find(x=>Number(x.id)===Number(target.dataset.id)));
-    if(action==='instructor-assignment-delete'&&confirm('Delete this assignment and its submissions?')){try{const r=await apiRequest('instructor_assignment_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);await syncInstructorData();renderInstructorAssignments();initPage();}catch(error){toast(error.message,'error');}}
+    if(action==='instructor-assignment-delete'&&confirm('Delete this assignment and its submissions?')){try{const r=await apiRequest('instructor_assignment_delete',{method:'POST',body:{id:Number(target.dataset.id)}});toast(r.message);await syncInstructorData();const cid=Number(state.currentPath.split('/')[2]||0);if(state.currentPath.startsWith('/instructor-course-manage/')&&cid)renderInstructorCourseManager(cid);else renderInstructorCourses();initPage();}catch(error){toast(error.message,'error');}}
     if(action==='instructor-grade-submission'){const sub=(state.instructorData.submissions||[]).find(x=>Number(x.id)===Number(target.dataset.id));if(sub)openInstructorGradeForm(sub);}
     if(action==='live-theater-recording'){
       const mode=target.dataset.mode||'student';
@@ -6489,7 +7353,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const modalIcon = document.querySelector('.search-field-icon'); if(modalIcon) modalIcon.innerHTML=icon('search');
     const desktopAuth=document.getElementById('desktopAuth');
     if(desktopAuth){
-      const instructor=state.user.role==='instructor';desktopAuth.innerHTML=state.loggedIn?`<div class="account-menu"><button class="account-menu-trigger" type="button" data-action="toggle-account-menu"><span class="account-avatar">${state.user.avatar?`<img src="${escapeHtml(state.user.avatar)}" alt="">`:escapeHtml(initials(state.user.name))}</span><span>${escapeHtml((state.user.name||'My Account').split(/\s+/)[0])}</span>${icon('chevronDown')}</button><div class="account-dropdown"><div class="account-dropdown-user"><strong>${escapeHtml(state.user.name||'Academy Member')}</strong><small>${escapeHtml(state.user.email||'')}</small></div><a href="${instructor?'#/instructor-dashboard':'#/dashboard'}">Dashboard</a>${instructor?'<a href="#/instructor-courses">My Courses</a><a href="#/instructor-live">Live Classes</a><a href="#/instructor-recorded-lectures">Recorded Lectures</a><a href="#/instructor-quizzes">Quizzes</a><a href="#/instructor-assignments">Assignments</a><a href="#/instructor-certificates">Certificates</a><a href="#/instructor-students">Students</a>':'<a href="#/my-courses">My Courses</a><a href="#/recorded-lectures">Recorded Lectures</a><a href="#/my-quizzes">My Quizzes</a><a href="#/my-assignments">Assignments</a><a href="#/live-classes">Live Classes</a>'}<a href="#/profile">My Profile</a><button type="button" data-action="logout">Sign Out</button></div></div>`:`<a class="text-button" href="#/login">Sign In</a>`;
+      const instructor=state.user.role==='instructor';desktopAuth.innerHTML=state.loggedIn?`<div class="account-menu"><button class="account-menu-trigger" type="button" data-action="toggle-account-menu"><span class="account-avatar">${state.user.avatar?`<img src="${escapeHtml(state.user.avatar)}" alt="">`:escapeHtml(initials(state.user.name))}</span><span>${escapeHtml((state.user.name||'My Account').split(/\s+/)[0])}</span>${icon('chevronDown')}</button><div class="account-dropdown"><div class="account-dropdown-user"><strong>${escapeHtml(state.user.name||'Academy Member')}</strong><small>${escapeHtml(state.user.email||'')}</small></div><a href="${instructor?'#/instructor-dashboard':'#/dashboard'}">Dashboard</a>${instructor?'<a href="#/instructor-courses">My Courses</a><a href="#/instructor-live">Live Classes</a><a href="#/instructor-recorded-lectures">Recorded Lectures</a><a href="#/instructor-certificates">Certificates</a><a href="#/instructor-students">Students</a>':'<a href="#/my-courses">My Courses</a><a href="#/recorded-lectures">Recorded Lectures</a><a href="#/live-classes">Live Classes</a>'}<a href="#/profile">My Profile</a><button type="button" data-action="logout">Sign Out</button></div></div>`:`<a class="text-button" href="#/login">Sign In</a>`;
     }
     const mobileAccountLinks=document.getElementById('mobileAccountLinks');
     if(mobileAccountLinks)mobileAccountLinks.hidden=!state.loggedIn;
@@ -6514,6 +7378,8 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     const raw = decodeURIComponent((location.hash || '#/').slice(1));
     const [path, query=''] = raw.split('?');
     state.currentPath = path || '/';
+    const recordedRoute=state.currentPath.startsWith('/recorded-lectures')||state.currentPath.startsWith('/instructor-recorded-lectures');
+    if(!recordedRoute){stopRecordedDiscussion();stopRecordedLectureTracking();stopRecordedLecturePreview();}
     window.scrollTo(0,0);
     if (state.currentPath === '/') renderHome();
     else if (state.currentPath === '/courses') { if(query) state.currentPath=`/courses?${query}`; renderCourses(); state.currentPath='/courses'; }
@@ -6530,6 +7396,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     else if (state.currentPath === '/dashboard') renderDashboard();
     else if (state.currentPath === '/instructor-dashboard') renderInstructorDashboard();
     else if (state.currentPath === '/instructor-courses') renderInstructorCourses();
+    else if (state.currentPath.startsWith('/instructor-course-manage/')) renderInstructorCourseManager(Number(state.currentPath.split('/')[2]||0));
     else if (state.currentPath === '/instructor-live') renderInstructorLive();
     else if (state.currentPath === '/instructor-recordings') renderInstructorRecordings();
     else if (state.currentPath.startsWith('/instructor-recorded-lectures')) { const p=state.currentPath.split('/').filter(Boolean); renderInstructorRecordedLectures(Number(p[1]||0),Number(p[2]||0)); }
@@ -6543,7 +7410,8 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     else if (state.currentPath === '/my-quizzes') renderMyQuizzes();
     else if (state.currentPath === '/my-assignments') renderMyAssignments();
     else if (state.currentPath === '/live-classes') renderStudentLiveClasses();
-    else if (state.currentPath === '/recorded-lectures') renderRecordedLecturesArchive();
+    else if (state.currentPath === '/recorded-lectures') renderRecordedLecturesEntry();
+    else if (state.currentPath === '/recorded-lectures/archive') renderRecordedLecturesArchive();
     else if (state.currentPath.startsWith('/recorded-lectures/')) { const p=state.currentPath.split('/').filter(Boolean); renderRecordedLecturePlayer(Number(p[1]||0),Number(p[2]||0)); }
     else if (state.currentPath === '/wishlist') renderWishlist();
     else if (state.currentPath === '/certificates') renderCertificates();
@@ -6599,7 +7467,8 @@ window.FSA_BUILD='v93-classroom-recording-parity';
     try {
       const catalog = await apiRequest('catalog');
       applyBackendCatalog(catalog);
-      const result = await apiRequest('auth_me');
+      const wantsInstructor=String(window.location.hash||'').includes('/instructor');
+      const result = await apiRequest('auth_me',{query:{account_type:wantsInstructor?'instructor':'student'}});
       if (result.authenticated && result.user?.role !== 'admin') {
         state.loggedIn = true;
         state.user = { ...state.user, ...result.user };
@@ -6607,6 +7476,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
       } else {
         state.loggedIn = false;
         state.enrollments = [];
+        state.studentEnrollmentRows = [];
         state.pendingEnrollments = [];
         state.progress = {};
         state.orders = [];
@@ -6622,6 +7492,7 @@ window.FSA_BUILD='v93-classroom-recording-parity';
       state.loggedIn = false;
       state.user = { ...defaultUser };
       state.enrollments = [];
+      state.studentEnrollmentRows = [];
       state.pendingEnrollments = [];
       state.progress = {};
       state.orders = [];

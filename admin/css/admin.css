@@ -184,3 +184,30 @@ body.admin-mode{overflow-y:auto}
 .admin-nav button[data-view="approvals"] span{color:var(--success)}
 #adminContent .dashboard-grid>section>h2{margin:0 0 14px}.data-table td small{line-height:1.6}.data-table .primary-button,.data-table .danger-button{padding:8px 11px;font-size:12px}
 @media(max-width:760px){#userForm [name="instructor_id"]{width:100%}}
+
+/* ======================================================================
+   v117 — Admin visual consistency / readability pass
+   ====================================================================== */
+:root{--admin-focus:0 0 0 3px rgba(139,25,36,.10);--admin-card-shadow:0 9px 28px rgba(67,16,22,.05)}
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:2px solid rgba(139,25,36,.5);outline-offset:2px}
+.content{padding:28px clamp(20px,2.2vw,32px)}
+.page-head{margin-bottom:20px}.page-head h1{font-size:clamp(27px,2.3vw,32px)}.page-head p{font-size:12px;line-height:1.6}
+.panel,.metric-card,.cms-editor-card,.media-card{box-shadow:var(--admin-card-shadow)}
+.panel{padding:19px}.panel-head h2{font-size:17px}.panel-head p{font-size:10px;line-height:1.45}
+.metric-grid{gap:13px}.metric-card{padding:17px}.metric-card span{font-size:10px}.metric-card small{font-size:10px;line-height:1.4}
+.admin-nav button{min-height:43px;font-size:11px}.nav-label{font-size:9px}
+.primary-button,.secondary-button,.danger-button{min-height:40px;font-size:11px;border-radius:10px}
+.form-grid label,.settings-form label{font-size:11px;line-height:1.4}
+.form-grid input,.form-grid select,.form-grid textarea,.settings-form input,.settings-form select,.settings-form textarea,.toolbar input,.toolbar select{border-color:#e7dadd}
+.data-table th{font-size:9.5px;letter-spacing:.05em;white-space:nowrap}.data-table td{font-size:11px;line-height:1.5}.data-table th,.data-table td{padding-top:12px;padding-bottom:12px}
+.modal-card{border-radius:20px;box-shadow:0 30px 80px rgba(46,18,24,.2)}
+.modal-card>header{background:rgba(255,255,255,.97);backdrop-filter:blur(12px)}
+.cms-info-grid article{box-shadow:none}.cms-info-grid p,.cms-card-head p,.cms-sticky-save span,.cms-ai-instructions p{font-size:11px}
+.media-card-body>small{font-size:10px}.media-card-body code{font-size:9px}
+@media(max-width:1100px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-grid{grid-template-columns:1fr}}
+@media(max-width:860px){.content{padding:22px 16px}.page-head{align-items:flex-start;flex-direction:column}.page-head>.primary-button,.page-head>.secondary-button{width:100%}}
+@media(max-width:560px){.metric-grid{grid-template-columns:1fr}.content{padding:16px 11px 26px}.panel{padding:15px}.topbar{padding-inline:14px}}
+
+
+/* v120 structured module editor */
+.module-rich-content{margin-top:16px;padding:16px;border:1px solid var(--border,#e7d9dc);border-radius:14px;background:#fffafa}.module-rich-content-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:12px}.module-rich-content-head>div{display:grid;gap:3px}.module-content-blocks{display:grid;gap:12px}.module-content-block{border:1px solid var(--border,#e7d9dc);border-radius:12px;padding:14px;background:#fff}.module-content-block-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.module-content-block-head>div{display:flex;align-items:center;gap:8px}.module-block-number{display:grid;place-items:center;min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:#f8eaed;color:#942d3e;font-weight:800}.module-content-block-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.module-content-block-grid .full{grid-column:1/-1}.module-content-block-grid label{display:grid;gap:6px}.module-content-block-grid input,.module-content-block-grid select,.module-content-block-grid textarea{width:100%}@media(max-width:700px){.module-content-block-grid{grid-template-columns:1fr}.module-rich-content-head{align-items:flex-start;flex-direction:column}}

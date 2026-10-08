@@ -1,0 +1,73 @@
+FULL STACK ACADEMY LMS v114 — PURCHASE / ORDER / ENROLLMENT AUDIT
+
+ROOT CAUSE CONFIRMED
+The database previously enforced one enrollment per student+course:
+  UNIQUE(user_id, course_id)
+So a student who already owned Business Analyst as Physical/Offline could not buy the same Business Analyst course as Recorded. The checkout duplicate check also ignored delivery_mode. The request was rejected before the order INSERT, which is why no new Business Analyst order appeared in Admin → Orders.
+
+FIXED END-TO-END
+1. Database enrollment key
+   - Migrates automatically to UNIQUE(user_id, course_id, delivery_mode).
+   - Existing legacy enrollment rows are assigned a valid mode before migration.
+
+2. Checkout selection
+   - Exact selected mode is retained: offline / live / recorded.
+   - Mode-specific price/duration is used.
+
+3. Duplicate detection
+   - Blocks only the SAME course + SAME mode when already active/completed.
+   - Existing Physical access no longer blocks a Recorded purchase.
+   - Existing Live access no longer blocks a Recorded/Physical purchase.
+   - A real pending order returns its order reference instead of creating a duplicate.
+   - Orphan pending enrollment rows with no valid order can be repaired by a new checkout.
+
+4. Order creation
+   - Order row is inserted first inside a transaction.
+   - order_items stores course_id + delivery_mode + mode metadata.
+   - Pending enrollment is created for the exact delivery mode.
+
+5. Payment approval
+   - Admin → Orders → Paid activates the exact purchased mode.
+   - Paid-order repair logic preserves delivery_mode for current and older orders.
+   - Plan enrollment parameter mismatch found during audit was also fixed.
+
+6. Admin Enrollments
+   - Shows a Mode column.
+   - Manual Grant/Edit Access now includes Delivery Mode.
+   - Backend rejects a mode that is not enabled on the course.
+
+7. Student access routing
+   - Physical private page requires Offline enrollment.
+   - Live Zoom join requires Live enrollment.
+   - Recorded/Bunny player and progress require Recorded enrollment.
+
+8. Progress/status isolation
+   - Offline lesson completion only completes the Offline enrollment.
+   - Recorded lecture completion only completes the Recorded enrollment.
+   - One mode can no longer accidentally change another mode's status.
+
+9. Student data / dashboards
+   - Multiple purchased modes for one course are preserved as separate access records.
+   - My Courses already renders one card per active enrollment record.
+   - Dashboard resume/progress was made mode-aware.
+   - Admin Students list avoids duplicate student rows when multiple course modes exist.
+
+10. Existing data safety
+   - No manual SQL import required.
+   - API startup performs the enrollment index migration automatically.
+   - Existing orders, course progress, Zoom data, Bunny data and learner data are preserved.
+
+TESTS PERFORMED
+- PHP syntax: api/index.php, zoom-room.php, live-class.php
+- JavaScript syntax: js/app.js, admin/js/admin.js
+- Static commerce/access assertions: all PASS
+- Package integrity: checked after ZIP creation
+
+IMPORTANT LIVE TEST
+Because the model environment does not have the user's MySQL database, perform this final live check after replacing files:
+A) Anas owns Business Analyst Physical/Offline.
+B) Select Business Analyst → Recorded → checkout.
+C) New pending order must appear in Admin → Orders with “Business Analyst with Data Analytics — Recorded”.
+D) Admin changes that order to Paid.
+E) Admin → Enrollments must show BOTH Physical / Offline and Recorded rows for Anas.
+F) Student → My Courses must show both access modes and Recorded must open the Bunny Recorded Course page.

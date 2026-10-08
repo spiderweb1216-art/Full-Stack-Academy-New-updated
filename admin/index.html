@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/admin.css?v=31">
+  <link rel="stylesheet" href="css/admin.css?v=120.0">
   <style id="eventAdminV15Styles">
     .event-admin-table td:first-child{min-width:360px}.event-admin-main{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:16px;min-width:0}.event-admin-thumb{width:92px;height:64px;border-radius:13px;overflow:hidden;background:#f4e8eb;display:grid;place-items:center;flex:none}.event-admin-thumb img{width:100%;height:100%;object-fit:cover;display:block}.event-admin-thumb span{font-weight:800;color:var(--brand,#8f293a)}.event-admin-copy{min-width:0}.event-admin-copy strong,.event-admin-copy small{display:block;position:static!important;transform:none!important;margin:0}.event-admin-copy strong{font-size:14px;line-height:1.35;color:var(--ink,#19332b);white-space:normal}.event-admin-copy small{margin-top:5px;line-height:1.4;color:var(--muted,#68756f);overflow-wrap:anywhere}.event-featured-label{display:inline-flex;margin-left:6px;font-weight:700;color:var(--brand,#8f293a)}
     .event-editor-card{overflow:visible}.event-builder-title{display:grid!important;grid-template-columns:1fr auto;gap:6px 16px;align-items:center;padding-top:14px}.event-builder-title>span{font-size:16px;font-weight:800}.event-builder-title>small{grid-column:1/2}.event-builder-title>button{grid-column:2;grid-row:1/3;align-self:center}.event-builder-list{display:grid;gap:14px}.event-builder-item{border:1px solid var(--border,#ead8dc);border-radius:16px;padding:16px;background:linear-gradient(180deg,#fff,#fffafb);box-shadow:0 8px 24px rgba(91,27,42,.045)}.event-builder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.event-builder-head strong{color:var(--brand,#8f293a);font-size:14px}.event-builder-order{display:flex;gap:7px;align-items:center}.event-builder-order button{min-width:34px;height:32px;border:1px solid var(--border,#ead8dc);background:#fff;border-radius:9px;cursor:pointer;color:var(--brand,#8f293a);font-weight:800}.event-builder-order .builder-remove{padding:0 10px;color:#a22d3f}.event-builder-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.event-builder-grid label{min-width:0}.event-builder-wide{grid-column:1/-1}.event-inline-upload{display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;border:1px dashed var(--border,#ead8dc);border-radius:11px;background:#fff}.event-inline-upload input[type=file]{max-width:290px}.event-inline-upload small{color:var(--muted,#68756f);line-height:1.35}.event-flow-builder{counter-reset:flow}.event-flow-item{position:relative}.event-flow-item:before{counter-increment:flow;content:"STEP " counter(flow);position:absolute;top:-10px;left:16px;background:var(--brand,#8f293a);color:white;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:800;letter-spacing:.08em}.media-thumb video{width:100%;height:100%;object-fit:cover;display:block}.media-thumb{position:relative}.media-video-badge{position:absolute;right:8px;bottom:8px;background:rgba(26,20,22,.8);color:white;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:800;letter-spacing:.08em}
@@ -270,6 +270,7 @@
         <input type="hidden" name="id">
         <label>Student<select name="user_id" required></select></label>
         <label>Course<select name="course_id" required></select></label>
+        <label>Delivery mode<select name="delivery_mode" required><option value="offline">Physical / Offline</option><option value="live">Live</option><option value="recorded">Recorded</option></select></label>
         <label>Access status<select name="status"><option value="active">Active</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
         <label>Access starts<input name="access_starts_at" type="datetime-local"></label>
         <label>Access expires<input name="access_expires_at" type="datetime-local"></label>
@@ -332,8 +333,9 @@
         <div class="course-form-section full">
           <div class="course-form-section-head"><div><h3>Overview</h3><p>Each item should be written on a new line. Leave any field empty to hide that block from the public course page.</p></div></div>
           <div class="form-grid nested-grid">
-            <label class="full">About this course<textarea name="description" maxlength="20000" rows="6"></textarea></label>
-            <label class="full">What students will learn <small>One complete learning outcome per line</small><textarea name="skills" rows="6" placeholder="Build responsive websites with HTML, CSS and JavaScript&#10;Create production-ready React applications"></textarea></label>
+            <label class="full">Main course heading <small>Shown above the long-form course content.</small><input name="contentHeading" maxlength="190" placeholder="What you will master in this course"></label>
+            <label class="full">Key points <small>One clear outcome / point per line</small><textarea name="skills" rows="6" placeholder="Build responsive websites with HTML, CSS and JavaScript&#10;Create production-ready React applications"></textarea></label>
+            <label class="full">Main course content <small>The detailed explanation that follows the heading and key points.</small><textarea name="description" maxlength="20000" rows="8"></textarea></label>
             <label class="full">Requirements <small>One per line</small><textarea name="requirements" rows="5"></textarea></label>
             <label class="full">Who this course is for <small>One per line</small><textarea name="audience" rows="5"></textarea></label>
           </div>
@@ -385,6 +387,6 @@
   </div>
 
   <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
-  <script src="js/admin.js?v=52"></script>
+  <script src="js/admin.js?v=120"></script>
 </body>
 </html>

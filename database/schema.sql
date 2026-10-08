@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_id BIGINT UNSIGNED NOT NULL,
   item_type ENUM('course','plan') NOT NULL DEFAULT 'course',
   course_id BIGINT UNSIGNED NULL,
-  delivery_mode ENUM('offline','live','recorded') NULL,
+  delivery_mode ENUM('offline','live','recorded') NOT NULL DEFAULT 'offline',
   plan_code VARCHAR(80) NULL,
   item_name VARCHAR(190) NOT NULL,
   unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -266,7 +266,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   CONSTRAINT fk_enrollments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_enrollments_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
   CONSTRAINT fk_enrollments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
-  UNIQUE KEY uq_enrollment_user_course (user_id, course_id),
+  UNIQUE KEY uq_enrollment_user_course_mode (user_id, course_id, delivery_mode),
   INDEX idx_enrollments_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -367,6 +367,9 @@ CREATE TABLE IF NOT EXISTS course_quizzes (
   course_id BIGINT UNSIGNED NOT NULL,
   instructor_id BIGINT UNSIGNED NOT NULL,
   lesson_key VARCHAR(40) NOT NULL DEFAULT '',
+  sequence_order DECIMAL(10,2) NOT NULL DEFAULT 999.00,
+  quiz_type ENUM('checkpoint','final') NOT NULL DEFAULT 'checkpoint',
+  can_skip TINYINT(1) NOT NULL DEFAULT 0,
   title VARCHAR(190) NOT NULL,
   description TEXT NULL,
   due_at DATETIME NULL,
@@ -400,6 +403,7 @@ CREATE TABLE IF NOT EXISTS course_assignments (
   course_id BIGINT UNSIGNED NOT NULL,
   instructor_id BIGINT UNSIGNED NOT NULL,
   lesson_key VARCHAR(40) NOT NULL DEFAULT '',
+  sequence_order DECIMAL(10,2) NOT NULL DEFAULT 999.00,
   title VARCHAR(190) NOT NULL,
   instructions MEDIUMTEXT NULL,
   attachment_url TEXT NULL,

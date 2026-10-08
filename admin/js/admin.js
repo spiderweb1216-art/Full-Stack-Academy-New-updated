@@ -20,7 +20,7 @@
 
   const COURSE_MODES = ['offline','live','recorded'];
   const COURSE_MODE_LABELS = {offline:'Physical / Offline',live:'Live',recorded:'Recorded'};
-  const COURSE_MODE_FIELDS = ['badge','image','short','description','price','originalPrice','duration','hours','projects','rating','reviews','students','level','language','updated','instructor','instructorRole'];
+  const COURSE_MODE_FIELDS = ['badge','image','short','contentHeading','description','price','originalPrice','duration','hours','projects','rating','reviews','students','level','language','updated','instructor','instructorRole'];
   let activeCourseMode = 'offline';
   let enabledCourseModes = ['offline'];
   let courseModeDrafts = {offline:{},live:{},recorded:{}};
@@ -155,15 +155,30 @@
       </div>
     </article>`;
   }
+  function moduleContentBlockEditor(block={},index=0) {
+    const type=['text','image','video','file','link'].includes(block.type)?block.type:'text';
+    return `<article class="module-content-block" data-module-content-block>
+      <div class="module-content-block-head"><div><span class="module-block-number">${index+1}</span><strong>Rich content block</strong></div><button class="builder-remove" type="button" data-action="remove-module-block">Remove</button></div>
+      <div class="module-content-block-grid">
+        <label>Block type<select data-field="module-block-type"><option value="text" ${type==='text'?'selected':''}>Text / explanation</option><option value="image" ${type==='image'?'selected':''}>Image</option><option value="video" ${type==='video'?'selected':''}>Video / iframe</option><option value="file" ${type==='file'?'selected':''}>PDF / file</option><option value="link" ${type==='link'?'selected':''}>External link</option></select></label>
+        <label>Block heading<input type="text" data-field="module-block-title" maxlength="190" value="${builderInput(block.title)}" placeholder="Optional heading"></label>
+        <label class="full">Description / text<textarea data-field="module-block-text" rows="4" maxlength="30000" placeholder="Explain this section, image, video or file.">${builderInput(block.text||block.description)}</textarea></label>
+        <label class="full">Media / file / link URL <small>Image, video/embed, PDF/file or external link.</small><div class="media-input-row"><input type="text" data-field="module-block-url" maxlength="3000" value="${builderInput(block.url)}" placeholder="https://... or uploads/media/..."><button class="secondary-button" type="button" data-action="choose-module-block-media">Choose Media</button><label class="secondary-button module-block-upload">Upload File<input type="file" data-module-content-upload hidden accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip"></label></div></label>
+      </div>
+    </article>`;
+  }
   function moduleEditor(module={}) {
     const lessons=Array.isArray(module.lessons)&&module.lessons.length?module.lessons:[{}];
     return `<article class="builder-card curriculum-module">
       <div class="builder-card-head"><strong>Module <span class="module-number"></span></strong><button class="builder-remove" type="button" data-action="remove-module">Remove Module</button></div>
       <div class="builder-card-body">
         <div class="builder-row two">
-          <label>Module title<input type="text" data-field="module-title" maxlength="190" placeholder="Web Development Fundamentals" value="${builderInput(module.title)}"></label>
+          <label>Module heading<input type="text" data-field="module-title" maxlength="190" placeholder="Web Development Fundamentals" value="${builderInput(module.title)}"></label>
           <label>Module duration<input type="text" data-field="module-duration" maxlength="60" placeholder="18h 20m" value="${builderInput(module.duration)}"></label>
         </div>
+        <label>Module description<textarea data-field="module-description" rows="4" maxlength="12000" placeholder="Explain what this module covers before the lessons begin.">${builderInput(module.description)}</textarea></label>
+        <label>Module key points <small>One point per line</small><textarea data-field="module-points" rows="4" placeholder="Understand the core concept&#10;Complete the practical exercise">${builderInput(Array.isArray(module.points)?module.points.join('\n'):'')}</textarea></label>
+        <div class="module-rich-content"><div class="module-rich-content-head"><div><strong>Rich module content</strong><small>Add explanations, images, videos, PDFs/files or links around the module description.</small></div><button class="secondary-button" type="button" data-action="add-module-block">+ Add Content Block</button></div><div class="module-content-blocks">${(Array.isArray(module.contentBlocks)?module.contentBlocks:[]).map(moduleContentBlockEditor).join('')}</div></div>
         <div class="lesson-list">${lessons.map(lessonEditor).join('')}</div>
         <div class="builder-inline-actions"><button class="secondary-button" type="button" data-action="add-lesson">+ Add Lesson</button></div>
       </div>
@@ -209,7 +224,7 @@
     const reviewsEmpty=document.getElementById('reviewsEmpty'); if(reviewsEmpty)reviewsEmpty.hidden=reviewCount>0;
   }
   function emptyCourseModeContent(){
-    return {badge:'',image:'',short:'',description:'',price:'',originalPrice:'',duration:'',hours:'',projects:'',rating:'',reviews:'',students:'',level:'',language:'',updated:'',instructor:'',instructorRole:'',skills:[],requirements:[],audience:[],projectItems:[],courseReviews:[]};
+    return {badge:'',image:'',short:'',contentHeading:'',description:'',price:'',originalPrice:'',duration:'',hours:'',projects:'',rating:'',reviews:'',students:'',level:'',language:'',updated:'',instructor:'',instructorRole:'',skills:[],requirements:[],audience:[],projectItems:[],courseReviews:[]};
   }
   function normalizeCourseModeDraft(value={}){
     const base=emptyCourseModeContent();
@@ -333,7 +348,9 @@
         videos:collectLectureVideos(row)
       })).filter(lesson=>lesson.title);
       const title=module.querySelector('[data-field="module-title"]')?.value.trim()||'';
-      return {title:title||(lessons.length?`Module ${index+1}`:''),duration:module.querySelector('[data-field="module-duration"]')?.value.trim()||'',lessons};
+      const points=String(module.querySelector('[data-field="module-points"]')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      const contentBlocks=[...module.querySelectorAll(':scope > .builder-card-body > .module-rich-content .module-content-block')].map(block=>({type:block.querySelector('[data-field="module-block-type"]')?.value||'text',title:block.querySelector('[data-field="module-block-title"]')?.value.trim()||'',text:block.querySelector('[data-field="module-block-text"]')?.value.trim()||'',url:block.querySelector('[data-field="module-block-url"]')?.value.trim()||''})).filter(block=>block.title||block.text||block.url);
+      return {title:title||(lessons.length?`Module ${index+1}`:''),duration:module.querySelector('[data-field="module-duration"]')?.value.trim()||'',description:module.querySelector('[data-field="module-description"]')?.value.trim()||'',points,contentBlocks,lessons};
     }).filter(module=>module.title||module.lessons.length);
   }
   function collectProjects() {
@@ -554,7 +571,7 @@
     const addAction=central?'<button class="primary-button" data-action="add-course">+ Add Course</button>':'';
     content.innerHTML=`${pageHead('Course Management',instructor?'Only courses assigned to your instructor account are shown. Recorded LMS courses require the Recorded Lectures permission before you can prepare them.':isBranchRole()?'Only courses assigned to your branch are shown. Branch approvals appear in Approval Centre.':'Assign a branch and instructor, then manage public course pages and protected LMS lessons.',addAction)}
       <div class="toolbar"><div class="toolbar-group"><span class="form-hint">${state.courses.length} course${state.courses.length===1?'':'s'} in your access scope</span></div></div>
-      <div class="table-wrap">${state.courses.length?`<table class="data-table"><thead><tr><th>Course</th><th>Type</th><th>Branch / Instructor</th><th>Lessons</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.courses.map(course=>{const approval=course.approvalStatus||'approved';const modes=Array.isArray(course.deliveryModes)&&course.deliveryModes.length?course.deliveryModes:[course.deliveryMode||'offline'];const recorded=modes.includes('recorded');const recordedBlocked=instructor&&recorded&&!Boolean(state.user?.can_record_lectures);const contentAction=recordedBlocked?'<span class="status-pill status-pending">Recorded permission required</span>':`<button data-action="edit-private-content" data-id="${course.id}">${instructor?'Prepare LMS Content':'Private Lessons'}</button>`;const actions=[central?`<button data-action="edit-course" data-id="${course.id}">Public Page</button>`:'',contentAction,`<a href="../#/course/${encodeURIComponent(course.slug)}" target="_blank">View</a>`,central?`<button data-action="delete-course" data-id="${course.id}">Delete</button>`:''].filter(Boolean).join('');return `<tr><td><div class="user-cell"><span>${initials(course.title)}</span><div><strong>${esc(course.title)}</strong><small>${esc(course.slug)}</small></div></div></td><td>${modes.map(mode=>`<span class="course-mode-pill">${esc(COURSE_MODE_LABELS[mode]||mode)}</span>`).join(' ')}</td><td><strong>${esc(course.branchName||'Not assigned')}</strong><br><small>${esc(state.instructors.find(x=>Number(x.id)===Number(course.instructorUserId))?.name||course.instructor||'No instructor')}</small></td><td>${course.lessons}${course.pendingLessons?`<br><small>${course.pendingLessons} pending</small>`:''}</td><td><span class="${statusClass(approval)}">${esc(approval)}</span><br><small>${course.approvalKind==='central'?'Central approval':course.approvalKind==='branch'?'Branch approval':''}</small></td><td><span class="${statusClass(course.status)}">${esc(course.status)}</span></td><td><div class="row-actions">${actions}</div></td></tr>`;}).join('')}</tbody></table>`:emptyState('No courses found',instructor?'No course has been assigned to you yet.':'No course is available in your access scope.')}</div>`;
+      <div class="table-wrap">${state.courses.length?`<table class="data-table"><thead><tr><th>Course</th><th>Type</th><th>Branch / Instructor</th><th>Lessons</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.courses.map(course=>{const approval=course.approvalStatus||'approved';const modes=Array.isArray(course.deliveryModes)&&course.deliveryModes.length?course.deliveryModes:[course.deliveryMode||'offline'];const recorded=modes.includes('recorded');const recordedBlocked=instructor&&recorded&&!Boolean(state.user?.can_record_lectures);const contentAction=recordedBlocked?'<span class="status-pill status-pending">Recorded permission required</span>':`<button data-action="edit-private-content" data-id="${course.id}">${instructor?'Prepare LMS Content':'Private Lessons'}</button>`;const actions=[central?`<button data-action="edit-course" data-id="${course.id}">Edit Course</button>`:'',contentAction,`<a href="../#/course/${encodeURIComponent(course.slug)}" target="_blank">View</a>`,central?`<button data-action="delete-course" data-id="${course.id}">Delete</button>`:''].filter(Boolean).join('');return `<tr><td><div class="user-cell"><span>${initials(course.title)}</span><div><strong>${esc(course.title)}</strong><small>${esc(course.slug)}</small></div></div></td><td>${modes.map(mode=>`<span class="course-mode-pill">${esc(COURSE_MODE_LABELS[mode]||mode)}</span>`).join(' ')}</td><td><strong>${esc(course.branchName||'Not assigned')}</strong><br><small>${esc(state.instructors.find(x=>Number(x.id)===Number(course.instructorUserId))?.name||course.instructor||'No instructor')}</small></td><td>${course.lessons}${course.pendingLessons?`<br><small>${course.pendingLessons} pending</small>`:''}</td><td><span class="${statusClass(approval)}">${esc(approval)}</span><br><small>${course.approvalKind==='central'?'Central approval':course.approvalKind==='branch'?'Branch approval':''}</small></td><td><span class="${statusClass(course.status)}">${esc(course.status)}</span></td><td><div class="row-actions">${actions}</div></td></tr>`;}).join('')}</tbody></table>`:emptyState('No courses found',instructor?'No course has been assigned to you yet.':'No course is available in your access scope.')}</div>`;
   }
   function openCourseModal(course=null){
     setFormStatus('courseForm');
@@ -1245,6 +1262,7 @@
     accessForm.elements.id.value=item?.id||'';
     accessForm.elements.user_id.innerHTML=state.users.filter(user=>user.role==='student').map(user=>`<option value="${user.id}" ${Number(item?.user_id)===Number(user.id)?'selected':''}>${esc(user.name)} — ${esc(user.email)}</option>`).join('');
     accessForm.elements.course_id.innerHTML=state.courses.map(course=>`<option value="${course.id}" ${Number(item?.course_id)===Number(course.id)?'selected':''}>${esc(course.title)}</option>`).join('');
+    accessForm.elements.delivery_mode.value=item?.delivery_mode||'offline';
     accessForm.elements.status.value=item?.status||'active';
     accessForm.elements.access_starts_at.value=dateTimeInputValue(item?.access_starts_at);
     accessForm.elements.access_expires_at.value=dateTimeInputValue(item?.access_expires_at);
@@ -1259,7 +1277,7 @@
     const [enrollmentResult,userResult,courseResult]=await Promise.all([api('admin_enrollments'),api('admin_users'),api('admin_courses')]);
     state.enrollments=enrollmentResult.enrollments||[];state.users=userResult.users||[];state.courses=courseResult.courses||[];
     content.innerHTML=`${pageHead('Enrollment Access','Grant courses manually, set expiry dates and control optional IP locking. Paid academy orders can still be activated from Orders.','<button class="primary-button" data-action="add-enrollment">+ Grant Access</button>')}
-      <div class="table-wrap">${state.enrollments.length?`<table class="data-table"><thead><tr><th>Student</th><th>Course</th><th>Order</th><th>Status</th><th>Access Window</th><th>IP Security</th><th>Actions</th></tr></thead><tbody>${state.enrollments.map(item=>`<tr><td><strong>${esc(item.student_name)}</strong><br><small>${esc(item.email)}</small></td><td>${esc(item.course_title)}</td><td>${esc(item.order_number||'Manual grant')}</td><td><select data-action="enrollment-status" data-id="${item.id}">${['pending','active','completed','cancelled'].map(status=>`<option value="${status}" ${item.status===status?'selected':''}>${status[0].toUpperCase()+status.slice(1)}</option>`).join('')}</select></td><td><small>${item.access_starts_at?`Starts ${formatDate(item.access_starts_at)}`:'Starts immediately'}<br>${item.access_expires_at?`Expires ${formatDate(item.access_expires_at)}`:'No expiry'}</small></td><td><small>${item.ip_lock_enabled?`Locked${item.allowed_ip?` to ${esc(item.allowed_ip)}`:' on first opening'}`:'Not locked'}${item.last_access_ip?`<br>Last: ${esc(item.last_access_ip)}`:''}</small></td><td><button data-action="edit-enrollment" data-id="${item.id}">Manage</button></td></tr>`).join('')}</tbody></table>`:emptyState('No enrollments found','Use Grant Access to assign a course directly to a student.')}</div>`;
+      <div class="table-wrap">${state.enrollments.length?`<table class="data-table"><thead><tr><th>Student</th><th>Course</th><th>Mode</th><th>Order</th><th>Status</th><th>Access Window</th><th>IP Security</th><th>Actions</th></tr></thead><tbody>${state.enrollments.map(item=>`<tr><td><strong>${esc(item.student_name)}</strong><br><small>${esc(item.email)}</small></td><td>${esc(item.course_title)}</td><td><span class="status-pill">${esc(item.delivery_mode==='recorded'?'Recorded':item.delivery_mode==='live'?'Live':'Physical / Offline')}</span></td><td>${esc(item.order_number||'Manual grant')}</td><td><select data-action="enrollment-status" data-id="${item.id}">${['pending','active','completed','cancelled'].map(status=>`<option value="${status}" ${item.status===status?'selected':''}>${status[0].toUpperCase()+status.slice(1)}</option>`).join('')}</select></td><td><small>${item.access_starts_at?`Starts ${formatDate(item.access_starts_at)}`:'Starts immediately'}<br>${item.access_expires_at?`Expires ${formatDate(item.access_expires_at)}`:'No expiry'}</small></td><td><small>${item.ip_lock_enabled?`Locked${item.allowed_ip?` to ${esc(item.allowed_ip)}`:' on first opening'}`:'Not locked'}${item.last_access_ip?`<br>Last: ${esc(item.last_access_ip)}`:''}</small></td><td><button data-action="edit-enrollment" data-id="${item.id}">Manage</button></td></tr>`).join('')}</tbody></table>`:emptyState('No enrollments found','Use Grant Access to assign a course directly to a student.')}</div>`;
   }
 
   async function renderUsers(){ const [result,branchesResult]=await Promise.all([api('admin_users'),api('admin_branches')]); state.users=result.users||[];state.branches=branchesResult.branches||[];drawUsers(); }
@@ -1481,6 +1499,9 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
     else if(action==='add-module'){document.getElementById('curriculumBuilder').insertAdjacentHTML('beforeend',moduleEditor({lessons:[{}]}));refreshBuilders();}
     else if(action==='remove-module'){target.closest('.curriculum-module')?.remove();refreshBuilders();}
     else if(action==='add-lesson'){target.closest('.curriculum-module')?.querySelector('.lesson-list')?.insertAdjacentHTML('beforeend',lessonEditor({}));refreshBuilders();}
+    else if(action==='add-module-block'){const module=target.closest('.curriculum-module'),list=module?.querySelector('.module-content-blocks');if(list){list.insertAdjacentHTML('beforeend',moduleContentBlockEditor({},list.querySelectorAll('.module-content-block').length));refreshBuilders();}}
+    else if(action==='remove-module-block'){target.closest('.module-content-block')?.remove();refreshBuilders();}
+    else if(action==='choose-module-block-media'){const input=target.closest('.module-content-block')?.querySelector('[data-field="module-block-url"]');if(input)openMediaPicker('',input);}
     else if(action==='remove-lesson'){target.closest('.lesson-row-editor')?.remove();refreshBuilders();}
     else if(action==='add-lecture'){const lesson=target.closest('.lesson-row-editor');const list=lesson?.querySelector('.lecture-list');const count=list?.querySelectorAll('.lecture-row-editor').length||0;list?.insertAdjacentHTML('beforeend',lectureEditor({title:`Video ${String(count+1).padStart(2,'0')}`},count));refreshBuilders();}
     else if(action==='remove-lecture'){target.closest('.lecture-row-editor')?.remove();refreshBuilders();}
@@ -1562,6 +1583,12 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
   });
 
   document.addEventListener('change',async event=>{
+    if(event.target.matches('[data-module-content-upload]')&&event.target.files?.[0]){
+      const input=event.target,file=input.files[0],row=input.closest('.module-content-block'),urlInput=row?.querySelector('[data-field="module-block-url"]');
+      const fd=new FormData();fd.append('file',file);input.disabled=true;
+      try{const r=await api('course_content_asset_upload',{method:'POST',body:fd});if(urlInput)urlInput.value=r.url||'';toast('Course content file uploaded.');}catch(e){toast(e.message,'error');}finally{input.disabled=false;input.value='';}
+      return;
+    }
     if(event.target.closest('#studentForm')&&event.target.name==='courseId'){refreshStudentCourseAssignment(event.target.closest('#studentForm'),{courseChanged:true});return;}
     if(event.target.closest('#studentForm')&&event.target.name==='deliveryMode'){refreshStudentCourseAssignment(event.target.closest('#studentForm'),{modeChanged:true});return;}
     if(event.target.closest('#studentForm')&&event.target.name==='batchId'){refreshStudentCourseAssignment(event.target.closest('#studentForm'),{batchChanged:true});return;}

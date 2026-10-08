@@ -10,3 +10,9 @@ uploads/avatars/*
 uploads/media/*
 !uploads/media/.gitkeep
 !uploads/media/.htaccess
+uploads/discussions/*
+!uploads/discussions/.htaccess
+
+
+uploads/recorded-resources/*
+!uploads/recorded-resources/.htaccess

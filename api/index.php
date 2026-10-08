@@ -143,6 +143,22 @@ function normalizeLessonResources(mixed $value): array
     return $resources;
 }
 
+function normalizeCourseContentBlocks(mixed $value): array
+{
+    $blocks = [];
+    foreach (array_slice(jsonArray($value), 0, 120) as $block) {
+        if (!is_array($block)) continue;
+        $type = in_array(($block['type'] ?? 'text'), ['text','image','video','file','link'], true) ? $block['type'] : 'text';
+        $title = clean($block['title'] ?? '', 190);
+        $text = clean($block['text'] ?? $block['description'] ?? '', 30000);
+        $url = $type === 'video' ? normalizeEmbedUrl($block['url'] ?? '') : normalizeHttpUrl($block['url'] ?? '', 3000);
+        if ($type === 'text' && $title === '' && $text === '') continue;
+        if ($type !== 'text' && $title === '' && $text === '' && $url === '') continue;
+        $blocks[] = ['type'=>$type,'title'=>$title,'text'=>$text,'url'=>$url];
+    }
+    return $blocks;
+}
+
 function normalizeLessonVideos(mixed $value, array $legacyLesson = []): array
 {
     $rawVideos = jsonArray($value);
@@ -216,6 +232,9 @@ function normalizeModules(mixed $value): array
         $modules[] = [
             'title' => $title,
             'duration' => clean($module['duration'] ?? '', 60),
+            'description' => clean($module['description'] ?? '', 12000),
+            'points' => normalizeTextList($module['points'] ?? [], 80, 500),
+            'contentBlocks' => normalizeCourseContentBlocks($module['contentBlocks'] ?? $module['content_blocks'] ?? []),
             'lessons' => $lessons,
         ];
     }
@@ -280,6 +299,7 @@ function legacyCourseModeContent(array $row): array
         'badge' => (string)($row['badge'] ?? ''),
         'image' => (string)($row['image'] ?? ''),
         'short' => (string)($row['short_description'] ?? ''),
+        'contentHeading' => '',
         'description' => (string)($row['description'] ?? ''),
         'price' => (float)($row['price'] ?? 0),
         'originalPrice' => (float)($row['original_price'] ?? 0),
@@ -315,6 +335,7 @@ function normalizeCourseModeContent(mixed $value): array
         'badge'=>clean($value['badge'] ?? '',60),
         'image'=>clean($value['image'] ?? '',2000),
         'short'=>clean($value['short'] ?? '',2000),
+        'contentHeading'=>clean($value['contentHeading'] ?? $value['content_heading'] ?? '',190),
         'description'=>clean($value['description'] ?? '',20000),
         'price'=>(float)($value['price'] ?? 0),
         'originalPrice'=>(float)($value['originalPrice'] ?? 0),
@@ -357,6 +378,7 @@ function ensureCourseContentColumns(PDO $pdo): void
         'delivery_mode' => "ENUM('offline','live','recorded') NOT NULL DEFAULT 'offline' AFTER `course_reviews_json`",
         'delivery_modes_json' => 'LONGTEXT NULL AFTER `delivery_mode`',
         'mode_contents_json' => 'LONGTEXT NULL AFTER `delivery_modes_json`',
+        'pending_mode_content_json' => 'LONGTEXT NULL AFTER `mode_contents_json`',
         'branch_name' => "VARCHAR(120) NOT NULL DEFAULT ''",
         'pending_modules_json' => 'LONGTEXT NULL AFTER `modules_json`',
         'pending_lessons_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER `pending_modules_json`',
@@ -559,6 +581,71 @@ function ensureClassroomFeatures(PDO $pdo): void
         INDEX idx_lecture_progress_user (user_id,completed,last_watched_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS recorded_course_discussions (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id BIGINT UNSIGNED NOT NULL,
+        lecture_id BIGINT UNSIGNED NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        reply_to_id BIGINT UNSIGNED NULL,
+        message TEXT NULL,
+        video_seconds INT UNSIGNED NULL,
+        attachment_path VARCHAR(500) NULL,
+        attachment_name VARCHAR(255) NULL,
+        attachment_mime VARCHAR(120) NULL,
+        deleted_at DATETIME NULL,
+        deleted_by BIGINT UNSIGNED NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_recorded_discussion_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+        CONSTRAINT fk_recorded_discussion_lecture FOREIGN KEY (lecture_id) REFERENCES recorded_lectures(id) ON DELETE SET NULL,
+        CONSTRAINT fk_recorded_discussion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_recorded_discussion_reply FOREIGN KEY (reply_to_id) REFERENCES recorded_course_discussions(id) ON DELETE SET NULL,
+        CONSTRAINT fk_recorded_discussion_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_recorded_discussion_course (course_id,id),
+        INDEX idx_recorded_discussion_lecture (lecture_id,id),
+        INDEX idx_recorded_discussion_reply (reply_to_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS recorded_lecture_resources (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        lecture_id BIGINT UNSIGNED NOT NULL,
+        course_id BIGINT UNSIGNED NOT NULL,
+        instructor_id BIGINT UNSIGNED NOT NULL,
+        title VARCHAR(190) NOT NULL,
+        description TEXT NULL,
+        file_path VARCHAR(500) NULL,
+        external_url TEXT NULL,
+        original_name VARCHAR(255) NULL,
+        mime_type VARCHAR(160) NULL,
+        size_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_recorded_resource_lecture FOREIGN KEY (lecture_id) REFERENCES recorded_lectures(id) ON DELETE CASCADE,
+        CONSTRAINT fk_recorded_resource_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+        CONSTRAINT fk_recorded_resource_instructor FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_recorded_resource_lecture (lecture_id,id),
+        INDEX idx_recorded_resource_course (course_id,id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $recordedResourceDescriptionCheck=$pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='recorded_lecture_resources' AND COLUMN_NAME='description'");
+    $recordedResourceDescriptionCheck->execute();
+    if((int)$recordedResourceDescriptionCheck->fetchColumn()===0){
+        $pdo->exec("ALTER TABLE recorded_lecture_resources ADD COLUMN description TEXT NULL AFTER title");
+    }
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS recorded_lecture_notes (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        lecture_id BIGINT UNSIGNED NOT NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        note_text MEDIUMTEXT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_recorded_note_lecture FOREIGN KEY (lecture_id) REFERENCES recorded_lectures(id) ON DELETE CASCADE,
+        CONSTRAINT fk_recorded_note_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY uq_recorded_note_user (lecture_id,user_id),
+        INDEX idx_recorded_note_user (user_id,updated_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS course_quizzes (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         course_id BIGINT UNSIGNED NOT NULL,
@@ -702,6 +789,27 @@ function ensureDummyRecordedLectures(PDO $pdo): void
     $pdo->prepare('INSERT IGNORE INTO app_seed_flags (seed_key) VALUES (?)')->execute([$seedKey]);
 }
 
+function ensureCourseworkSequenceColumns(PDO $pdo): void
+{
+    $quizColumns = [
+        'sequence_order' => 'DECIMAL(10,2) NOT NULL DEFAULT 999.00 AFTER `lesson_key`',
+        'quiz_type' => "ENUM('checkpoint','final') NOT NULL DEFAULT 'checkpoint' AFTER `sequence_order`",
+        'can_skip' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER `quiz_type`',
+    ];
+    $assignmentColumns = [
+        'sequence_order' => 'DECIMAL(10,2) NOT NULL DEFAULT 999.00 AFTER `lesson_key`',
+    ];
+    $check = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?");
+    foreach ($quizColumns as $column=>$definition) {
+        $check->execute(['course_quizzes',$column]);
+        if ((int)$check->fetchColumn()===0) $pdo->exec("ALTER TABLE course_quizzes ADD COLUMN `{$column}` {$definition}");
+    }
+    foreach ($assignmentColumns as $column=>$definition) {
+        $check->execute(['course_assignments',$column]);
+        if ((int)$check->fetchColumn()===0) $pdo->exec("ALTER TABLE course_assignments ADD COLUMN `{$column}` {$definition}");
+    }
+}
+
 function ensureEnrollmentAccessColumns(PDO $pdo): void
 {
     $columns = [
@@ -738,6 +846,25 @@ function ensureCommerceDeliveryColumns(PDO $pdo): void
         $checkEnrollment->execute([$column]);
         if ((int)$checkEnrollment->fetchColumn() === 0) $pdo->exec("ALTER TABLE `enrollments` ADD COLUMN `{$column}` {$definition}");
     }
+}
+
+function ensureEnrollmentModeUniqueness(PDO $pdo): void
+{
+    // A learner may purchase the same course in more than one delivery mode.
+    // Legacy databases used UNIQUE(user_id,course_id), which incorrectly blocked
+    // a Recorded purchase when the learner already owned the Physical course.
+    $pdo->exec("UPDATE enrollments e JOIN courses c ON c.id=e.course_id SET e.delivery_mode=CASE WHEN c.delivery_mode IN ('offline','live','recorded') THEN c.delivery_mode ELSE 'offline' END WHERE e.delivery_mode IS NULL OR e.delivery_mode=''");
+    $pdo->exec("ALTER TABLE enrollments MODIFY delivery_mode ENUM('offline','live','recorded') NOT NULL DEFAULT 'offline'");
+
+    $indexes=$pdo->query("SHOW INDEX FROM enrollments")->fetchAll();
+    $hasOld=false;$hasNew=false;
+    foreach($indexes as $idx){
+        $name=(string)($idx['Key_name']??'');
+        if($name==='uq_enrollment_user_course')$hasOld=true;
+        if($name==='uq_enrollment_user_course_mode')$hasNew=true;
+    }
+    if($hasOld)$pdo->exec("ALTER TABLE enrollments DROP INDEX uq_enrollment_user_course");
+    if(!$hasNew)$pdo->exec("ALTER TABLE enrollments ADD UNIQUE KEY uq_enrollment_user_course_mode (user_id,course_id,delivery_mode)");
 }
 
 function ensureMediaLibrary(PDO $pdo): void
@@ -1985,10 +2112,12 @@ $migrationWarnings = [];
 foreach ([
     'course content fields' => 'ensureCourseContentColumns',
     'instructor classroom features' => 'ensureClassroomFeatures',
+    'course curriculum sequencing' => 'ensureCourseworkSequenceColumns',
     'official academy course catalog' => 'ensureOfficialCourseCatalog',
     'YouTube recorded lecture test content' => 'ensureDummyRecordedLectures',
     'enrollment access fields' => 'ensureEnrollmentAccessColumns',
     'course delivery commerce fields' => 'ensureCommerceDeliveryColumns',
+    'delivery-mode enrollment uniqueness' => 'ensureEnrollmentModeUniqueness',
     'media library' => 'ensureMediaLibrary',
     'branch management' => 'ensureBranchFeatures',
     'CMS pages and snippets' => 'ensureCmsTables',
@@ -2140,6 +2269,49 @@ function currentAdmin(PDO $pdo): ?array
     return $user;
 }
 
+function currentRoleUser(PDO $pdo, string $role): ?array
+{
+    if (!in_array($role, ['student','instructor'], true)) return null;
+    $sessionKey = $role === 'student' ? 'student_user_id' : 'instructor_user_id';
+    $id = (int)($_SESSION[$sessionKey] ?? 0);
+
+    // Backward compatibility: migrate the old shared learner session into the
+    // role-specific slot without deleting the other profile session.
+    if ($id < 1 && !empty($_SESSION['user_id'])) {
+        $legacyId = (int)$_SESSION['user_id'];
+        $legacyStmt = $pdo->prepare("SELECT id FROM users WHERE id=? AND status='active' AND role=? LIMIT 1");
+        $legacyStmt->execute([$legacyId,$role]);
+        if ($legacyStmt->fetchColumn()) {
+            $id = $legacyId;
+            $_SESSION[$sessionKey] = $legacyId;
+        }
+    }
+
+    // Persistent login is still a single browser cookie. Only adopt it when it
+    // belongs to the requested profile type.
+    if ($id < 1) {
+        $rememberedId = rememberedUserId($pdo);
+        if ($rememberedId > 0) {
+            $rememberStmt = $pdo->prepare("SELECT id FROM users WHERE id=? AND status='active' AND role=? LIMIT 1");
+            $rememberStmt->execute([$rememberedId,$role]);
+            if ($rememberStmt->fetchColumn()) {
+                $id = $rememberedId;
+                $_SESSION[$sessionKey] = $rememberedId;
+            }
+        }
+    }
+
+    if ($id < 1) return null;
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE id=? AND status='active' AND role=? LIMIT 1");
+    $stmt->execute([$id,$role]);
+    $user = $stmt->fetch();
+    if (!$user) {
+        unset($_SESSION[$sessionKey]);
+        return null;
+    }
+    return $user;
+}
+
 function requireUser(PDO $pdo): array
 {
     $user = currentUser($pdo);
@@ -2149,15 +2321,15 @@ function requireUser(PDO $pdo): array
 
 function requireStudent(PDO $pdo): array
 {
-    $user = requireUser($pdo);
-    if (($user['role'] ?? '') !== 'student') respond(['success'=>false,'message'=>'Student access is required.'],403);
+    $user = currentRoleUser($pdo, 'student');
+    if (!$user) respond(['success'=>false,'message'=>'Please sign in with your Student Profile to continue.'],401);
     return $user;
 }
 
 function requireInstructor(PDO $pdo): array
 {
-    $user = requireUser($pdo);
-    if (($user['role'] ?? '') !== 'instructor') respond(['success'=>false,'message'=>'Instructor access is required.'],403);
+    $user = currentRoleUser($pdo, 'instructor');
+    if (!$user) respond(['success'=>false,'message'=>'Please sign in with your Instructor Profile to continue.'],401);
     return $user;
 }
 
@@ -2604,10 +2776,13 @@ function loginUser(PDO $pdo, array $data, ?string $requiredRole = null): never
 
     session_regenerate_id(true);
     if ($requiredRole === 'admin' || in_array(($user['role'] ?? ''),['admin','super_admin','admin_staff','branch_head','branch_admin'],true)) {
-        // Keep the administrator login independent from the learner login so both
-        // dashboards can remain open in the same browser without replacing each other.
+        // Keep the administrator login independent from learner/instructor logins.
         $_SESSION['admin_user_id'] = (int)$user['id'];
     } else {
+        $roleKey = ($user['role'] ?? '') === 'instructor' ? 'instructor_user_id' : 'student_user_id';
+        $_SESSION[$roleKey] = (int)$user['id'];
+        // Retain the legacy key for older endpoints, but role-specific endpoints
+        // use the dedicated session slots so Student and Instructor tabs can coexist.
         $_SESSION['user_id'] = (int)$user['id'];
         issueRememberToken($pdo, (int)$user['id']);
     }
@@ -2640,7 +2815,7 @@ function courseRow(array $row, bool $includePrivateLessonContent = true): array
     return [
         'id' => (int)$row['id'], 'slug' => $row['slug'], 'title' => $row['title'], 'category' => $row['category'],
         'badge' => $active['badge'], 'featured' => (bool)$row['featured'], 'image' => $active['image'],
-        'short' => $active['short'], 'description' => $active['description'],
+        'short' => $active['short'], 'contentHeading' => $active['contentHeading'] ?? '', 'description' => $active['description'],
         'price' => (float)$active['price'], 'originalPrice' => (float)$active['originalPrice'], 'duration' => $active['duration'],
         'hours' => (int)$active['hours'], 'lessons' => (int)$row['lessons_count'], 'projects' => (int)$active['projects'],
         'rating' => (float)$active['rating'], 'reviews' => (int)$active['reviews'], 'students' => (int)$active['students'],
@@ -2651,6 +2826,8 @@ function courseRow(array $row, bool $includePrivateLessonContent = true): array
         'approvalStatus' => $row['approval_status'] ?? 'approved', 'approvalKind' => $row['approval_kind'] ?? 'none',
         'approvalNote' => $row['approval_note'] ?? '', 'pendingLessons' => (int)($row['pending_lessons_count'] ?? 0),
         'pendingModules' => jsonArray($row['pending_modules_json'] ?? '[]'),
+        'pendingContentModes' => jsonArray($row['pending_mode_content_json'] ?? '[]'),
+        'pendingModeContent' => jsonArray($row['pending_mode_content_json'] ?? '[]'),
         'submittedBy' => (int)($row['submitted_by'] ?? 0), 'reviewedBy' => (int)($row['reviewed_by'] ?? 0), 'reviewedAt' => iso($row['reviewed_at'] ?? null),
         'skills' => $active['skills'], 'requirements' => $active['requirements'],
         'audience' => $active['audience'], 'modules' => $modules,
@@ -2868,7 +3045,7 @@ function liveSessionRow(array $row, bool $includeHostLink=true): array
 
     $out = [
         'id'=>(int)$row['id'],'course_id'=>(int)$row['course_id'],'instructor_id'=>(int)$row['instructor_id'],
-        'lesson_key'=>$row['lesson_key']??'','title'=>$row['title']??'','description'=>$row['description']??'',
+        'lesson_key'=>$row['lesson_key']??'','sequence_order'=>(float)($row['sequence_order']??999),'quiz_type'=>$row['quiz_type']??'checkpoint','can_skip'=>(bool)($row['can_skip']??0),'title'=>$row['title']??'','description'=>$row['description']??'',
         'starts_at'=>iso($row['starts_at']??null),'ends_at'=>iso($row['ends_at']??null),'meeting_id'=>$row['meeting_id']??'',
         'passcode'=>$row['passcode']??'','join_url'=>$row['join_url']??'',
         'recording_url'=>$row['recording_url']??'','status'=>$status,'created_at'=>iso($row['created_at']??null),
@@ -2896,7 +3073,7 @@ function assignmentRow(array $row): array
 {
     return [
         'id'=>(int)$row['id'],'course_id'=>(int)$row['course_id'],'instructor_id'=>(int)$row['instructor_id'],
-        'lesson_key'=>$row['lesson_key']??'','title'=>$row['title']??'','instructions'=>$row['instructions']??'',
+        'lesson_key'=>$row['lesson_key']??'','sequence_order'=>(float)($row['sequence_order']??999),'title'=>$row['title']??'','instructions'=>$row['instructions']??'',
         'attachment_url'=>$row['attachment_url']??'','due_at'=>iso($row['due_at']??null),'points'=>(float)($row['points']??100),
         'status'=>$row['status']??'published','created_at'=>iso($row['created_at']??null),
     ];
@@ -2916,20 +3093,141 @@ function submissionRow(array $row): array
 function storeClassroomUpload(array $file, int $userId, int $maxBytes=20971520): string
 {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) throw new RuntimeException('Choose a valid file to upload.');
-    if ((int)($file['size'] ?? 0) < 1 || (int)$file['size'] > $maxBytes) throw new RuntimeException('The file must be smaller than 20 MB.');
+    if ((int)($file['size'] ?? 0) < 1 || (int)$file['size'] > $maxBytes) throw new RuntimeException('The file must be smaller than '.max(1,(int)floor($maxBytes/1048576)).' MB.');
     $tmp=(string)($file['tmp_name']??'');
     $finfo=new finfo(FILEINFO_MIME_TYPE);$mime=(string)$finfo->file($tmp);
     $types=[
         'application/pdf'=>'pdf','application/msword'=>'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document'=>'docx',
         'application/vnd.ms-powerpoint'=>'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation'=>'pptx',
         'application/vnd.ms-excel'=>'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'=>'xlsx',
-        'text/plain'=>'txt','application/zip'=>'zip','image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'
+        'text/plain'=>'txt','application/zip'=>'zip','image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','image/gif'=>'gif',
+        'video/mp4'=>'mp4','video/webm'=>'webm','video/quicktime'=>'mov'
     ];
-    if(!isset($types[$mime])) throw new RuntimeException('Unsupported file type. Upload PDF, Office, text, ZIP, JPG, PNG or WebP files.');
+    if(!isset($types[$mime])) throw new RuntimeException('Unsupported file type. Upload PDF, Office, text, ZIP, images, MP4, WebM or MOV files.');
     $name='class-'.$userId.'-'.bin2hex(random_bytes(8)).'.'.$types[$mime];
     $dir=dirname(__DIR__).'/uploads/media';if(!is_dir($dir)&&!mkdir($dir,0755,true)&&!is_dir($dir))throw new RuntimeException('Upload folder is unavailable.');
     $dest=$dir.'/'.$name;if(!move_uploaded_file($tmp,$dest))throw new RuntimeException('The file could not be saved.');
     return 'uploads/media/'.$name;
+}
+
+function storeDiscussionUpload(array $file, int $userId, int $maxBytes=20971520): array
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) throw new RuntimeException('Choose a valid attachment to upload.');
+    $size=(int)($file['size'] ?? 0);
+    if ($size < 1 || $size > $maxBytes) throw new RuntimeException('The attachment must be smaller than 20 MB.');
+    $tmp=(string)($file['tmp_name']??'');
+    $finfo=new finfo(FILEINFO_MIME_TYPE);$mime=(string)$finfo->file($tmp);
+    $types=[
+        'application/pdf'=>'pdf','application/msword'=>'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document'=>'docx',
+        'application/vnd.ms-powerpoint'=>'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation'=>'pptx',
+        'application/vnd.ms-excel'=>'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'=>'xlsx',
+        'text/plain'=>'txt','application/zip'=>'zip','image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','image/gif'=>'gif',
+        'video/mp4'=>'mp4','video/webm'=>'webm','video/quicktime'=>'mov','image/gif'=>'gif'
+    ];
+    if(!isset($types[$mime])) throw new RuntimeException('Unsupported attachment. Use PDF, Office, text, ZIP, JPG, PNG, WebP or GIF files.');
+    $safeOriginal=clean((string)($file['name']??('attachment.'.$types[$mime])),240);
+    $name='discussion-'.$userId.'-'.bin2hex(random_bytes(10)).'.'.$types[$mime];
+    $dir=dirname(__DIR__).'/uploads/discussions';
+    if(!is_dir($dir)&&!mkdir($dir,0755,true)&&!is_dir($dir))throw new RuntimeException('Discussion upload folder is unavailable.');
+    $dest=$dir.'/'.$name;if(!move_uploaded_file($tmp,$dest))throw new RuntimeException('The attachment could not be saved.');
+    return ['path'=>'uploads/discussions/'.$name,'name'=>$safeOriginal,'mime'=>$mime,'size'=>$size];
+}
+
+
+function storeRecordedResourceUpload(array $file, int $userId, int $maxBytes=52428800): array
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) throw new RuntimeException('Choose a valid resource file to upload.');
+    $size=(int)($file['size'] ?? 0);
+    if ($size < 1 || $size > $maxBytes) throw new RuntimeException('Each resource file must be smaller than 50 MB.');
+    $original=clean((string)($file['name'] ?? 'resource'),240);
+    $ext=strtolower(pathinfo($original,PATHINFO_EXTENSION));
+    $blocked=['php','phtml','php3','php4','php5','phar','cgi','pl','py','sh','bash','exe','msi','bat','cmd','com','scr','js','mjs','html','htm','svg','shtml','htaccess','ini'];
+    if($ext!=='' && in_array($ext,$blocked,true)) throw new RuntimeException('This executable or web-script file type cannot be uploaded as a course resource.');
+    $tmp=(string)($file['tmp_name']??'');
+    $finfo=new finfo(FILEINFO_MIME_TYPE);$mime=(string)($finfo->file($tmp)?:'application/octet-stream');
+    $safeExt=$ext!==''?preg_replace('/[^a-z0-9]+/','',$ext):'bin';
+    if($safeExt==='')$safeExt='bin';
+    $name='lecture-resource-'.$userId.'-'.bin2hex(random_bytes(10)).'.'.$safeExt;
+    $dir=dirname(__DIR__).'/uploads/recorded-resources';
+    if(!is_dir($dir)&&!mkdir($dir,0755,true)&&!is_dir($dir))throw new RuntimeException('Recorded lecture resource folder is unavailable.');
+    $dest=$dir.'/'.$name;if(!move_uploaded_file($tmp,$dest))throw new RuntimeException('The resource file could not be saved.');
+    return ['path'=>'uploads/recorded-resources/'.$name,'name'=>$original,'mime'=>$mime,'size'=>$size];
+}
+
+function recordedResourceRow(array $row): array
+{
+    return [
+        'id'=>(int)$row['id'],'lecture_id'=>(int)$row['lecture_id'],'course_id'=>(int)$row['course_id'],
+        'title'=>(string)($row['title']??$row['original_name']??'Lecture resource'),
+        'description'=>(string)($row['description']??''),
+        'original_name'=>(string)($row['original_name']??''),'mime_type'=>(string)($row['mime_type']??''),
+        'size_bytes'=>(int)($row['size_bytes']??0),'external_url'=>(string)($row['external_url']??''),
+        'created_at'=>iso($row['created_at']??null),
+    ];
+}
+
+function recordedResourceMap(PDO $pdo, array $lectureIds): array
+{
+    $ids=array_values(array_unique(array_filter(array_map('intval',$lectureIds))));
+    if(!$ids)return [];
+    $marks=implode(',',array_fill(0,count($ids),'?'));
+    $stmt=$pdo->prepare("SELECT * FROM recorded_lecture_resources WHERE lecture_id IN ($marks) ORDER BY lecture_id,id");
+    $stmt->execute($ids);$map=[];
+    foreach($stmt->fetchAll() as $row)$map[(int)$row['lecture_id']][]=recordedResourceRow($row);
+    return $map;
+}
+
+function recordedStudentModeAccess(PDO $pdo, int $userId, int $courseId): bool
+{
+    if($userId<1||$courseId<1)return false;
+    return enrollmentAccess($pdo,$userId,$courseId,'recorded');
+}
+
+function recordedDiscussionActor(PDO $pdo): array
+{
+    $user=currentUser($pdo);
+    if($user)return ['session'=>'user','user'=>$user];
+    $admin=currentAdmin($pdo);
+    if($admin)return ['session'=>'admin','user'=>$admin];
+    respond(['success'=>false,'message'=>'Please sign in to open the course discussion.'],401);
+}
+
+function recordedDiscussionCanAccess(PDO $pdo, array $actor, int $courseId): bool
+{
+    if($courseId<1)return false;
+    $user=$actor['user'];$role=adminRole($user);
+    if(($actor['session']??'')==='user'){
+        if(($user['role']??'')==='student')return recordedStudentModeAccess($pdo,(int)$user['id'],$courseId);
+        if(($user['role']??'')==='instructor')return instructorOwnsCourse($pdo,$courseId,(int)$user['id']);
+        return false;
+    }
+    if(in_array($role,['super_admin','admin_staff'],true))return true;
+    if($role==='instructor')return instructorOwnsCourse($pdo,$courseId,(int)$user['id']);
+    return false;
+}
+
+function recordedDiscussionCanModerate(PDO $pdo, array $actor, int $courseId): bool
+{
+    $user=$actor['user'];$role=adminRole($user);
+    if(($actor['session']??'')==='user' && ($user['role']??'')==='instructor')return instructorOwnsCourse($pdo,$courseId,(int)$user['id']);
+    if(($actor['session']??'')==='admin' && in_array($role,['super_admin','admin_staff'],true))return true;
+    if(($actor['session']??'')==='admin' && $role==='instructor')return instructorOwnsCourse($pdo,$courseId,(int)$user['id']);
+    return false;
+}
+
+function recordedDiscussionMessageRow(array $row, array $actor, bool $canModerate): array
+{
+    $deleted=!empty($row['deleted_at']);
+    return [
+        'id'=>(int)$row['id'],'course_id'=>(int)$row['course_id'],'lecture_id'=>$row['lecture_id']!==null?(int)$row['lecture_id']:null,
+        'sender_id'=>(int)$row['user_id'],'sender_name'=>(string)($row['sender_name']??'Academy Member'),'sender_role'=>(string)($row['sender_role']??'student'),
+        'sender_avatar'=>(string)($row['sender_avatar']??''),'message'=>$deleted?'':(string)($row['message']??''),'video_seconds'=>$deleted?null:($row['video_seconds']!==null?(int)$row['video_seconds']:null),
+        'lecture_title'=>(string)($row['lecture_title']??''),'reply_to_id'=>$row['reply_to_id']!==null?(int)$row['reply_to_id']:null,
+        'reply_sender_name'=>(string)($row['reply_sender_name']??''),'reply_message'=>(string)($row['reply_message']??''),
+        'has_attachment'=>!$deleted&&!empty($row['attachment_path']),'attachment_name'=>$deleted?'':(string)($row['attachment_name']??''),'attachment_mime'=>$deleted?'':(string)($row['attachment_mime']??''),
+        'deleted'=>$deleted,'is_own'=>(int)$row['user_id']===(int)$actor['user']['id'],'can_delete'=>$canModerate&&!$deleted,
+        'created_at'=>iso($row['created_at']??null),
+    ];
 }
 
 function getTemplate(PDO $pdo, string $key): ?array
@@ -3004,12 +3302,17 @@ function clientIp(): string
     return '';
 }
 
-function enrollmentAccessDetails(PDO $pdo, int $userId, int $courseId, bool $touch = false): array
+function enrollmentAccessDetails(PDO $pdo, int $userId, int $courseId, bool $touch = false, string $deliveryMode = ''): array
 {
-    $stmt = $pdo->prepare('SELECT * FROM enrollments WHERE user_id=? AND course_id=? LIMIT 1');
-    $stmt->execute([$userId, $courseId]);
-    $row = $stmt->fetch();
-    if (!$row) return ['allowed'=>false,'message'=>'This course has not been assigned to your account.'];
+    $deliveryMode=in_array($deliveryMode,['offline','live','recorded'],true)?$deliveryMode:'';
+    $sql='SELECT * FROM enrollments WHERE user_id=? AND course_id=?';
+    $params=[$userId,$courseId];
+    if($deliveryMode!==''){$sql.=' AND delivery_mode=?';$params[]=$deliveryMode;}
+    // When a generic course-level check is used (quizzes/assignments), prefer an
+    // active/completed entitlement instead of an unrelated pending mode.
+    $sql.=" ORDER BY FIELD(status,'completed','active','pending','cancelled'), id DESC LIMIT 1";
+    $stmt=$pdo->prepare($sql);$stmt->execute($params);$row=$stmt->fetch();
+    if (!$row) return ['allowed'=>false,'message'=>$deliveryMode!==''?'This learning mode has not been assigned to your account.':'This course has not been assigned to your account.'];
     if (!in_array($row['status'] ?? '', ['active','completed'], true)) return ['allowed'=>false,'message'=>'This course access is not active.'];
     $now = time();
     if (!empty($row['access_starts_at']) && strtotime((string)$row['access_starts_at']) > $now) return ['allowed'=>false,'message'=>'Your course access has not started yet.'];
@@ -3029,9 +3332,9 @@ function enrollmentAccessDetails(PDO $pdo, int $userId, int $courseId, bool $tou
     return ['allowed'=>true,'message'=>'Access granted.','enrollment'=>$row,'ip'=>$ip];
 }
 
-function enrollmentAccess(PDO $pdo, int $userId, int $courseId): bool
+function enrollmentAccess(PDO $pdo, int $userId, int $courseId, string $deliveryMode = ''): bool
 {
-    return (bool)(enrollmentAccessDetails($pdo, $userId, $courseId, false)['allowed'] ?? false);
+    return (bool)(enrollmentAccessDetails($pdo, $userId, $courseId, false, $deliveryMode)['allowed'] ?? false);
 }
 
 function bunnyEmbedUrl(PDO $pdo, string $videoId): string
@@ -3076,66 +3379,60 @@ function playerModules(PDO $pdo, array $modules): array
     return $modules;
 }
 
-function paidOrderCourseIds(PDO $pdo, int $orderId): array
+function normalizedCourseMode(PDO $pdo, int $courseId, string $requested=''): string
 {
-    $courseIds = [];
+    if(in_array($requested,['offline','live','recorded'],true))return $requested;
+    $stmt=$pdo->prepare('SELECT delivery_mode,delivery_modes_json FROM courses WHERE id=? LIMIT 1');$stmt->execute([$courseId]);$row=$stmt->fetch();
+    if(!$row)return 'offline';
+    $modes=array_values(array_filter(jsonArray($row['delivery_modes_json']??'[]'),static fn($m)=>in_array($m,['offline','live','recorded'],true)));
+    if($modes)return (string)$modes[0];
+    return in_array($row['delivery_mode']??'offline',['offline','live','recorded'],true)?(string)$row['delivery_mode']:'offline';
+}
 
-    // Keep any enrollment rows already linked to the order, including plan-generated rows.
-    $existingStmt = $pdo->prepare('SELECT course_id FROM enrollments WHERE order_id=?');
-    $existingStmt->execute([$orderId]);
-    foreach ($existingStmt->fetchAll(PDO::FETCH_COLUMN) as $courseId) {
-        if ((int)$courseId > 0) $courseIds[] = (int)$courseId;
-    }
+function paidOrderCourseAccessItems(PDO $pdo, int $orderId): array
+{
+    $items=[];
+    $add=static function(array &$items,int $courseId,string $mode):void{
+        if($courseId<1||!in_array($mode,['offline','live','recorded'],true))return;
+        $items[$courseId.'|'.$mode]=['course_id'=>$courseId,'delivery_mode'=>$mode];
+    };
 
-    // Direct course purchases normally contain course_id. Older data is repaired by title.
-    $itemStmt = $pdo->prepare("SELECT course_id,item_name FROM order_items WHERE order_id=? AND item_type='course' ORDER BY id");
-    $itemStmt->execute([$orderId]);
-    $titleStmt = $pdo->prepare('SELECT id FROM courses WHERE title=? LIMIT 1');
-    foreach ($itemStmt->fetchAll() as $item) {
-        $courseId = (int)($item['course_id'] ?? 0);
-        if ($courseId < 1 && clean($item['item_name'] ?? '', 190) !== '') {
-            $titleStmt->execute([clean($item['item_name'], 190)]);
-            $courseId = (int)($titleStmt->fetchColumn() ?: 0);
+    // Preserve any existing rows already linked to this order (important for legacy paid orders).
+    $existing=$pdo->prepare('SELECT course_id,delivery_mode FROM enrollments WHERE order_id=?');$existing->execute([$orderId]);
+    foreach($existing->fetchAll() as $row){$cid=(int)($row['course_id']??0);if($cid>0)$add($items,$cid,normalizedCourseMode($pdo,$cid,(string)($row['delivery_mode']??'')));}
+
+    // Direct purchases carry the exact delivery mode in order_items from v113 onward.
+    $itemStmt=$pdo->prepare("SELECT course_id,delivery_mode,item_name,item_meta_json FROM order_items WHERE order_id=? AND item_type='course' ORDER BY id");$itemStmt->execute([$orderId]);
+    $titleStmt=$pdo->prepare('SELECT id FROM courses WHERE title=? LIMIT 1');
+    foreach($itemStmt->fetchAll() as $item){
+        $cid=(int)($item['course_id']??0);$mode=(string)($item['delivery_mode']??'');
+        $meta=jsonArray($item['item_meta_json']??'{}');if($mode===''&&is_array($meta))$mode=(string)($meta['delivery_mode']??'');
+        if($cid<1){
+            $title=clean((string)($item['item_name']??''),190);
+            $title=preg_replace('/\s+—\s+(Physical \/ Offline|Recorded|Live)$/u','',$title)??$title;
+            if($title!==''){$titleStmt->execute([$title]);$cid=(int)($titleStmt->fetchColumn()?:0);}
         }
-        if ($courseId > 0) $courseIds[] = $courseId;
+        if($cid>0)$add($items,$cid,normalizedCourseMode($pdo,$cid,$mode));
     }
 
-    // Pro and Career plan orders include every published course.
-    $planStmt = $pdo->prepare("SELECT plan_code FROM order_items WHERE order_id=? AND item_type='plan'");
-    $planStmt->execute([$orderId]);
-    $planCodes = array_map('strval', $planStmt->fetchAll(PDO::FETCH_COLUMN));
-    if (array_intersect($planCodes, ['pro','career'])) {
-        foreach ($pdo->query("SELECT id FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_COLUMN) as $courseId) {
-            if ((int)$courseId > 0) $courseIds[] = (int)$courseId;
-        }
+    // Plans grant the primary configured mode for each published course.
+    $planStmt=$pdo->prepare("SELECT plan_code FROM order_items WHERE order_id=? AND item_type='plan'");$planStmt->execute([$orderId]);
+    $planCodes=array_map('strval',$planStmt->fetchAll(PDO::FETCH_COLUMN));
+    if(array_intersect($planCodes,['pro','career'])){
+        foreach($pdo->query("SELECT id FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_COLUMN) as $cid){$cid=(int)$cid;if($cid>0)$add($items,$cid,normalizedCourseMode($pdo,$cid));}
     }
-
-    $courseIds = array_values(array_unique(array_filter(array_map('intval', $courseIds))));
-    if (!$courseIds) return [];
-
-    // Remove deleted or invalid course IDs before inserting foreign-key rows.
-    $placeholders = implode(',', array_fill(0, count($courseIds), '?'));
-    $validStmt = $pdo->prepare("SELECT id FROM courses WHERE id IN ($placeholders)");
-    $validStmt->execute($courseIds);
-    return array_values(array_unique(array_map('intval', $validStmt->fetchAll(PDO::FETCH_COLUMN))));
+    return array_values($items);
 }
 
 function synchronizePaidOrderEnrollments(PDO $pdo, int $orderId): int
 {
-    $orderStmt = $pdo->prepare("SELECT id,user_id,status FROM orders WHERE id=? LIMIT 1");
-    $orderStmt->execute([$orderId]);
-    $order = $orderStmt->fetch();
-    if (!$order || ($order['status'] ?? '') !== 'paid') return 0;
+    $orderStmt=$pdo->prepare("SELECT id,user_id,status FROM orders WHERE id=? LIMIT 1");$orderStmt->execute([$orderId]);$order=$orderStmt->fetch();
+    if(!$order||($order['status']??'')!=='paid')return 0;
+    $items=paidOrderCourseAccessItems($pdo,$orderId);if(!$items)return 0;
 
-    $courseIds = paidOrderCourseIds($pdo, $orderId);
-    if (!$courseIds) return 0;
-
-    // This upsert also repairs older paid orders that never received enrollment rows.
-    // Existing access dates/IP data are preserved once an enrollment is already active
-    // for this same order, while a pending/cancelled enrollment is freshly activated.
-    $upsert = $pdo->prepare("INSERT INTO enrollments
-        (user_id,course_id,order_id,status,enrolled_at,completed_at)
-        VALUES (?,?,?,'active',NOW(),NULL)
+    $upsert=$pdo->prepare("INSERT INTO enrollments
+        (user_id,course_id,order_id,delivery_mode,status,enrolled_at,completed_at)
+        VALUES (?,?,?,?,'active',NOW(),NULL)
         ON DUPLICATE KEY UPDATE
           access_starts_at=IF(status IN ('pending','cancelled') OR order_id IS NULL OR order_id<>VALUES(order_id),NULL,access_starts_at),
           access_expires_at=IF(status IN ('pending','cancelled') OR order_id IS NULL OR order_id<>VALUES(order_id),NULL,access_expires_at),
@@ -3144,13 +3441,10 @@ function synchronizePaidOrderEnrollments(PDO $pdo, int $orderId): int
           last_access_at=IF(status IN ('pending','cancelled') OR order_id IS NULL OR order_id<>VALUES(order_id),NULL,last_access_at),
           enrolled_at=COALESCE(enrolled_at,NOW()),
           completed_at=IF(status='completed',completed_at,NULL),
-          order_id=VALUES(order_id),
+          order_id=VALUES(order_id),delivery_mode=VALUES(delivery_mode),
           status=IF(status='completed','completed','active')");
-
-    foreach ($courseIds as $courseId) {
-        $upsert->execute([(int)$order['user_id'], $courseId, $orderId]);
-    }
-    return count($courseIds);
+    foreach($items as $item)$upsert->execute([(int)$order['user_id'],(int)$item['course_id'],$orderId,(string)$item['delivery_mode']]);
+    return count($items);
 }
 
 function synchronizeUserPaidOrders(PDO $pdo, int $userId): int
@@ -3370,6 +3664,7 @@ try {
 
             if ($accountType === 'student') {
                 session_regenerate_id(true);
+                $_SESSION['student_user_id'] = $id;
                 $_SESSION['user_id'] = $id;
                 issueRememberToken($pdo, $id);
             }
@@ -3390,9 +3685,21 @@ try {
             ], 201);
 
         case 'auth_logout':
-            // Sign out only the learner. An administrator opened in another tab remains signed in.
+            // Student and Instructor sessions are independent so both dashboards can
+            // be tested in separate browser tabs without replacing one another.
+            $logoutType = in_array($data['account_type'] ?? '', ['student','instructor'], true) ? $data['account_type'] : '';
+            if ($logoutType === 'student') {
+                $studentId=(int)($_SESSION['student_user_id']??0);
+                unset($_SESSION['student_user_id']);
+                if ((int)($_SESSION['user_id']??0)===$studentId) unset($_SESSION['user_id']);
+            } elseif ($logoutType === 'instructor') {
+                $instructorId=(int)($_SESSION['instructor_user_id']??0);
+                unset($_SESSION['instructor_user_id']);
+                if ((int)($_SESSION['user_id']??0)===$instructorId) unset($_SESSION['user_id']);
+            } else {
+                unset($_SESSION['student_user_id'],$_SESSION['instructor_user_id'],$_SESSION['user_id']);
+            }
             clearRememberToken($pdo);
-            unset($_SESSION['user_id']);
             session_regenerate_id(true);
             respond(['success' => true, 'message' => 'Signed out successfully.']);
 
@@ -3403,7 +3710,8 @@ try {
             respond(['success' => true, 'message' => 'Administrator signed out successfully.']);
 
         case 'auth_me':
-            $user = currentUser($pdo);
+            $requestedType = in_array($_GET['account_type'] ?? '', ['student','instructor'], true) ? (string)$_GET['account_type'] : '';
+            $user = $requestedType !== '' ? currentRoleUser($pdo,$requestedType) : currentUser($pdo);
             respond(['success' => true, 'authenticated' => (bool)$user, 'user' => $user ? publicUser($user) : null]);
 
         case 'auth_admin_me':
@@ -3523,7 +3831,7 @@ try {
                 $enrollment['course_id'] = (int)$enrollment['course_id'];
                 $enrollment['delivery_mode'] = in_array((string)($enrollment['delivery_mode'] ?? ''), ['offline','live','recorded'], true) ? (string)$enrollment['delivery_mode'] : '';
                 $enrollment['order_id'] = $enrollment['order_id'] ? (int)$enrollment['order_id'] : null;
-                $access = enrollmentAccessDetails($pdo, (int)$user['id'], (int)$enrollment['course_id'], false);
+                $access = enrollmentAccessDetails($pdo, (int)$user['id'], (int)$enrollment['course_id'], false, (string)$enrollment['delivery_mode']);
                 $enrollment['access_allowed'] = (bool)($access['allowed'] ?? false);
                 $enrollment['access_message'] = (string)($access['message'] ?? '');
                 $enrollment['ip_lock_enabled'] = (bool)($enrollment['ip_lock_enabled'] ?? false);
@@ -3549,7 +3857,7 @@ try {
             foreach ($noteStmt->fetchAll() as $noteRow) $notes[(int)$noteRow['course_id'] . ':' . $noteRow['lesson_key']] = $noteRow['note_text'];
             $wishStmt = $pdo->prepare('SELECT course_id FROM wishlists WHERE user_id=?'); $wishStmt->execute([$user['id']]);
             $certStmt=$pdo->prepare('SELECT * FROM certifications WHERE user_id=? ORDER BY issued_on DESC,id DESC');$certStmt->execute([$user['id']]);
-            $assignedStmt=$pdo->prepare("SELECT c.* FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.user_id=? AND e.status IN ('pending','active','completed') AND c.status='published' ORDER BY e.id DESC");$assignedStmt->execute([$user['id']]);
+            $assignedStmt=$pdo->prepare("SELECT DISTINCT c.* FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.user_id=? AND e.status IN ('pending','active','completed') AND c.status='published' ORDER BY c.id DESC");$assignedStmt->execute([$user['id']]);
             $studentLiveStmt=$pdo->prepare("
                 SELECT l.*,c.title AS course_title,c.slug AS course_slug,c.image AS course_image,
                        COALESCE(NULLIF(iu.name,''),NULLIF(c.instructor,''),'Full Stack Academy Instructor') AS instructor_name,
@@ -3584,19 +3892,20 @@ try {
                 JOIN course_recordings r ON r.course_id=e.course_id
                 WHERE e.user_id=?
                   AND e.status IN ('active','completed')
+                  AND e.delivery_mode='live'
                 ORDER BY COALESCE(r.recorded_at,r.created_at) DESC,r.id DESC
             ");
             $studentRecordingStmt->execute([$user['id']]);
             $studentRecordingRows=[];
             foreach($studentRecordingStmt->fetchAll() as $recordingDbRow){
                 $recordingCourseId=(int)($recordingDbRow['course_id']??0);
-                $recordingAccess=enrollmentAccessDetails($pdo,(int)$user['id'],$recordingCourseId,false);
+                $recordingAccess=enrollmentAccessDetails($pdo,(int)$user['id'],$recordingCourseId,false,'live');
                 if(empty($recordingAccess['allowed'])) continue;
                 $studentRecordingRows[]=recordingRow($recordingDbRow);
             }
             foreach($studentLiveStmt->fetchAll() as $liveRow){
                 $courseId=(int)($liveRow['course_id']??0);
-                $access=enrollmentAccessDetails($pdo,(int)$user['id'],$courseId,false);
+                $access=enrollmentAccessDetails($pdo,(int)$user['id'],$courseId,false,'live');
                 if(empty($access['allowed'])) continue;
                 $item=liveSessionRow($liveRow,false);
                 $item['course_title']=(string)($liveRow['course_title']??'');
@@ -3632,7 +3941,7 @@ try {
                     $quiz=quizRow($row,false);
                     $coursework[]=[
                         'type'=>'quiz','id'=>(int)$row['id'],'course_id'=>(int)$row['course_id'],'course_title'=>(string)$row['course_title'],'course_slug'=>(string)$row['course_slug'],
-                        'title'=>(string)$row['title'],'due_at'=>iso($row['due_at']??null),'status'=>(string)$row['status'],'questions_count'=>count($quiz['questions']??[]),
+                        'title'=>(string)$row['title'],'description'=>(string)($row['description']??''),'due_at'=>iso($row['due_at']??null),'status'=>(string)$row['status'],'questions_count'=>count($quiz['questions']??[]),'questions'=>$quiz['questions']??[],'sequence_order'=>(float)($row['sequence_order']??999),'quiz_type'=>(string)($row['quiz_type']??'checkpoint'),'can_skip'=>(bool)($row['can_skip']??0),
                         'attempts_allowed'=>(int)($row['attempts_allowed']??1),'attempts_used'=>(int)($row['attempts_used']??0),'best_score'=>$row['best_score']!==null?(float)$row['best_score']:null,
                         'max_score'=>$row['best_max_score']!==null?(float)$row['best_max_score']:null,'completed'=>(int)($row['attempts_used']??0)>0,
                     ];
@@ -3646,7 +3955,7 @@ try {
                 foreach($assignmentDash->fetchAll() as $row){
                     $coursework[]=[
                         'type'=>'assignment','id'=>(int)$row['id'],'course_id'=>(int)$row['course_id'],'course_title'=>(string)$row['course_title'],'course_slug'=>(string)$row['course_slug'],
-                        'title'=>(string)$row['title'],'due_at'=>iso($row['due_at']??null),'status'=>(string)$row['status'],'points'=>(float)($row['points']??100),
+                        'title'=>(string)$row['title'],'instructions'=>(string)($row['instructions']??''),'attachment_url'=>(string)($row['attachment_url']??''),'due_at'=>iso($row['due_at']??null),'status'=>(string)$row['status'],'points'=>(float)($row['points']??100),'sequence_order'=>(float)($row['sequence_order']??999),
                         'submission_status'=>(string)($row['submission_status']??''),'grade'=>$row['grade']!==null?(float)$row['grade']:null,
                         'submitted_at'=>iso($row['submitted_at']??null),'graded_at'=>iso($row['graded_at']??null),'completed'=>!empty($row['submission_id']),
                     ];
@@ -3661,25 +3970,33 @@ try {
             $lectureStmt=$pdo->prepare("
                 SELECT rl.*,c.title AS course_title,c.slug AS course_slug,c.image AS course_image,
                        COALESCE(p.last_position_seconds,0) AS last_position_seconds,
-                       COALESCE(p.watched_percent,0) AS watched_percent,COALESCE(p.completed,0) AS completed
+                       COALESCE(p.watched_percent,0) AS watched_percent,COALESCE(p.completed,0) AS completed,
+                       p.last_watched_at AS last_watched_at
                 FROM enrollments e
                 JOIN courses c ON c.id=e.course_id
                 JOIN recorded_lectures rl ON rl.course_id=e.course_id AND rl.status='published'
                 LEFT JOIN recorded_lecture_progress p ON p.lecture_id=rl.id AND p.user_id=e.user_id
-                WHERE e.user_id=? AND e.status IN ('active','completed')
+                WHERE e.user_id=? AND e.status IN ('active','completed') AND e.delivery_mode='recorded'
                 ORDER BY c.title ASC,rl.sort_order ASC,rl.id ASC
             ");
             $lectureStmt->execute([$user['id']]);
+            $lectureRows=$lectureStmt->fetchAll();
+            $resourceMap=recordedResourceMap($pdo,array_map(static fn($r)=>(int)$r['id'],$lectureRows));
+            $noteStmtRecorded=$pdo->prepare('SELECT lecture_id,note_text FROM recorded_lecture_notes WHERE user_id=?');
+            $noteStmtRecorded->execute([$user['id']]);$recordedNoteMap=[];
+            foreach($noteStmtRecorded->fetchAll() as $nr)$recordedNoteMap[(int)$nr['lecture_id']]=(string)($nr['note_text']??'');
             $recordedLectures=[];
-            foreach($lectureStmt->fetchAll() as $lr){
-                $access=enrollmentAccessDetails($pdo,(int)$user['id'],(int)$lr['course_id'],false);
+            foreach($lectureRows as $lr){
+                $access=enrollmentAccessDetails($pdo,(int)$user['id'],(int)$lr['course_id'],false,'recorded');
                 if(empty($access['allowed']))continue;
                 $recordedLectures[]=[
                     'id'=>(int)$lr['id'],'course_id'=>(int)$lr['course_id'],'instructor_id'=>(int)$lr['instructor_id'],
                     'course_title'=>(string)$lr['course_title'],'course_slug'=>(string)$lr['course_slug'],'course_image'=>(string)($lr['course_image']??''),
                     'title'=>(string)$lr['title'],'description'=>(string)($lr['description']??''),'video_url'=>(string)$lr['video_url'],
                     'sort_order'=>(int)$lr['sort_order'],'duration_minutes'=>(int)$lr['duration_minutes'],'status'=>(string)$lr['status'],
-                    'last_position_seconds'=>(int)$lr['last_position_seconds'],'watched_percent'=>(float)$lr['watched_percent'],'completed'=>(bool)$lr['completed']
+                    'last_position_seconds'=>(int)$lr['last_position_seconds'],'watched_percent'=>(float)$lr['watched_percent'],'completed'=>(bool)$lr['completed'],
+                    'last_watched_at'=>iso($lr['last_watched_at']??null),'resources'=>$resourceMap[(int)$lr['id']]??[],
+                    'note'=>$recordedNoteMap[(int)$lr['id']]??''
                 ];
             }
 
@@ -3738,7 +4055,7 @@ try {
                 SELECT l.*,c.title AS course_title,c.slug AS course_slug,e.delivery_mode,e.status AS enrollment_status
                 FROM live_sessions l
                 JOIN courses c ON c.id=l.course_id
-                JOIN enrollments e ON e.course_id=l.course_id AND e.user_id=?
+                JOIN enrollments e ON e.course_id=l.course_id AND e.user_id=? AND e.delivery_mode='live'
                 WHERE l.id=? LIMIT 1
             ");
             $stmt->execute([$user['id'],$liveId]);
@@ -3748,7 +4065,7 @@ try {
             if(!in_array((string)($live['enrollment_status']??''),['active','completed'],true))respond(['success'=>false,'message'=>'Your Live course enrollment is not active.'],403);
             if((string)($live['status']??'')==='cancelled')respond(['success'=>false,'message'=>'This Live class has been cancelled.'],422);
             if((string)($live['status']??'')!=='live')respond(['success'=>false,'message'=>'This class is scheduled, but the instructor has not started it yet. Please wait until the instructor starts the Live class.'],422);
-            $access=enrollmentAccessDetails($pdo,(int)$user['id'],(int)$live['course_id'],false);
+            $access=enrollmentAccessDetails($pdo,(int)$user['id'],(int)$live['course_id'],false,'live');
             if(empty($access['allowed']))respond(['success'=>false,'message'=>(string)($access['message']??'Course access denied.')],403);
             $meetingId=(string)($live['meeting_id']??'');
             if($meetingId==='')respond(['success'=>false,'message'=>'The instructor has not created the Zoom meeting yet.'],422);
@@ -3782,7 +4099,7 @@ try {
             $stmt=$pdo->prepare("
                 SELECT l.id,l.course_id,l.meeting_id,l.join_url,l.status,e.delivery_mode,e.status AS enrollment_status
                 FROM live_sessions l
-                JOIN enrollments e ON e.course_id=l.course_id AND e.user_id=?
+                JOIN enrollments e ON e.course_id=l.course_id AND e.user_id=? AND e.delivery_mode='live'
                 WHERE l.id=? LIMIT 1
             ");
             $stmt->execute([$student['id'],$liveId]);
@@ -3801,7 +4118,7 @@ try {
                 respond(['success'=>false,'message'=>'The instructor has not started this Live class yet.'],422);
             }
             $courseId=(int)($live['course_id']??0);
-            $access=enrollmentAccessDetails($pdo,(int)$student['id'],$courseId,false);
+            $access=enrollmentAccessDetails($pdo,(int)$student['id'],$courseId,false,'live');
             if(empty($access['allowed'])){
                 respond(['success'=>false,'message'=>(string)($access['message']??'Course access denied.')],403);
             }
@@ -3815,7 +4132,7 @@ try {
             if ($method !== 'POST') respond(['success'=>false,'message'=>'Method not allowed.'],405);
             $user = requireStudent($pdo);
             $courseId = (int)($data['course_id'] ?? 0);
-            $access = enrollmentAccessDetails($pdo, (int)$user['id'], $courseId, true);
+            $access = enrollmentAccessDetails($pdo, (int)$user['id'], $courseId, true, 'offline');
             if (empty($access['allowed'])) respond(['success'=>false,'message'=>$access['message'] ?? 'Course access denied.'],403);
             $stmt = $pdo->prepare("SELECT * FROM courses WHERE id=? AND status='published' LIMIT 1");
             $stmt->execute([$courseId]);
@@ -3846,7 +4163,7 @@ try {
             $courseId = (int)($data['course_id'] ?? 0);
             $lessonKey = clean($data['lesson_key'] ?? '', 40);
             $note = clean($data['note'] ?? '', 20000);
-            if (!enrollmentAccess($pdo, (int)$user['id'], $courseId)) respond(['success'=>false,'message'=>'This course is not active in your account.'],403);
+            if (!enrollmentAccess($pdo, (int)$user['id'], $courseId, 'offline')) respond(['success'=>false,'message'=>'Your Physical / Offline course access is not active.'],403);
             if ($lessonKey === '' || !in_array($lessonKey, courseLessonKeys($pdo, $courseId), true)) respond(['success'=>false,'message'=>'Choose a valid lesson from this course.'],422);
             $stmt = $pdo->prepare('INSERT INTO lesson_notes (user_id,course_id,lesson_key,note_text) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE note_text=VALUES(note_text)');
             $stmt->execute([$user['id'],$courseId,$lessonKey,$note]);
@@ -3908,10 +4225,21 @@ try {
             $planPrice = $plan ? (float)($billing === 'yearly' ? $plan['yearly_price'] : $plan['monthly_price']) : 0;
             $subtotal += $planPrice;
             if ($courseIds) {
-                $existingStmt = $pdo->prepare("SELECT c.title,e.status FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.user_id=? AND e.course_id IN ($placeholders) AND e.status IN ('pending','active','completed') LIMIT 1");
-                $existingStmt->execute(array_merge([(int)$user['id']], $courseIds));
-                $existingEnrollment = $existingStmt->fetch();
-                if ($existingEnrollment) respond(['success'=>false,'message'=>'You already have an active or pending enrollment for ' . $existingEnrollment['title'] . '.'],409);
+                $existingStmt=$pdo->prepare("SELECT e.status,e.order_id,o.order_number,o.status AS order_status FROM enrollments e LEFT JOIN orders o ON o.id=e.order_id WHERE e.user_id=? AND e.course_id=? AND e.delivery_mode=? AND e.status IN ('pending','active','completed') ORDER BY e.id DESC LIMIT 1");
+                foreach($courses as $course){
+                    $mode=(string)($course['_selected_delivery_mode']??'offline');
+                    $existingStmt->execute([(int)$user['id'],(int)$course['id'],$mode]);$existingEnrollment=$existingStmt->fetch();
+                    if(!$existingEnrollment)continue;
+                    $label=$mode==='recorded'?'Recorded':($mode==='live'?'Live':'Physical / Offline');
+                    if(in_array((string)$existingEnrollment['status'],['active','completed'],true))respond(['success'=>false,'message'=>'You already have active '.$label.' access for '.$course['title'].'.'],409);
+                    $orderStatus=(string)($existingEnrollment['order_status']??'');
+                    if((string)$existingEnrollment['status']==='pending' && !empty($existingEnrollment['order_id']) && in_array($orderStatus,['pending','paid'],true)){
+                        $ref=trim((string)($existingEnrollment['order_number']??''));
+                        respond(['success'=>false,'message'=>'A '.$label.' order for '.$course['title'].' is already pending'.($ref!==''?' ('.$ref.')':'').'. Open Purchase History or Admin → Orders instead of placing it again.'],409);
+                    }
+                    // Pending access without a live order (or linked to a cancelled/refunded order)
+                    // is intentionally allowed through so the new checkout can repair/attach it.
+                }
             }
             $coupon=strtoupper(clean($data['coupon']??'',40));$discount=$coupon==='FSA10'?round($subtotal*.10,2):0;$total=$subtotal-$discount;
             $name=clean($data['name']??$user['name'],120);$email=strtolower(clean($data['email']??$user['email'],190));$phone=clean($data['phone']??$user['phone'],40);
@@ -3923,7 +4251,7 @@ try {
                 $stmt->execute([$number,$user['id'],$name,$email,$phone,clean($data['country']??'',100),clean($data['state']??'',100),clean($data['address']??'',255),clean($data['city']??'',100),clean($data['postal']??'',30),clean($data['payment_method']??'bank',50),$subtotal,$discount,$total,$coupon?:null,clean($data['message']??'',2000)]);
                 $orderId=(int)$pdo->lastInsertId();
                 $itemStmt=$pdo->prepare("INSERT INTO order_items (order_id,item_type,course_id,delivery_mode,item_name,unit_price,item_meta_json) VALUES (?,'course',?,?,?,?,?)");
-                $enrollStmt=$pdo->prepare("INSERT INTO enrollments (user_id,course_id,order_id,delivery_mode,status) VALUES (?,?,?,?,'pending') ON DUPLICATE KEY UPDATE order_id=IF(status IN ('active','completed'),order_id,VALUES(order_id)),delivery_mode=IF(status IN ('active','completed'),delivery_mode,VALUES(delivery_mode)),status=IF(status IN ('active','completed'),status,'pending')");
+                $enrollStmt=$pdo->prepare("INSERT INTO enrollments (user_id,course_id,order_id,delivery_mode,status) VALUES (?,?,?,?,'pending') ON DUPLICATE KEY UPDATE order_id=IF(status IN ('active','completed'),order_id,VALUES(order_id)),status=IF(status IN ('active','completed'),status,'pending')");
                 foreach($courses as $course){
                     $mode=$course['_selected_delivery_mode']??'offline';
                     $modeLabel=$mode==='offline'?'Physical / Offline':($mode==='recorded'?'Recorded':'Live');
@@ -3937,7 +4265,7 @@ try {
                     $planItemStmt->execute([$orderId,$plan['id'],$plan['name'] . ' (' . ucfirst($billing) . ')',$planPrice]);
                     if (in_array($plan['id'], ['pro','career'], true)) {
                         $allCourses=$pdo->query("SELECT id FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_COLUMN);
-                        foreach($allCourses as $allCourseId)$enrollStmt->execute([$user['id'],(int)$allCourseId,$orderId]);
+                        foreach($allCourses as $allCourseId){$planMode=normalizedCourseMode($pdo,(int)$allCourseId);$enrollStmt->execute([$user['id'],(int)$allCourseId,$orderId,$planMode]);}
                     }
                 }
                 $pdo->commit();
@@ -3950,7 +4278,7 @@ try {
         case 'student_progress_toggle':
             if ($method !== 'POST') respond(['success'=>false,'message'=>'Method not allowed.'],405);
             $user=requireStudent($pdo);$courseId=(int)($data['course_id']??0);$key=clean($data['lesson_key']??'',40);
-            if(!enrollmentAccess($pdo,(int)$user['id'],$courseId)) respond(['success'=>false,'message'=>'This course is not active in your account.'],403);
+            if(!enrollmentAccess($pdo,(int)$user['id'],$courseId,'offline')) respond(['success'=>false,'message'=>'Your Physical / Offline course access is not active.'],403);
             $validKeys=courseLessonKeys($pdo,$courseId);
             if($key===''||!in_array($key,$validKeys,true)) respond(['success'=>false,'message'=>'Choose a valid lesson from this course.'],422);
             $check=$pdo->prepare('SELECT completed FROM lesson_progress WHERE user_id=? AND course_id=? AND lesson_key=?');$check->execute([$user['id'],$courseId,$key]);$existing=$check->fetchColumn();
@@ -3959,8 +4287,8 @@ try {
             $stmt->execute([$user['id'],$courseId,$key,$completed?1:0,$completed?nowSql():null]);
             $totalLessons=count($validKeys);
             $countStmt=$pdo->prepare('SELECT lesson_key FROM lesson_progress WHERE user_id=? AND course_id=? AND completed=1');$countStmt->execute([$user['id'],$courseId]);$done=count(array_intersect($validKeys,$countStmt->fetchAll(PDO::FETCH_COLUMN)));
-            if($totalLessons>0&&$done>=$totalLessons){$pdo->prepare("UPDATE enrollments SET status='completed',completed_at=NOW() WHERE user_id=? AND course_id=?")->execute([$user['id'],$courseId]);}
-            elseif($done<$totalLessons){$pdo->prepare("UPDATE enrollments SET status='active',completed_at=NULL WHERE user_id=? AND course_id=? AND status='completed'")->execute([$user['id'],$courseId]);}
+            if($totalLessons>0&&$done>=$totalLessons){$pdo->prepare("UPDATE enrollments SET status='completed',completed_at=NOW() WHERE user_id=? AND course_id=? AND delivery_mode='offline'")->execute([$user['id'],$courseId]);}
+            elseif($done<$totalLessons){$pdo->prepare("UPDATE enrollments SET status='active',completed_at=NULL WHERE user_id=? AND course_id=? AND delivery_mode='offline' AND status='completed'")->execute([$user['id'],$courseId]);}
             respond(['success'=>true,'completed'=>$completed,'message'=>$completed?'Lesson marked complete.':'Lesson marked incomplete.']);
 
         case 'student_certificate_submit':
@@ -3982,7 +4310,7 @@ try {
                 $courseStmt=$pdo->prepare("SELECT id,slug,title,category,image,status,NULL AS completed_at FROM courses WHERE instructor_user_id=? AND status='published' AND visibility='public' ORDER BY id DESC");
                 $courseStmt->execute([$profile['id']]);
             }else{
-                $courseStmt=$pdo->prepare("SELECT c.id,c.slug,c.title,c.category,c.image,e.status,e.completed_at FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.user_id=? AND e.status IN ('active','completed') AND c.status='published' AND c.visibility='public' ORDER BY e.id DESC");
+                $courseStmt=$pdo->prepare("SELECT c.id,c.slug,c.title,c.category,c.image,CASE WHEN SUM(e.status='completed')>0 THEN 'completed' ELSE 'active' END AS status,MAX(e.completed_at) AS completed_at FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.user_id=? AND e.status IN ('active','completed') AND c.status='published' AND c.visibility='public' GROUP BY c.id,c.slug,c.title,c.category,c.image ORDER BY c.id DESC");
                 $courseStmt->execute([$profile['id']]);
             }
             $safe=publicUser($profile);unset($safe['email'],$safe['phone'],$safe['student_code'],$safe['notifications'],$safe['instructor_id']);
@@ -4173,6 +4501,8 @@ try {
 
             $recordedLectures=$pdo->prepare("SELECT rl.*,c.title AS course_title,c.slug AS course_slug,c.image AS course_image FROM recorded_lectures rl JOIN courses c ON c.id=rl.course_id WHERE rl.instructor_id=? AND c.instructor_user_id=? ORDER BY c.title ASC,rl.sort_order ASC,rl.id ASC");
             $recordedLectures->execute([$instructor['id'],$instructor['id']]);
+            $recordedLectureRowsRaw=$recordedLectures->fetchAll();
+            $recordedLectureResourceMap=recordedResourceMap($pdo,array_map(static fn($r)=>(int)$r['id'],$recordedLectureRowsRaw));
 
             $quizzes=$pdo->prepare('SELECT q.*,c.title AS course_title FROM course_quizzes q JOIN courses c ON c.id=q.course_id WHERE q.instructor_id=? ORDER BY q.id DESC');
             $quizzes->execute([$instructor['id']]);
@@ -4249,7 +4579,7 @@ try {
                 'courses'=>array_map('courseRow',$courses->fetchAll()),
                 'live_sessions'=>$liveRows,
                 'recordings'=>$recordingRows,
-                'recorded_lectures'=>array_map(static function($r){return ['id'=>(int)$r['id'],'course_id'=>(int)$r['course_id'],'instructor_id'=>(int)$r['instructor_id'],'course_title'=>(string)$r['course_title'],'course_slug'=>(string)$r['course_slug'],'course_image'=>(string)($r['course_image']??''),'title'=>(string)$r['title'],'description'=>(string)($r['description']??''),'video_url'=>(string)$r['video_url'],'sort_order'=>(int)$r['sort_order'],'duration_minutes'=>(int)$r['duration_minutes'],'status'=>(string)$r['status']];},$recordedLectures->fetchAll()),
+                'recorded_lectures'=>array_map(static function($r) use ($recordedLectureResourceMap){return ['id'=>(int)$r['id'],'course_id'=>(int)$r['course_id'],'instructor_id'=>(int)$r['instructor_id'],'course_title'=>(string)$r['course_title'],'course_slug'=>(string)$r['course_slug'],'course_image'=>(string)($r['course_image']??''),'title'=>(string)$r['title'],'description'=>(string)($r['description']??''),'video_url'=>(string)$r['video_url'],'sort_order'=>(int)$r['sort_order'],'duration_minutes'=>(int)$r['duration_minutes'],'status'=>(string)$r['status'],'resources'=>$recordedLectureResourceMap[(int)$r['id']]??[]];},$recordedLectureRowsRaw),
                 'quizzes'=>$quizRows,
                 'quiz_attempts'=>$quizAttemptRows,
                 'assignments'=>$assignmentRows,
@@ -4287,6 +4617,32 @@ try {
             $stmt=$pdo->prepare("INSERT INTO certifications (user_id,title,issuer,credential_id,issued_on,expires_on,certificate_url,status,submitted_by) VALUES (?,?,?,?,NULLIF(?,''),NULLIF(?,''),?,'pending',?)");
             $stmt->execute([$studentId,$title,$issuer,clean($data['credential_id']??'',100),clean($data['issued_on']??'',10),clean($data['expires_on']??'',10),clean($data['certificate_url']??'',2000),$instructor['id']]);
             respond(['success'=>true,'message'=>'Certificate sent to the administrator for approval.','certificate_id'=>(int)$pdo->lastInsertId()],201);
+
+        case 'instructor_offline_course_save':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $instructor=requireInstructor($pdo);
+            try{ensureCourseContentColumns($pdo);}catch(Throwable $e){respond(['success'=>false,'message'=>'Course content fields could not be prepared. Confirm database ALTER permission.'],500);}
+            $courseId=(int)($data['course_id']??0);
+            if($courseId<1||!instructorOwnsCourse($pdo,$courseId,(int)$instructor['id']))respond(['success'=>false,'message'=>'Choose a course assigned to your instructor account.'],403);
+            $stmt=$pdo->prepare('SELECT * FROM courses WHERE id=? AND instructor_user_id=? LIMIT 1');$stmt->execute([$courseId,$instructor['id']]);$course=$stmt->fetch();if(!$course)respond(['success'=>false,'message'=>'The assigned course was not found.'],404);
+            $enabled=jsonArray($course['delivery_modes_json']??'[]');$enabled=array_values(array_filter($enabled,fn($m)=>in_array($m,['offline','live','recorded'],true)));if(!$enabled)$enabled=[in_array($course['delivery_mode']??'offline',['offline','live','recorded'],true)?$course['delivery_mode']:'offline'];
+            if(!in_array('offline',$enabled,true))respond(['success'=>false,'message'=>'Offline / Physical delivery is not enabled for this course. Ask Admin to enable it first.'],403);
+            $incoming=is_array($data['content']??null)?$data['content']:[];
+            $existingModes=courseModeContentsFromRow($course);$base=$existingModes['offline']??normalizeCourseModeContent([]);
+            $candidate=array_merge($base,[
+                'badge'=>$incoming['badge']??$base['badge'],'image'=>$incoming['image']??$base['image'],'short'=>$incoming['short']??$base['short'],'contentHeading'=>$incoming['contentHeading']??$base['contentHeading'],'description'=>$incoming['description']??$base['description'],
+                'duration'=>$incoming['duration']??$base['duration'],'hours'=>$incoming['hours']??$base['hours'],'level'=>$incoming['level']??$base['level'],'language'=>$incoming['language']??$base['language'],'updated'=>$incoming['updated']??$base['updated'],
+                'skills'=>$incoming['skills']??$base['skills'],'requirements'=>$incoming['requirements']??$base['requirements'],'audience'=>$incoming['audience']??$base['audience'],'projectItems'=>$incoming['projectItems']??$base['projectItems'],'courseReviews'=>$incoming['courseReviews']??$base['courseReviews'],
+                'price'=>$base['price'],'originalPrice'=>$base['originalPrice'],'students'=>$base['students'],'instructor'=>(string)$instructor['name'],'instructorRole'=>(string)($instructor['headline']??'Instructor')
+            ]);
+            $offline=normalizeCourseModeContent($candidate);
+            // Financial, ownership and availability fields are deliberately preserved from Admin configuration.
+            $offline['price']=$base['price'];$offline['originalPrice']=$base['originalPrice'];$offline['students']=$base['students'];$offline['instructor']=(string)$instructor['name'];$offline['instructorRole']=(string)($instructor['headline']??'Instructor');
+            $modules=normalizeModules($data['modules']??[]);$lessonCount=array_sum(array_map(static fn(array $m):int=>count($m['lessons']??[]),$modules));
+            $pending=['offline'=>$offline];$kind='branch';
+            $pdo->prepare("UPDATE courses SET pending_mode_content_json=?,pending_modules_json=?,pending_lessons_count=?,approval_status='pending',approval_kind=?,approval_note='',submitted_by=?,reviewed_by=NULL,reviewed_at=NULL,updated_at=NOW() WHERE id=? AND instructor_user_id=?")
+                ->execute([json_encode($pending,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($modules,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),$lessonCount,$kind,$instructor['id'],$courseId,$instructor['id']]);
+            respond(['success'=>true,'message'=>'Offline course details and private lessons were saved and sent to Branch Head / Branch Admin for approval.','lessons'=>$lessonCount,'approval_status'=>'pending','approval_kind'=>$kind]);
 
         case 'instructor_course_save':
         case 'instructor_course_delete':
@@ -4550,10 +4906,9 @@ try {
         case 'instructor_recorded_lecture_save':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
             $instructor=requireInstructor($pdo);$id=(int)($data['id']??0);$courseId=(int)($data['course_id']??0);
-            $title=clean($data['title']??'',190);$description=trim((string)($data['description']??''));$url=trim((string)($data['video_url']??''));
+            $title=clean($data['title']??'',190);$description=trim((string)($data['description']??''));$url=normalizeEmbedUrl($data['video_url']??'');
             $order=max(1,(int)($data['sort_order']??1));$duration=max(0,(int)($data['duration_minutes']??0));$status=in_array(($data['status']??''),['draft','published'],true)?$data['status']:'published';
-            if($courseId<1||$title===''||$url==='')respond(['success'=>false,'message'=>'Course, lecture title and video URL are required.'],422);
-            if(!filter_var($url,FILTER_VALIDATE_URL) || stripos($url,'https://')!==0)respond(['success'=>false,'message'=>'Use a valid HTTPS lecture URL.'],422);
+            if($courseId<1||$title===''||$url==='')respond(['success'=>false,'message'=>'Course, lecture title and a valid HTTPS Bunny/embed URL are required. You may paste the full iframe code; the LMS stores only its src URL.'],422);
             $course=$pdo->prepare('SELECT id FROM courses WHERE id=? AND instructor_user_id=? LIMIT 1');$course->execute([$courseId,$instructor['id']]);if(!$course->fetchColumn())respond(['success'=>false,'message'=>'This course is not assigned to your instructor account.'],403);
             if($id>0){$q=$pdo->prepare('UPDATE recorded_lectures SET course_id=?,title=?,description=?,video_url=?,sort_order=?,duration_minutes=?,status=? WHERE id=? AND instructor_id=?');$q->execute([$courseId,$title,$description,$url,$order,$duration,$status,$id,$instructor['id']]);if(!$q->rowCount()){ $chk=$pdo->prepare('SELECT id FROM recorded_lectures WHERE id=? AND instructor_id=?');$chk->execute([$id,$instructor['id']]);if(!$chk->fetchColumn())respond(['success'=>false,'message'=>'Lecture not found.'],404);}}
             else{$q=$pdo->prepare('INSERT INTO recorded_lectures(course_id,instructor_id,title,description,video_url,sort_order,duration_minutes,status) VALUES(?,?,?,?,?,?,?,?)');$q->execute([$courseId,$instructor['id'],$title,$description,$url,$order,$duration,$status]);$id=(int)$pdo->lastInsertId();}
@@ -4563,12 +4918,84 @@ try {
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$instructor=requireInstructor($pdo);$id=(int)($data['id']??0);
             $q=$pdo->prepare('DELETE FROM recorded_lectures WHERE id=? AND instructor_id=?');$q->execute([$id,$instructor['id']]);respond(['success'=>true,'message'=>'Recorded lecture removed.']);
 
+
+        case 'instructor_recorded_resource_upload':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $instructor=requireInstructor($pdo);$lectureId=(int)($data['lecture_id']??$_POST['lecture_id']??0);
+            $title=clean($data['title']??$_POST['title']??'',190);
+            $description=trim((string)($data['description']??$_POST['description']??''));
+            if($description==='')respond(['success'=>false,'message'=>'Add a short description explaining this resource before uploading it.'],422);
+            $lecture=$pdo->prepare("SELECT rl.id,rl.course_id,rl.instructor_id FROM recorded_lectures rl JOIN courses c ON c.id=rl.course_id WHERE rl.id=? AND rl.instructor_id=? AND c.instructor_user_id=? LIMIT 1");
+            $lecture->execute([$lectureId,$instructor['id'],$instructor['id']]);$lectureRow=$lecture->fetch();
+            if(!$lectureRow)respond(['success'=>false,'message'=>'Recorded lecture not found in your assigned courses.'],404);
+            $external=normalizeHttpUrl($data['external_url']??$_POST['external_url']??'',2500);
+            if(!empty($_FILES['file']['name'])){
+                $stored=storeRecordedResourceUpload($_FILES['file'],(int)$instructor['id']);
+                if($title==='')$title=(string)$stored['name'];
+                $stmt=$pdo->prepare('INSERT INTO recorded_lecture_resources(lecture_id,course_id,instructor_id,title,description,file_path,original_name,mime_type,size_bytes) VALUES(?,?,?,?,?,?,?,?,?)');
+                $stmt->execute([$lectureId,(int)$lectureRow['course_id'],(int)$instructor['id'],$title,$description,$stored['path'],$stored['name'],$stored['mime'],$stored['size']]);
+            }elseif($external!==''){
+                if($title==='')$title='External resource';
+                $stmt=$pdo->prepare('INSERT INTO recorded_lecture_resources(lecture_id,course_id,instructor_id,title,description,external_url) VALUES(?,?,?,?,?,?)');
+                $stmt->execute([$lectureId,(int)$lectureRow['course_id'],(int)$instructor['id'],$title,$description,$external]);
+            }else respond(['success'=>false,'message'=>'Choose a resource file or enter a valid resource URL.'],422);
+            $id=(int)$pdo->lastInsertId();$q=$pdo->prepare('SELECT * FROM recorded_lecture_resources WHERE id=?');$q->execute([$id]);
+            respond(['success'=>true,'message'=>'Lecture resource added.','resource'=>recordedResourceRow($q->fetch())],201);
+
+        case 'instructor_recorded_resource_delete':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $instructor=requireInstructor($pdo);$resourceId=(int)($data['id']??0);
+            $stmt=$pdo->prepare("SELECT rr.* FROM recorded_lecture_resources rr JOIN recorded_lectures rl ON rl.id=rr.lecture_id WHERE rr.id=? AND rr.instructor_id=? AND rl.instructor_id=? LIMIT 1");
+            $stmt->execute([$resourceId,$instructor['id'],$instructor['id']]);$row=$stmt->fetch();
+            if(!$row)respond(['success'=>false,'message'=>'Lecture resource not found.'],404);
+            $path=(string)($row['file_path']??'');
+            if($path!==''){
+                $root=realpath(dirname(__DIR__).'/uploads/recorded-resources');$file=realpath(dirname(__DIR__).'/'.$path);
+                if($root&&$file&&str_starts_with($file,$root.DIRECTORY_SEPARATOR))@unlink($file);
+            }
+            $pdo->prepare('DELETE FROM recorded_lecture_resources WHERE id=?')->execute([$resourceId]);
+            respond(['success'=>true,'message'=>'Lecture resource removed.']);
+
+        case 'recorded_lecture_resource_download':
+            if($method!=='GET')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $actor=recordedDiscussionActor($pdo);$resourceId=(int)($_GET['id']??0);
+            $stmt=$pdo->prepare('SELECT * FROM recorded_lecture_resources WHERE id=? LIMIT 1');$stmt->execute([$resourceId]);$row=$stmt->fetch();
+            if(!$row)respond(['success'=>false,'message'=>'Lecture resource not found.'],404);
+            $courseId=(int)$row['course_id'];$user=$actor['user'];$allowed=false;
+            if(($actor['session']??'')==='user'){
+                if(($user['role']??'')==='student')$allowed=recordedStudentModeAccess($pdo,(int)$user['id'],$courseId);
+                elseif(($user['role']??'')==='instructor')$allowed=instructorOwnsCourse($pdo,$courseId,(int)$user['id']);
+            }else{
+                $role=adminRole($user);
+                $allowed=in_array($role,['super_admin','admin_staff'],true)||($role==='instructor'&&instructorOwnsCourse($pdo,$courseId,(int)$user['id']));
+            }
+            if(!$allowed)respond(['success'=>false,'message'=>'This lecture resource is not available in your account.'],403);
+            $external=(string)($row['external_url']??'');
+            if($external!==''){header('Location: '.$external,true,302);exit;}
+            $root=realpath(dirname(__DIR__).'/uploads/recorded-resources');$file=realpath(dirname(__DIR__).'/'.(string)$row['file_path']);
+            if(!$root||!$file||!str_starts_with($file,$root.DIRECTORY_SEPARATOR)||!is_file($file))respond(['success'=>false,'message'=>'Resource file is unavailable.'],404);
+            if(ob_get_level()>0)@ob_clean();header_remove('Content-Type');header('Content-Type: '.((string)$row['mime_type']?:'application/octet-stream'));header('X-Content-Type-Options: nosniff');header('Content-Length: '.filesize($file));
+            $downloadName=preg_replace('/[\\\"\r\n]+/','_',(string)($row['original_name']?:basename($file)));header('Content-Disposition: attachment; filename="'.$downloadName.'"');readfile($file);exit;
+
+        case 'student_recorded_lecture_note_save':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $student=requireStudent($pdo);$lectureId=(int)($data['lecture_id']??0);$note=clean($data['note']??'',30000);
+            $q=$pdo->prepare("SELECT course_id FROM recorded_lectures WHERE id=? AND status='published' LIMIT 1");$q->execute([$lectureId]);$courseId=(int)($q->fetchColumn()?:0);
+            if(!$courseId||!recordedStudentModeAccess($pdo,(int)$student['id'],$courseId))respond(['success'=>false,'message'=>'This recorded lecture is not available in your account.'],403);
+            $stmt=$pdo->prepare('INSERT INTO recorded_lecture_notes(lecture_id,user_id,note_text) VALUES(?,?,?) ON DUPLICATE KEY UPDATE note_text=VALUES(note_text),updated_at=NOW()');
+            $stmt->execute([$lectureId,(int)$student['id'],$note]);
+            respond(['success'=>true,'message'=>'Lecture notes saved.']);
+
         case 'student_recorded_lecture_progress':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$student=requireStudent($pdo);$lectureId=(int)($data['lecture_id']??0);
-            $q=$pdo->prepare("SELECT rl.course_id FROM recorded_lectures rl JOIN enrollments e ON e.course_id=rl.course_id WHERE rl.id=? AND rl.status='published' AND e.user_id=? AND e.status IN ('active','completed') LIMIT 1");$q->execute([$lectureId,$student['id']]);$courseId=(int)($q->fetchColumn()?:0);if(!$courseId)respond(['success'=>false,'message'=>'Lecture access is not available.'],403);
-            $access=enrollmentAccessDetails($pdo,(int)$student['id'],$courseId,false);if(empty($access['allowed']))respond(['success'=>false,'message'=>(string)($access['message']??'Course access is not available.')],403);
+            $q=$pdo->prepare("SELECT rl.course_id FROM recorded_lectures rl JOIN enrollments e ON e.course_id=rl.course_id AND e.delivery_mode='recorded' WHERE rl.id=? AND rl.status='published' AND e.user_id=? AND e.status IN ('active','completed') LIMIT 1");$q->execute([$lectureId,$student['id']]);$courseId=(int)($q->fetchColumn()?:0);if(!$courseId)respond(['success'=>false,'message'=>'Lecture access is not available.'],403);
+            $access=enrollmentAccessDetails($pdo,(int)$student['id'],$courseId,false,'recorded');if(empty($access['allowed']))respond(['success'=>false,'message'=>(string)($access['message']??'Course access is not available.')],403);
             $position=max(0,(int)($data['position_seconds']??0));$percent=max(0,min(100,(float)($data['watched_percent']??0)));$completed=!empty($data['completed'])||$percent>=95;if($completed)$percent=100;
             $q=$pdo->prepare("INSERT INTO recorded_lecture_progress(lecture_id,user_id,last_position_seconds,watched_percent,completed,last_watched_at) VALUES(?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE last_position_seconds=VALUES(last_position_seconds),watched_percent=GREATEST(watched_percent,VALUES(watched_percent)),completed=GREATEST(completed,VALUES(completed)),last_watched_at=NOW()");$q->execute([$lectureId,$student['id'],$position,$percent,$completed?1:0]);
+            $totalStmt=$pdo->prepare("SELECT COUNT(*) FROM recorded_lectures WHERE course_id=? AND status='published'");$totalStmt->execute([$courseId]);$totalLectures=(int)$totalStmt->fetchColumn();
+            $doneStmt=$pdo->prepare("SELECT COUNT(*) FROM recorded_lecture_progress p JOIN recorded_lectures rl ON rl.id=p.lecture_id WHERE p.user_id=? AND rl.course_id=? AND rl.status='published' AND p.completed=1");$doneStmt->execute([$student['id'],$courseId]);$doneLectures=(int)$doneStmt->fetchColumn();
+            if($totalLectures>0&&$doneLectures>=$totalLectures)$pdo->prepare("UPDATE enrollments SET status='completed',completed_at=COALESCE(completed_at,NOW()) WHERE user_id=? AND course_id=? AND delivery_mode='recorded' AND status IN ('active','completed')")->execute([$student['id'],$courseId]);
+            elseif($doneLectures<$totalLectures)$pdo->prepare("UPDATE enrollments SET status='active',completed_at=NULL WHERE user_id=? AND course_id=? AND delivery_mode='recorded' AND status='completed'")->execute([$student['id'],$courseId]);
             respond(['success'=>true,'message'=>$completed?'Lecture completed.':'Progress saved.']);
 
         case 'admin_recorded_lectures':
@@ -4577,8 +5004,8 @@ try {
 
         case 'admin_recorded_lecture_save':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$admin=requireAdmin($pdo);if(!isSuperAdmin($admin))respond(['success'=>false,'message'=>'Super Admin access is required.'],403);
-            $id=(int)($data['id']??0);$courseId=(int)($data['course_id']??0);$instructorId=(int)($data['instructor_id']??0);$title=clean($data['title']??'',190);$url=trim((string)($data['video_url']??''));$description=trim((string)($data['description']??''));$order=max(1,(int)($data['sort_order']??1));$duration=max(0,(int)($data['duration_minutes']??0));$status=in_array(($data['status']??''),['draft','published'],true)?$data['status']:'published';
-            if(!$courseId||!$instructorId||$title===''||!filter_var($url,FILTER_VALIDATE_URL))respond(['success'=>false,'message'=>'Course, instructor, title and a valid video URL are required.'],422);
+            $id=(int)($data['id']??0);$courseId=(int)($data['course_id']??0);$instructorId=(int)($data['instructor_id']??0);$title=clean($data['title']??'',190);$url=normalizeEmbedUrl($data['video_url']??'');$description=trim((string)($data['description']??''));$order=max(1,(int)($data['sort_order']??1));$duration=max(0,(int)($data['duration_minutes']??0));$status=in_array(($data['status']??''),['draft','published'],true)?$data['status']:'published';
+            if(!$courseId||!$instructorId||$title===''||$url==='')respond(['success'=>false,'message'=>'Course, instructor, title and a valid HTTPS video/embed URL are required.'],422);
             if($id){$q=$pdo->prepare('UPDATE recorded_lectures SET course_id=?,instructor_id=?,title=?,description=?,video_url=?,sort_order=?,duration_minutes=?,status=? WHERE id=?');$q->execute([$courseId,$instructorId,$title,$description,$url,$order,$duration,$status,$id]);}else{$q=$pdo->prepare('INSERT INTO recorded_lectures(course_id,instructor_id,title,description,video_url,sort_order,duration_minutes,status) VALUES(?,?,?,?,?,?,?,?)');$q->execute([$courseId,$instructorId,$title,$description,$url,$order,$duration,$status]);}
             respond(['success'=>true,'message'=>'Recorded lecture saved by Super Admin.']);
 
@@ -4619,13 +5046,62 @@ try {
             $result=$liveId>0?syncLiveRecording($pdo,$liveId,(int)$instructor['id']):syncPendingInstructorRecordings($pdo,(int)$instructor['id'],8);
             respond(['success'=>true,'message'=>!empty($result['synced'])?'Zoom recording sync completed.':'No new Zoom recording was ready yet. Processing items remain available for manual URL entry.','result'=>$result]);
 
+        case 'recorded_course_discussion_list':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $actor=recordedDiscussionActor($pdo);$courseId=(int)($data['course_id']??0);
+            if(!recordedDiscussionCanAccess($pdo,$actor,$courseId))respond(['success'=>false,'message'=>'This course discussion is not available in your account.'],403);
+            $canModerate=recordedDiscussionCanModerate($pdo,$actor,$courseId);
+            $stmt=$pdo->prepare("SELECT d.*,u.name AS sender_name,u.role AS sender_role,u.avatar_url AS sender_avatar,rl.title AS lecture_title,p.message AS reply_message,pu.name AS reply_sender_name
+                FROM recorded_course_discussions d
+                JOIN users u ON u.id=d.user_id
+                LEFT JOIN recorded_lectures rl ON rl.id=d.lecture_id
+                LEFT JOIN recorded_course_discussions p ON p.id=d.reply_to_id
+                LEFT JOIN users pu ON pu.id=p.user_id
+                WHERE d.course_id=? ORDER BY d.id DESC LIMIT 150");
+            $stmt->execute([$courseId]);$rows=array_reverse($stmt->fetchAll());
+            $courseStmt=$pdo->prepare('SELECT title FROM courses WHERE id=? LIMIT 1');$courseStmt->execute([$courseId]);
+            respond(['success'=>true,'course_id'=>$courseId,'course_title'=>(string)($courseStmt->fetchColumn()?:'Course Discussion'),'can_moderate'=>$canModerate,'messages'=>array_map(static fn($row)=>recordedDiscussionMessageRow($row,$actor,$canModerate),$rows)]);
+
+        case 'recorded_course_discussion_send':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $actor=recordedDiscussionActor($pdo);$courseId=(int)($data['course_id']??0);
+            if(!recordedDiscussionCanAccess($pdo,$actor,$courseId))respond(['success'=>false,'message'=>'This course discussion is not available in your account.'],403);
+            $message=clean($data['message']??'',5000);$lectureId=(int)($data['lecture_id']??0);$seconds=max(0,min(864000,(int)($data['video_seconds']??0)));$useTimestamp=boolValue($data['attach_timestamp']??false);
+            if($lectureId>0){$lectureCheck=$pdo->prepare('SELECT status FROM recorded_lectures WHERE id=? AND course_id=? LIMIT 1');$lectureCheck->execute([$lectureId,$courseId]);$lectureStatus=$lectureCheck->fetchColumn();if($lectureStatus===false||(($actor['user']['role']??'')==='student'&&$lectureStatus!=='published'))respond(['success'=>false,'message'=>'That lecture does not belong to this course.'],422);}else{$lectureId=0;$useTimestamp=false;}
+            $replyTo=(int)($data['reply_to_id']??0);if($replyTo>0){$replyCheck=$pdo->prepare('SELECT 1 FROM recorded_course_discussions WHERE id=? AND course_id=? LIMIT 1');$replyCheck->execute([$replyTo,$courseId]);if(!$replyCheck->fetchColumn())$replyTo=0;}
+            $attachment=['path'=>'','name'=>'','mime'=>''];if(!empty($_FILES['attachment']['name']))$attachment=storeDiscussionUpload($_FILES['attachment'],(int)$actor['user']['id']);
+            if($message===''&&$attachment['path']==='')respond(['success'=>false,'message'=>'Write a message or attach a file before sending.'],422);
+            $stmt=$pdo->prepare('INSERT INTO recorded_course_discussions(course_id,lecture_id,user_id,reply_to_id,message,video_seconds,attachment_path,attachment_name,attachment_mime) VALUES(?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$courseId,$lectureId?:null,(int)$actor['user']['id'],$replyTo?:null,$message,$useTimestamp?$seconds:null,$attachment['path']?:null,$attachment['name']?:null,$attachment['mime']?:null]);
+            respond(['success'=>true,'message'=>'Message sent to the course discussion.','id'=>(int)$pdo->lastInsertId()],201);
+
+        case 'recorded_course_discussion_delete':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $actor=recordedDiscussionActor($pdo);$id=(int)($data['id']??0);
+            $stmt=$pdo->prepare('SELECT * FROM recorded_course_discussions WHERE id=? LIMIT 1');$stmt->execute([$id]);$row=$stmt->fetch();if(!$row)respond(['success'=>false,'message'=>'Message not found.'],404);
+            $courseId=(int)$row['course_id'];if(!recordedDiscussionCanModerate($pdo,$actor,$courseId))respond(['success'=>false,'message'=>'Only the assigned instructor or academy administrator can remove discussion messages.'],403);
+            $path=(string)($row['attachment_path']??'');if($path!==''){$root=realpath(dirname(__DIR__).'/uploads/discussions');$file=realpath(dirname(__DIR__).'/'.$path);if($root&&$file&&str_starts_with($file,$root.DIRECTORY_SEPARATOR))@unlink($file);}
+            $pdo->prepare("UPDATE recorded_course_discussions SET message='',attachment_path=NULL,attachment_name=NULL,attachment_mime=NULL,video_seconds=NULL,deleted_at=NOW(),deleted_by=? WHERE id=?")->execute([(int)$actor['user']['id'],$id]);
+            respond(['success'=>true,'message'=>'Message removed from the course discussion.']);
+
+        case 'recorded_course_discussion_attachment':
+            if($method!=='GET')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $actor=recordedDiscussionActor($pdo);$id=(int)($_GET['id']??0);
+            $stmt=$pdo->prepare('SELECT course_id,attachment_path,attachment_name,attachment_mime,deleted_at FROM recorded_course_discussions WHERE id=? LIMIT 1');$stmt->execute([$id]);$row=$stmt->fetch();
+            if(!$row||!empty($row['deleted_at'])||empty($row['attachment_path']))respond(['success'=>false,'message'=>'Attachment not found.'],404);
+            if(!recordedDiscussionCanAccess($pdo,$actor,(int)$row['course_id']))respond(['success'=>false,'message'=>'This attachment is not available in your account.'],403);
+            $root=realpath(dirname(__DIR__).'/uploads/discussions');$file=realpath(dirname(__DIR__).'/'.(string)$row['attachment_path']);
+            if(!$root||!$file||!str_starts_with($file,$root.DIRECTORY_SEPARATOR)||!is_file($file))respond(['success'=>false,'message'=>'Attachment file is unavailable.'],404);
+            if(ob_get_level()>0)@ob_clean();header_remove('Content-Type');header('Content-Type: '.((string)$row['attachment_mime']?:'application/octet-stream'));header('X-Content-Type-Options: nosniff');header('Content-Length: '.filesize($file));
+            $downloadName=preg_replace('/[\\\"\r\n]+/','_',(string)($row['attachment_name']?:basename($file)));header('Content-Disposition: attachment; filename="'.$downloadName.'"');readfile($file);exit;
+
         case 'instructor_quiz_save':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$instructor=requireInstructor($pdo);$id=(int)($data['id']??0);$courseId=(int)($data['course_id']??0);if(!instructorOwnsCourse($pdo,$courseId,(int)$instructor['id']))respond(['success'=>false,'message'=>'Choose one of your courses.'],403);
             $title=clean($data['title']??'',190);$questions=normalizeQuizQuestions($data['questions']??[]);if($title===''||!$questions)respond(['success'=>false,'message'=>'Quiz title and at least one valid question are required.'],422);$status=in_array($data['status']??'published',['draft','published'],true)?$data['status']:'published';
             $lessonKey=clean($data['lesson_key']??'',40);if($lessonKey!==''&&!in_array($lessonKey,courseLessonKeys($pdo,$courseId),true))respond(['success'=>false,'message'=>'Choose a lesson that belongs to this course.'],422);
-            $vals=[$courseId,$instructor['id'],$lessonKey,$title,clean($data['description']??'',4000),clean($data['due_at']??'',19)?:null,max(1,min(10,(int)($data['attempts_allowed']??1))),json_encode($questions,JSON_UNESCAPED_UNICODE),$status];
-            if($id>0){$check=$pdo->prepare('SELECT 1 FROM course_quizzes WHERE id=? AND instructor_id=?');$check->execute([$id,$instructor['id']]);if(!$check->fetchColumn())respond(['success'=>false,'message'=>'Quiz not found.'],404);$pdo->prepare('UPDATE course_quizzes SET course_id=?,instructor_id=?,lesson_key=?,title=?,description=?,due_at=?,attempts_allowed=?,questions_json=?,status=? WHERE id=?')->execute([...$vals,$id]);respond(['success'=>true,'message'=>'Quiz updated.']);}
-            $pdo->prepare('INSERT INTO course_quizzes (course_id,instructor_id,lesson_key,title,description,due_at,attempts_allowed,questions_json,status) VALUES (?,?,?,?,?,?,?,?,?)')->execute($vals);respond(['success'=>true,'message'=>'Quiz published to the private classroom.','id'=>(int)$pdo->lastInsertId()],201);
+            $quizType=in_array($data['quiz_type']??'checkpoint',['checkpoint','final'],true)?$data['quiz_type']:'checkpoint';$canSkip=!empty($data['can_skip'])?1:0;$sequenceOrder=max(0,(float)($data['sequence_order']??($quizType==='final'?9999:999)));$vals=[$courseId,$instructor['id'],$lessonKey,$sequenceOrder,$quizType,$canSkip,$title,clean($data['description']??'',4000),clean($data['due_at']??'',19)?:null,max(1,min(10,(int)($data['attempts_allowed']??1))),json_encode($questions,JSON_UNESCAPED_UNICODE),$status];
+            if($id>0){$check=$pdo->prepare('SELECT 1 FROM course_quizzes WHERE id=? AND instructor_id=?');$check->execute([$id,$instructor['id']]);if(!$check->fetchColumn())respond(['success'=>false,'message'=>'Quiz not found.'],404);$pdo->prepare('UPDATE course_quizzes SET course_id=?,instructor_id=?,lesson_key=?,sequence_order=?,quiz_type=?,can_skip=?,title=?,description=?,due_at=?,attempts_allowed=?,questions_json=?,status=? WHERE id=?')->execute([...$vals,$id]);respond(['success'=>true,'message'=>'Quiz updated.']);}
+            $pdo->prepare('INSERT INTO course_quizzes (course_id,instructor_id,lesson_key,sequence_order,quiz_type,can_skip,title,description,due_at,attempts_allowed,questions_json,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')->execute($vals);respond(['success'=>true,'message'=>'Quiz added to the course sequence.','id'=>(int)$pdo->lastInsertId()],201);
 
         case 'instructor_quiz_delete':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$instructor=requireInstructor($pdo);$pdo->prepare('DELETE FROM course_quizzes WHERE id=? AND instructor_id=?')->execute([(int)($data['id']??0),$instructor['id']]);respond(['success'=>true,'message'=>'Quiz deleted.']);
@@ -4635,9 +5111,9 @@ try {
             $title=clean($data['title']??'',190);if($title==='')respond(['success'=>false,'message'=>'Assignment title is required.'],422);$status=in_array($data['status']??'published',['draft','published'],true)?$data['status']:'published';
             $attachment=normalizeHttpUrl($data['attachment_url']??'',2500);if(!empty($_FILES['attachment']['name']))$attachment=storeClassroomUpload($_FILES['attachment'],(int)$instructor['id']);
             $lessonKey=clean($data['lesson_key']??'',40);if($lessonKey!==''&&!in_array($lessonKey,courseLessonKeys($pdo,$courseId),true))respond(['success'=>false,'message'=>'Choose a lesson that belongs to this course.'],422);
-            $vals=[$courseId,$instructor['id'],$lessonKey,$title,clean($data['instructions']??'',30000),$attachment,clean($data['due_at']??'',19)?:null,max(0,(float)($data['points']??100)),$status];
-            if($id>0){$check=$pdo->prepare('SELECT 1 FROM course_assignments WHERE id=? AND instructor_id=?');$check->execute([$id,$instructor['id']]);if(!$check->fetchColumn())respond(['success'=>false,'message'=>'Assignment not found.'],404);$pdo->prepare('UPDATE course_assignments SET course_id=?,instructor_id=?,lesson_key=?,title=?,instructions=?,attachment_url=?,due_at=?,points=?,status=? WHERE id=?')->execute([...$vals,$id]);respond(['success'=>true,'message'=>'Assignment updated.']);}
-            $pdo->prepare('INSERT INTO course_assignments (course_id,instructor_id,lesson_key,title,instructions,attachment_url,due_at,points,status) VALUES (?,?,?,?,?,?,?,?,?)')->execute($vals);respond(['success'=>true,'message'=>'Assignment posted to the private classroom.','id'=>(int)$pdo->lastInsertId()],201);
+            $sequenceOrder=max(0,(float)($data['sequence_order']??999));$vals=[$courseId,$instructor['id'],$lessonKey,$sequenceOrder,$title,clean($data['instructions']??'',30000),$attachment,clean($data['due_at']??'',19)?:null,max(0,(float)($data['points']??100)),$status];
+            if($id>0){$check=$pdo->prepare('SELECT 1 FROM course_assignments WHERE id=? AND instructor_id=?');$check->execute([$id,$instructor['id']]);if(!$check->fetchColumn())respond(['success'=>false,'message'=>'Assignment not found.'],404);$pdo->prepare('UPDATE course_assignments SET course_id=?,instructor_id=?,lesson_key=?,sequence_order=?,title=?,instructions=?,attachment_url=?,due_at=?,points=?,status=? WHERE id=?')->execute([...$vals,$id]);respond(['success'=>true,'message'=>'Assignment updated.']);}
+            $pdo->prepare('INSERT INTO course_assignments (course_id,instructor_id,lesson_key,sequence_order,title,instructions,attachment_url,due_at,points,status) VALUES (?,?,?,?,?,?,?,?,?,?)')->execute($vals);respond(['success'=>true,'message'=>'Assignment added to the course sequence.','id'=>(int)$pdo->lastInsertId()],201);
 
         case 'instructor_assignment_delete':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$instructor=requireInstructor($pdo);$pdo->prepare('DELETE FROM course_assignments WHERE id=? AND instructor_id=?')->execute([(int)($data['id']??0),$instructor['id']]);respond(['success'=>true,'message'=>'Assignment deleted.']);
@@ -4646,6 +5122,15 @@ try {
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$instructor=requireInstructor($pdo);$id=(int)($data['id']??0);
             $check=$pdo->prepare('SELECT a.points FROM assignment_submissions s JOIN course_assignments a ON a.id=s.assignment_id WHERE s.id=? AND a.instructor_id=?');$check->execute([$id,$instructor['id']]);$points=$check->fetchColumn();if($points===false)respond(['success'=>false,'message'=>'Submission not found.'],404);$grade=max(0,min((float)$points,(float)($data['grade']??0)));$feedback=clean($data['feedback']??'',5000);
             $pdo->prepare("UPDATE assignment_submissions SET grade=?,feedback=?,status='graded',graded_at=NOW() WHERE id=?")->execute([$grade,$feedback,$id]);respond(['success'=>true,'message'=>'Grade and feedback saved.']);
+
+        case 'course_content_asset_upload':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $actor=currentUser($pdo);
+            if(!$actor || ($actor['role']??'')!=='instructor') $actor=currentAdmin($pdo);
+            if(!$actor)respond(['success'=>false,'message'=>'Sign in as an instructor or administrator to upload course content.'],401);
+            if(empty($_FILES['file']))respond(['success'=>false,'message'=>'Choose a file to upload.'],422);
+            $url=storeClassroomUpload($_FILES['file'],(int)$actor['id'],52428800);
+            respond(['success'=>true,'message'=>'Course content file uploaded.','url'=>$url],201);
 
         case 'instructor_classroom_upload':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$instructor=requireInstructor($pdo);if(empty($_FILES['file']))respond(['success'=>false,'message'=>'Choose a file to upload.'],422);$url=storeClassroomUpload($_FILES['file'],(int)$instructor['id']);respond(['success'=>true,'message'=>'File uploaded.','url'=>$url],201);
@@ -4780,8 +5265,8 @@ try {
                 sp.alumni_role,sp.alumni_company,sp.alumni_salary,sp.alumni_location,sp.alumni_graduation_year,sp.alumni_quote,
                 sp.job_skills_json,sp.job_experience,sp.job_location,sp.job_availability,sp.job_summary,
                 c.title AS course_title,CONCAT(COALESCE(b.course_name,''),CASE WHEN b.start_date IS NOT NULL THEN CONCAT(' — ',DATE_FORMAT(b.start_date,'%d %b %Y')) ELSE '' END) AS batch_label,
-                e.delivery_mode AS enrollment_delivery_mode
-                FROM users u LEFT JOIN student_profiles sp ON sp.user_id=u.id LEFT JOIN courses c ON c.id=sp.course_id LEFT JOIN batches b ON b.id=sp.batch_id LEFT JOIN enrollments e ON e.user_id=u.id AND e.course_id=sp.course_id WHERE u.role='student'";
+                (SELECT e2.delivery_mode FROM enrollments e2 WHERE e2.user_id=u.id AND e2.course_id=sp.course_id ORDER BY FIELD(e2.status,'completed','active','pending','cancelled'),e2.id DESC LIMIT 1) AS enrollment_delivery_mode
+                FROM users u LEFT JOIN student_profiles sp ON sp.user_id=u.id LEFT JOIN courses c ON c.id=sp.course_id LEFT JOIN batches b ON b.id=sp.batch_id WHERE u.role='student'";
             if(isCentralAdmin($admin)){$rows=$pdo->query($base.' ORDER BY u.id DESC')->fetchAll();}
             else{$stmt=$pdo->prepare($base.' AND LOWER(u.branch)=LOWER(?) ORDER BY u.id DESC');$stmt->execute([cleanBranchName($admin)]);$rows=$stmt->fetchAll();}
             respond(['success'=>true,'students'=>array_map('studentRow',$rows)]);
@@ -4924,7 +5409,7 @@ try {
                 $skills=json_encode(normalizeTextList($data['jobSkills']??[],40,100),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
                 $values=[$father,$dob!==''?$dob:null,$cnic,$image,$courseId?:null,$batchId?:null,$total,$paid,$academic,$isAlumni?1:0,$isJob?1:0,clean($data['alumniRole']??'',190),clean($data['alumniCompany']??'',190),clean($data['alumniSalary']??'',80),clean($data['alumniLocation']??'',190),clean($data['alumniGraduationYear']??'',20),clean($data['alumniQuote']??'',5000),$skills,clean($data['jobExperience']??'Fresher',120),clean($data['jobLocation']??'Hyderabad',190),clean($data['jobAvailability']??'Available',120),clean($data['jobSummary']??'',5000)];
                 $q=$pdo->prepare("INSERT INTO student_profiles (user_id,father_name,dob,cnic,image,course_id,batch_id,fee_total,fee_paid,academic_status,is_alumni,is_job_seeker,alumni_role,alumni_company,alumni_salary,alumni_location,alumni_graduation_year,alumni_quote,job_skills_json,job_experience,job_location,job_availability,job_summary) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE father_name=VALUES(father_name),dob=VALUES(dob),cnic=VALUES(cnic),image=VALUES(image),course_id=VALUES(course_id),batch_id=VALUES(batch_id),fee_total=VALUES(fee_total),fee_paid=VALUES(fee_paid),academic_status=VALUES(academic_status),is_alumni=VALUES(is_alumni),is_job_seeker=VALUES(is_job_seeker),alumni_role=VALUES(alumni_role),alumni_company=VALUES(alumni_company),alumni_salary=VALUES(alumni_salary),alumni_location=VALUES(alumni_location),alumni_graduation_year=VALUES(alumni_graduation_year),alumni_quote=VALUES(alumni_quote),job_skills_json=VALUES(job_skills_json),job_experience=VALUES(job_experience),job_location=VALUES(job_location),job_availability=VALUES(job_availability),job_summary=VALUES(job_summary)");$q->execute([$id,...$values]);
-                if($courseId>0){$enStatus=$academic==='completed'?'completed':($academic==='inactive'?'cancelled':'active');$e=$pdo->prepare('SELECT id FROM enrollments WHERE user_id=? AND course_id=? LIMIT 1');$e->execute([$id,$courseId]);$eid=(int)($e->fetchColumn()?:0);if($eid){$pdo->prepare("UPDATE enrollments SET delivery_mode=?,status=?,enrolled_at=COALESCE(enrolled_at,NOW()),completed_at=IF(?='completed',COALESCE(completed_at,NOW()),completed_at) WHERE id=?")->execute([$requestedDelivery?:null,$enStatus,$enStatus,$eid]);}else{$pdo->prepare("INSERT INTO enrollments (user_id,course_id,delivery_mode,status,enrolled_at,completed_at) VALUES (?,?,?,?,NOW(),IF(?='completed',NOW(),NULL))")->execute([$id,$courseId,$requestedDelivery?:null,$enStatus,$enStatus]);}}
+                if($courseId>0){$enStatus=$academic==='completed'?'completed':($academic==='inactive'?'cancelled':'active');$e=$pdo->prepare('SELECT id FROM enrollments WHERE user_id=? AND course_id=? AND delivery_mode=? LIMIT 1');$e->execute([$id,$courseId,$requestedDelivery]);$eid=(int)($e->fetchColumn()?:0);if($eid){$pdo->prepare("UPDATE enrollments SET delivery_mode=?,status=?,enrolled_at=COALESCE(enrolled_at,NOW()),completed_at=IF(?='completed',COALESCE(completed_at,NOW()),completed_at) WHERE id=?")->execute([$requestedDelivery?:null,$enStatus,$enStatus,$eid]);}else{$pdo->prepare("INSERT INTO enrollments (user_id,course_id,delivery_mode,status,enrolled_at,completed_at) VALUES (?,?,?,?,NOW(),IF(?='completed',NOW(),NULL))")->execute([$id,$courseId,$requestedDelivery?:null,$enStatus,$enStatus]);}}
                 syncStudentPublicProfiles($pdo,$id);
                 $pdo->commit();
                 $msg=$id>0?'Student saved successfully.':'Student created successfully.';if($tempPassword!=='')$msg.=' Temporary login password: '.$tempPassword;
@@ -5169,7 +5654,19 @@ try {
                     }
                     if($decision==='approved'){
                         $pending=jsonArray($course['pending_modules_json']??'[]');
-                        $pdo->prepare("UPDATE courses SET modules_json=?,lessons_count=?,pending_modules_json=NULL,pending_lessons_count=0,approval_status='approved',approval_kind='none',approval_note=?,reviewed_by=?,reviewed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([json_encode($pending,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),(int)($course['pending_lessons_count']??0),$note,$admin['id'],$id]);
+                        $pendingMode=jsonArray($course['pending_mode_content_json']??'[]');
+                        $modeContents=courseModeContentsFromRow($course);
+                        if(isset($pendingMode['offline'])&&is_array($pendingMode['offline']))$modeContents['offline']=normalizeCourseModeContent($pendingMode['offline']);
+                        $encodedModeContents=json_encode($modeContents,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+                        $primary=in_array($course['delivery_mode']??'offline',['offline','live','recorded'],true)?$course['delivery_mode']:'offline';
+                        if($primary==='offline'){
+                            $o=$modeContents['offline']??normalizeCourseModeContent([]);
+                            $pdo->prepare("UPDATE courses SET badge=?,image=?,short_description=?,description=?,duration=?,hours=?,projects=?,rating=?,reviews_count=?,level=?,language=?,updated_label=?,instructor=?,instructor_role=?,skills_json=?,requirements_json=?,audience_json=?,projects_json=?,course_reviews_json=?,mode_contents_json=?,modules_json=?,lessons_count=?,pending_mode_content_json=NULL,pending_modules_json=NULL,pending_lessons_count=0,approval_status='approved',approval_kind='none',approval_note=?,reviewed_by=?,reviewed_at=NOW(),updated_at=NOW() WHERE id=?")
+                                ->execute([$o['badge'],$o['image'],$o['short'],$o['description'],$o['duration'],$o['hours'],$o['projects'],$o['rating'],$o['reviews'],$o['level'],$o['language'],$o['updated'],$o['instructor'],$o['instructorRole'],json_encode($o['skills'],JSON_UNESCAPED_UNICODE),json_encode($o['requirements'],JSON_UNESCAPED_UNICODE),json_encode($o['audience'],JSON_UNESCAPED_UNICODE),json_encode($o['projectItems'],JSON_UNESCAPED_UNICODE),json_encode($o['courseReviews'],JSON_UNESCAPED_UNICODE),$encodedModeContents,json_encode($pending,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),(int)($course['pending_lessons_count']??0),$note,$admin['id'],$id]);
+                        }else{
+                            $pdo->prepare("UPDATE courses SET mode_contents_json=?,modules_json=?,lessons_count=?,pending_mode_content_json=NULL,pending_modules_json=NULL,pending_lessons_count=0,approval_status='approved',approval_kind='none',approval_note=?,reviewed_by=?,reviewed_at=NOW(),updated_at=NOW() WHERE id=?")
+                                ->execute([$encodedModeContents,json_encode($pending,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),(int)($course['pending_lessons_count']??0),$note,$admin['id'],$id]);
+                        }
                     }else{
                         $pdo->prepare("UPDATE courses SET approval_status='rejected',approval_note=?,reviewed_by=?,reviewed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$note,$admin['id'],$id]);
                     }
@@ -5366,6 +5863,7 @@ try {
             $id=max(0,(int)($data['id']??0));
             $userId=max(1,(int)($data['user_id']??0));
             $courseId=max(1,(int)($data['course_id']??0));
+            $deliveryMode=in_array($data['delivery_mode']??'offline',['offline','live','recorded'],true)?$data['delivery_mode']:'offline';
             $status=in_array($data['status']??'active',['pending','active','completed','cancelled'],true)?$data['status']:'active';
             $startsRaw=clean($data['access_starts_at']??'',30);$starts=null;if($startsRaw!==''){$startsTs=strtotime($startsRaw);if($startsTs===false)respond(['success'=>false,'message'=>'Enter a valid access start date and time.'],422);$starts=date('Y-m-d H:i:s',$startsTs);}
             $expiresRaw=clean($data['access_expires_at']??'',30);$expires=null;if($expiresRaw!==''){$expiresTs=strtotime($expiresRaw);if($expiresTs===false)respond(['success'=>false,'message'=>'Enter a valid access expiry date and time.'],422);$expires=date('Y-m-d H:i:s',$expiresTs);}
@@ -5374,6 +5872,7 @@ try {
             $resetIp=boolValue($data['reset_ip']??false);
             $userCheck=$pdo->prepare("SELECT id,branch FROM users WHERE id=? AND role='student' LIMIT 1");$userCheck->execute([$userId]);$student=$userCheck->fetch();if(!$student)respond(['success'=>false,'message'=>'Choose a valid student account.'],422);
             $courseCheck=$pdo->prepare('SELECT * FROM courses WHERE id=? LIMIT 1');$courseCheck->execute([$courseId]);$course=$courseCheck->fetch();if(!$course)respond(['success'=>false,'message'=>'Choose a valid course.'],422);
+            $enabledModes=array_values(array_filter(jsonArray($course['delivery_modes_json']??'[]'),static fn($m)=>in_array($m,['offline','live','recorded'],true)));if(!$enabledModes)$enabledModes=[in_array($course['delivery_mode']??'offline',['offline','live','recorded'],true)?$course['delivery_mode']:'offline'];if(!in_array($deliveryMode,$enabledModes,true))respond(['success'=>false,'message'=>'That delivery mode is not enabled for this course.'],422);
             if(isBranchManager($admin)){
                 $branch=cleanBranchName($admin);
                 if(!sameBranch($pdo,$branch,(string)($student['branch']??'')))respond(['success'=>false,'message'=>'You can grant access only to students in your own branch.'],403);
@@ -5381,15 +5880,15 @@ try {
                 if($id>0){$existing=$pdo->prepare('SELECT e.id,u.branch AS student_branch,c.* FROM enrollments e JOIN users u ON u.id=e.user_id JOIN courses c ON c.id=e.course_id WHERE e.id=? LIMIT 1');$existing->execute([$id]);$old=$existing->fetch();if(!$old||!sameBranch($pdo,$branch,(string)($old['student_branch']??''))||!courseBelongsToBranch($pdo,$old,$branch))respond(['success'=>false,'message'=>'This enrollment is outside your branch.'],403);}
             }
             if($id>0){
-                $sql='UPDATE enrollments SET user_id=?,course_id=?,status=?,access_starts_at=?,access_expires_at=?,ip_lock_enabled=?,allowed_ip=IF(?=1 OR ?=0,\'\',allowed_ip),enrolled_at=IF(? IN (\'active\',\'completed\'),COALESCE(enrolled_at,NOW()),enrolled_at),completed_at=IF(?=\'completed\',COALESCE(completed_at,NOW()),IF(?=\'active\',NULL,completed_at)) WHERE id=?';
-                try{$pdo->prepare($sql)->execute([$userId,$courseId,$status,$starts,$expires,$ipLock,$resetIp?1:0,$ipLock,$status,$status,$status,$id]);}
-                catch(PDOException $e){if((string)$e->getCode()==='23000')respond(['success'=>false,'message'=>'This student already has an enrollment for the selected course.'],409);throw $e;}
+                $sql="UPDATE enrollments SET user_id=?,course_id=?,delivery_mode=?,status=?,access_starts_at=?,access_expires_at=?,ip_lock_enabled=?,allowed_ip=IF(?=1 OR ?=0,'',allowed_ip),enrolled_at=IF(? IN ('active','completed'),COALESCE(enrolled_at,NOW()),enrolled_at),completed_at=IF(?='completed',COALESCE(completed_at,NOW()),IF(?='active',NULL,completed_at)) WHERE id=?";
+                try{$pdo->prepare($sql)->execute([$userId,$courseId,$deliveryMode,$status,$starts,$expires,$ipLock,$resetIp?1:0,$ipLock,$status,$status,$status,$id]);}
+                catch(PDOException $e){if((string)$e->getCode()==='23000')respond(['success'=>false,'message'=>'This student already has that delivery mode for the selected course.'],409);throw $e;}
                 respond(['success'=>true,'message'=>'Course access updated.']);
             }
             try{
-                $stmt=$pdo->prepare("INSERT INTO enrollments (user_id,course_id,status,access_starts_at,access_expires_at,ip_lock_enabled,enrolled_at,completed_at) VALUES (?,?,?,?,?,?,IF(? IN ('active','completed'),NOW(),NULL),IF(?='completed',NOW(),NULL))");
-                $stmt->execute([$userId,$courseId,$status,$starts,$expires,$ipLock,$status,$status]);
-            }catch(PDOException $e){if((string)$e->getCode()==='23000')respond(['success'=>false,'message'=>'This student already has an enrollment for the selected course. Edit the existing access instead.'],409);throw $e;}
+                $stmt=$pdo->prepare("INSERT INTO enrollments (user_id,course_id,delivery_mode,status,access_starts_at,access_expires_at,ip_lock_enabled,enrolled_at,completed_at) VALUES (?,?,?,?,?,?,?,IF(? IN ('active','completed'),NOW(),NULL),IF(?='completed',NOW(),NULL))");
+                $stmt->execute([$userId,$courseId,$deliveryMode,$status,$starts,$expires,$ipLock,$status,$status]);
+            }catch(PDOException $e){if((string)$e->getCode()==='23000')respond(['success'=>false,'message'=>'This student already has that delivery mode for the selected course. Edit the existing access instead.'],409);throw $e;}
             respond(['success'=>true,'message'=>'Course access granted.','enrollment_id'=>(int)$pdo->lastInsertId()],201);
 
         case 'admin_enrollment_status':
