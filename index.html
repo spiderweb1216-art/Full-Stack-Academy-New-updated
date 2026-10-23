@@ -14,11 +14,154 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" id="siteFavicon" href="assets/favicon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/styles.css?v=120.0">
-  <link rel="stylesheet" href="css/candidates.css?v=25.0">
+  <link rel="stylesheet" href="css/styles.css?v=instructor-create-20261023">
+  <link rel="stylesheet" href="css/physical-pages.css?v=130.0-lessons">
+  <link rel="stylesheet" href="css/candidates.css?v=20261013-menu-fix">
   <link rel="stylesheet" href="css/super40.css?v=25.0">
   <link rel="stylesheet" href="css/events.css?v=29.0">
-  <link rel="stylesheet" href="css/premium-ui.css?v=29.0">
+  <link rel="stylesheet" href="css/premium-ui.css?v=45-header-nav">
+
+<!-- Local header fix: essential Placements layout is embedded here so
+       the navigation remains usable even if a feature stylesheet is missing. -->
+  <style id="fsa-local-header-fix">
+    /* Keep the Placements button aligned in the desktop navigation. */
+    #siteHeader .placement-nav {
+      position: relative;
+      display: flex;
+      align-items: center;
+      align-self: stretch;
+      flex: 0 0 auto;
+    }
+    #siteHeader .placement-nav-trigger {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #3f4b47;
+      font: 600 12px/1.3 Poppins, Inter, Arial, sans-serif;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background .2s ease, color .2s ease;
+    }
+    #siteHeader .placement-nav-trigger > span {
+      display: inline-grid;
+      place-items: center;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      transition: transform .2s ease;
+    }
+    #siteHeader .placement-nav:hover .placement-nav-trigger,
+    #siteHeader .placement-nav:focus-within .placement-nav-trigger,
+    #siteHeader .placement-nav-trigger.active {
+      background: #fff2f3;
+      color: #852937;
+    }
+    #siteHeader .placement-nav:hover .placement-nav-trigger > span,
+    #siteHeader .placement-nav:focus-within .placement-nav-trigger > span {
+      transform: rotate(180deg);
+    }
+
+    /* A positioned overlay MUST NOT participate in the header's height. */
+    #siteHeader .placement-nav-menu {
+      box-sizing: border-box;
+      position: absolute;
+      z-index: 1500;
+      top: calc(100% - 3px);
+      left: 50%;
+      width: min(330px, calc(100vw - 28px));
+      display: block;
+      padding: 9px;
+      margin: 0;
+      border: 1px solid #eadfe1;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 22px 52px rgba(43, 31, 34, .16);
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 8px);
+      transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
+    }
+    #siteHeader .placement-nav:hover .placement-nav-menu,
+    #siteHeader .placement-nav:focus-within .placement-nav-menu {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+    }
+
+    /* Text and icons occupy separate columns; no overlapping labels. */
+    #siteHeader .desktop-nav .placement-nav-menu a {
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      align-items: center;
+      column-gap: 11px;
+      width: 100%;
+      min-height: 60px;
+      padding: 10px 11px;
+      border-radius: 11px;
+      color: #374640;
+      font-family: Inter, Arial, sans-serif;
+      text-decoration: none;
+      white-space: normal;
+    }
+    #siteHeader .desktop-nav .placement-nav-menu a::after { display: none !important; }
+    #siteHeader .desktop-nav .placement-nav-menu a:hover,
+    #siteHeader .desktop-nav .placement-nav-menu a:focus-visible,
+    #siteHeader .desktop-nav .placement-nav-menu a.active {
+      background: #fff4f5;
+      color: #852937;
+    }
+    #siteHeader .placement-nav-menu .placement-nav-icon {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid #f0dde0;
+      border-radius: 10px;
+      background: #fff5f6;
+      color: #852937;
+    }
+    #siteHeader .placement-nav-menu a > span:last-child {
+      display: block;
+      min-width: 0;
+    }
+    #siteHeader .placement-nav-menu a b {
+      display: block;
+      color: inherit;
+      font: 600 12px/1.35 Poppins, Inter, Arial, sans-serif;
+      overflow-wrap: break-word;
+    }
+    #siteHeader .placement-nav-menu a small {
+      display: block;
+      margin-top: 3px;
+      color: #77847e;
+      font: 500 10px/1.4 Inter, Arial, sans-serif;
+      overflow-wrap: break-word;
+    }
+
+    /* Respect the project's existing mobile drawer breakpoint. */
+    @media (max-width: 1120px) {
+      #siteHeader .desktop-nav { display: none !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #siteHeader .placement-nav-menu { transition: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="css/returning-checkout.css?v=134.0">
+
+<style id="fsa-profile-premium-v48">
+.fsa-profile-standalone{min-height:100vh;background:linear-gradient(140deg,#fff9fa,#f8f1f3 65%,#f3e5e9);padding:clamp(16px,4vw,52px)}
+.fsa-profile-premium{max-width:1250px;margin:auto}.fsa-profile-hero{background:linear-gradient(115deg,#762535,#a44759);border-radius:24px;color:white;padding:clamp(22px,4vw,40px);margin-bottom:22px;box-shadow:0 16px 45px #541c3022}.fsa-profile-back{color:#fff!important;display:inline-block;margin-bottom:25px;text-decoration:none;font-weight:650}.fsa-profile-hero-inner{display:flex;align-items:center;gap:25px}.fsa-profile-hero h1{margin:5px 0;color:white;font-size:clamp(26px,4vw,42px)}.fsa-profile-hero p{margin:0;opacity:.87}.fsa-profile-eyebrow{font-size:12px;letter-spacing:2px;font-weight:750}.fsa-profile-avatar{position:relative;border:3px solid #ffffffaa;border-radius:24px;width:98px;height:98px;display:grid;place-items:center;background:#ffffff20;font-size:32px;font-weight:800;flex-shrink:0;overflow:hidden}.fsa-profile-avatar img{width:100%;height:100%;object-fit:cover}.fsa-profile-avatar label{position:absolute;bottom:0;right:0;background:#fff;color:#82293c;cursor:pointer;padding:5px;border-radius:10px 0 0 0}.fsa-profile-editor{border:1px solid #ead7dd;border-radius:24px;background:white;padding:clamp(16px,3vw,35px);box-shadow:0 18px 44px #541c3010}.fsa-profile-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #f0e0e4;padding-bottom:16px;margin-bottom:24px}.fsa-profile-tabs button{border:0;background:#faf3f5;border-radius:12px;padding:12px 17px;font-weight:700;color:#813345;cursor:pointer}.fsa-profile-tabs button.active{background:#852937;color:white}.fsa-profile-panel .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:19px}.fsa-profile-panel .form-grid>.full{grid-column:1/-1}.fsa-profile-panel .form-control{min-height:52px;border-radius:12px}.fsa-profile-panel textarea.form-control{min-height:120px}.fsa-profile-panel h3.full{grid-column:1/-1;margin:16px 0 0;color:#803044}.fsa-security-intro h2{margin:0 0 8px}.fsa-security-intro p,.fsa-email-settings p,.fsa-hint{color:#777;line-height:1.65}.fsa-password-field{position:relative}.fsa-password-field input{padding-right:55px}.fsa-password-eye{position:absolute;right:9px;top:50%;transform:translateY(-50%);background:none;border:0;padding:10px;cursor:pointer;color:#823148}.fsa-email-settings{max-width:850px}.fsa-info-row{display:flex;justify-content:space-between;gap:12px;background:#faf4f6;padding:20px;border-radius:13px;margin-bottom:15px;overflow-wrap:anywhere}.fsa-email-settings label{display:block;font-weight:750;margin:20px 0 7px}.fsa-inline-field{display:flex;gap:12px;align-items:center}.fsa-inline-field input{flex:1;min-width:0}.fsa-email-settings small{display:block;margin-top:10px;color:#777}.fsa-profile-standalone .fsa-profile-progress-card{box-shadow:0 10px 22px #541c3010}
+@media(max-width:650px){.fsa-profile-standalone{padding:12px}.fsa-profile-hero-inner{gap:15px}.fsa-profile-avatar{height:72px;width:72px;border-radius:18px}.fsa-profile-panel .form-grid{grid-template-columns:1fr}.fsa-inline-field{flex-direction:column;align-items:stretch}.fsa-profile-tabs button{flex:1}.fsa-profile-hero{border-radius:18px}.fsa-profile-editor{border-radius:18px}}
+</style>
 </head>
 <body>
   <a class="skip-link" href="#app">Skip to content</a>
@@ -46,39 +189,21 @@
       <nav class="desktop-nav" aria-label="Main navigation">
         <a href="#/" data-nav="home">Home</a>
         <div class="nav-mega nav-mega-courses">
-          <a class="nav-mega-trigger" href="#/courses" data-nav="courses" aria-haspopup="true">Courses <span aria-hidden="true">+</span></a>
-          <div class="course-mega-menu" aria-label="Technology courses and learning modes">
+          <a class="nav-mega-trigger" href="#/courses" data-nav="courses">Courses</a><button class="course-mega-toggle" type="button" aria-label="Show latest courses" aria-haspopup="true" aria-expanded="false" aria-controls="latestCourseMegaMenu"><span class="header-menu-chevron" aria-hidden="true"></span></button>
+          <div class="course-mega-menu" id="latestCourseMegaMenu" aria-label="Six latest courses">
             <div class="course-mega-panel">
               <div class="course-mega-main">
-                <div class="course-mega-head"><div><span class="course-mega-kicker">Career Technology Tracks</span><h3>Choose what you want to master.</h3></div><a href="#/courses">View all courses →</a></div>
-                <div class="course-mega-grid">
-                  <a class="course-mega-item" href="#/courses?q=Artificial%20Intelligence"><span class="mega-icon" data-premium-icon="ai"></span><span><strong>AI &amp; Machine Learning</strong><small>AI Specialist · ML · Generative AI</small></span></a>
-                  <a class="course-mega-item" href="#/courses?q=Data"><span class="mega-icon" data-premium-icon="chart"></span><span><strong>Data &amp; Analytics</strong><small>Data Science · Analyst · Azure Data</small></span></a>
-                  <a class="course-mega-item" href="#/courses?q=Web"><span class="mega-icon" data-premium-icon="code"></span><span><strong>Web &amp; App Development</strong><small>MERN · ASP.NET · React Native</small></span></a>
-                  <a class="course-mega-item" href="#/courses?q=AWS"><span class="mega-icon" data-premium-icon="cloud"></span><span><strong>Cloud &amp; DevOps</strong><small>AWS · DevOps · Cloud engineering</small></span></a>
-                  <a class="course-mega-item" href="#/courses?q=SOC"><span class="mega-icon" data-premium-icon="shield"></span><span><strong>Cybersecurity &amp; Testing</strong><small>SOC Analysis · Software Testing</small></span></a>
-                  <a class="course-mega-item" href="#/courses?q=Digital%20Marketing"><span class="mega-icon" data-premium-icon="megaphone"></span><span><strong>Digital &amp; Business</strong><small>Digital Marketing · Business Analyst</small></span></a>
+                <div class="course-mega-head"><div><span class="course-mega-kicker">Career Technology Tracks</span><h3>Latest courses from the academy.</h3></div><a href="#/courses">View all courses →</a></div>
+                <div class="course-mega-grid course-mega-course-list" aria-live="polite">
+                  <p class="course-mega-loading">Loading latest courses…</p>
                 </div>
               </div>
-              <div class="course-mega-modes">
-                <span>Learn Your Way</span>
-                <a class="course-mega-mode" href="#/courses?mode=live"><span class="mega-icon" data-premium-icon="radio"></span><span><b>Live Streamed</b><small>Instructor-led online</small></span></a>
-                <a class="course-mega-mode" href="#/courses?mode=recorded"><span class="mega-icon" data-premium-icon="play"></span><span><b>Recorded</b><small>Flexible self-paced access</small></span></a>
-                <a class="course-mega-mode" href="#/courses?mode=classroom"><span class="mega-icon" data-premium-icon="classroom"></span><span><b>Offline Classroom</b><small>Learn at an FSA branch</small></span></a>
-              </div>
-              <aside class="course-mega-quick">
-                <span>Quick Access</span>
-                <a href="#/batches"><span class="mega-icon" data-premium-icon="calendar"></span>Upcoming Batches</a>
-                <a href="#/courses?mode=recorded"><span class="mega-icon" data-premium-icon="play"></span>Recorded Courses</a>
-                <a href="#/contact"><span class="mega-icon" data-premium-icon="help"></span>Course Guidance</a>
-                <p>Compare schedules, learning modes and career-focused programs without leaving the academy website.</p>
-              </aside>
             </div>
           </div>
         </div>
         <a href="#/super40-bba" data-nav="super40-bba">Super40 BBA</a>
         <div class="nav-mega nav-mega-branches">
-          <a class="nav-mega-trigger" href="#/branches" data-nav="branches" aria-haspopup="true">Branches <span aria-hidden="true">+</span></a>
+          <a class="nav-mega-trigger" href="#/branches" data-nav="branches" aria-haspopup="true">Branches <span class="header-menu-chevron" aria-hidden="true"></span></a>
           <div class="branch-mega-menu" aria-label="Full Stack Academy branches">
             <div class="branch-mega-panel">
               <aside class="branch-mega-intro">
@@ -121,7 +246,7 @@
           </div>
         </div>
         <div class="placement-nav">
-          <button class="placement-nav-trigger" type="button" aria-haspopup="true">Placements <span aria-hidden="true" data-premium-icon="chevron"></span></button>
+          <button class="placement-nav-trigger" type="button" aria-haspopup="true">Placements <span class="header-menu-chevron" aria-hidden="true"></span></button>
           <div class="placement-nav-menu" aria-label="Placement pages">
             <a href="#/companies" data-nav="companies"><span class="placement-nav-icon" data-premium-icon="building"></span><span><b>Companies</b><small>Hiring partners &amp; employers</small></span></a>
             <a href="#/alumni" data-nav="alumni"><span class="placement-nav-icon" data-premium-icon="award"></span><span><b>Successfully Placed</b><small>Alumni outcomes &amp; roles</small></span></a>
@@ -134,7 +259,7 @@
       </nav>
 
       <div class="header-actions">
-        <button class="icon-button desktop-search" data-action="open-search" aria-label="Search courses"></button>
+        <button class="icon-button desktop-search" data-action="open-search" aria-label="Search academy content"></button>
         <button class="icon-button cart-button" data-action="open-cart" aria-label="Open cart">
           <span class="cart-count" id="cartCount">0</span>
         </button>
@@ -263,11 +388,23 @@
   </div>
 
   <div class="modal-backdrop" id="searchModal" aria-hidden="true">
-    <section class="search-modal" role="dialog" aria-modal="true" aria-label="Search courses">
-      <div class="search-modal-head"><div><span class="eyebrow">Quick search</span><h2>What do you want to learn?</h2></div><button class="icon-button" data-action="close-search" aria-label="Close search"></button></div>
-      <label class="search-field large-search"><span class="search-field-icon"></span><input id="globalSearchInput" type="search" placeholder="Search AI, web development, cloud..." autocomplete="off"></label>
+    <section class="search-modal" role="dialog" aria-modal="true" aria-label="Search academy content">
+      <div class="search-modal-head"><div><span class="eyebrow">Quick search</span><h2>Search Full Stack Academy</h2></div><button class="icon-button" data-action="close-search" aria-label="Close search"></button></div>
+      <div class="fsa-universal-search-bar"><label class="search-field large-search"><span class="search-field-icon"></span><input id="globalSearchInput" type="search" placeholder="Search courses, companies, branches, people..." autocomplete="off" aria-label="Search academy"></label><div class="fsa-search-scope-label" id="fsaScopeWrapper">
+        <input type="hidden" id="globalSearchScope" value="all">
+        <button type="button" class="fsa-scope-trigger" id="fsaScopeTrigger" aria-label="Search category: Everything" aria-haspopup="listbox" aria-controls="fsaScopeMenu" aria-expanded="false"><span id="fsaScopeText">Everything</span><svg class="fsa-scope-chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="fsa-scope-menu" id="fsaScopeMenu" role="listbox" aria-label="Search categories" hidden>
+          <button type="button" role="option" aria-selected="true" class="fsa-scope-option is-selected" data-scope="all">Everything</button>
+          <button type="button" role="option" aria-selected="false" class="fsa-scope-option" data-scope="courses">Courses</button>
+          <button type="button" role="option" aria-selected="false" class="fsa-scope-option" data-scope="companies">Companies</button>
+          <button type="button" role="option" aria-selected="false" class="fsa-scope-option" data-scope="branches">Branches</button>
+          <button type="button" role="option" aria-selected="false" class="fsa-scope-option" data-scope="alumni">Placed Students</button>
+          <button type="button" role="option" aria-selected="false" class="fsa-scope-option" data-scope="events">Events</button>
+          <button type="button" role="option" aria-selected="false" class="fsa-scope-option" data-scope="reviews">Reviews</button>
+        </div>
+      </div></div>
       <div class="quick-search-tags"><button data-search-term="Artificial Intelligence">Artificial Intelligence</button><button data-search-term="Web Development">Web Development</button><button data-search-term="Data Science">Data Science</button><button data-search-term="Cybersecurity">Cybersecurity</button></div>
-      <div id="globalSearchResults" class="global-search-results"></div>
+      <p id="globalSearchCount" class="fsa-search-count" aria-live="polite"></p><div id="globalSearchResults" class="global-search-results"></div>
     </section>
   </div>
 
@@ -275,14 +412,14 @@
   <button class="scroll-top" id="scrollTop" data-action="scroll-top" aria-label="Scroll to top"><span data-premium-icon="up"></span></button>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/content-runtime.js?v=122.0"></script>
   <script src="js/data.js"></script>
-  <script src="js/premium-ui.js?v=51.0"></script>
-  <script src="js/candidates.js?v=27.0"></script>
-  <script src="js/placements.js?v=27.0"></script>
-  <script src="js/super40.js?v=27.0"></script>
-  <script src="js/events-data.js?v=27.2"></script>
-  <script src="js/cms-runtime.js?v=1.0"></script>
+  <script src="js/premium-ui.js?v=122.0"></script>
+  <script src="js/candidates.js?v=121.0"></script>
+  <script src="js/placements.js?v=121.0"></script>
+  <script src="js/super40.js?v=121.0"></script>
+  <script src="js/cms-runtime.js?v=121.0"></script>
   <script src="https://assets.mediadelivery.net/playerjs/player-0.1.0.min.js"></script>
-  <script src="js/app.js?v=120.0"></script>
+  <script src="js/app.js?v=instructor-create-20261023"></script>
 </body>
 </html>

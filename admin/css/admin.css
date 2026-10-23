@@ -211,3 +211,216 @@ body.admin-mode{overflow-y:auto}
 
 /* v120 structured module editor */
 .module-rich-content{margin-top:16px;padding:16px;border:1px solid var(--border,#e7d9dc);border-radius:14px;background:#fffafa}.module-rich-content-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:12px}.module-rich-content-head>div{display:grid;gap:3px}.module-content-blocks{display:grid;gap:12px}.module-content-block{border:1px solid var(--border,#e7d9dc);border-radius:12px;padding:14px;background:#fff}.module-content-block-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.module-content-block-head>div{display:flex;align-items:center;gap:8px}.module-block-number{display:grid;place-items:center;min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:#f8eaed;color:#942d3e;font-weight:800}.module-content-block-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.module-content-block-grid .full{grid-column:1/-1}.module-content-block-grid label{display:grid;gap:6px}.module-content-block-grid input,.module-content-block-grid select,.module-content-block-grid textarea{width:100%}@media(max-width:700px){.module-content-block-grid{grid-template-columns:1fr}.module-rich-content-head{align-items:flex-start;flex-direction:column}}
+
+/* User editor: honor role-specific permission visibility and keep scrolling discreet. */
+#recordedLecturePermissionRow[hidden],
+#userBranchRow[hidden] { display: none !important; }
+#modalBackdrop > .modal {
+  scrollbar-width: none; /* Firefox: retains touch/mouse/keyboard scrolling */
+  -ms-overflow-style: none;
+}
+#modalBackdrop > .modal::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+.integrations-stack{display:grid;gap:18px;max-width:1050px}.integrations-stack .settings-card{padding:25px;border-radius:18px}.int-head{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:18px}.int-head h2{margin:0 0 5px}.int-head p{margin:0;color:#76696c}.int-toggle{display:flex;gap:8px;align-items:center;white-space:nowrap;font-weight:700;color:#822d41}.int-toggle input{accent-color:#822d41;width:19px;height:19px}.int-save{display:flex;justify-content:flex-end;position:sticky;bottom:12px;padding:12px;background:#fffc;border-radius:14px;backdrop-filter:blur(8px)}@media(max-width:600px){.int-head{align-items:flex-start;flex-direction:column}}
+
+/* Student Integrations: accessible switch controls and list layout */
+.integration-card{width:100%;max-width:none}.integration-switch{display:inline-flex;align-items:center;gap:11px;cursor:pointer;flex-shrink:0;white-space:nowrap;position:relative}.integration-switch input{position:absolute;opacity:0;width:1px;height:1px}.integration-switch-track{width:48px;height:27px;border-radius:999px;background:#d9cbd0;display:inline-block;position:relative;transition:background .2s ease}.integration-switch-track:before{content:"";position:absolute;top:4px;left:4px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0002;transition:transform .2s ease}.integration-switch input:checked+.integration-switch-track{background:#832638}.integration-switch input:checked+.integration-switch-track:before{transform:translateX(21px)}.integration-switch input:focus-visible+.integration-switch-track{outline:3px solid #b88798;outline-offset:3px}.integration-switch input:disabled+.integration-switch-track{background:#e6e2e3;opacity:.7}.integration-switch:has(input:disabled){cursor:not-allowed}.integration-switch-text{font-weight:700;color:#832638;min-width:69px}.integration-option-list{display:grid;gap:0;margin:22px 0;border:1px solid #ead9dc;border-radius:15px;overflow:hidden}.integration-option{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px;background:#fff}.integration-option+.integration-option{border-top:1px solid #ead9dc}.integration-option strong{font-size:16px}.integration-option p{margin:5px 0 0;color:#78686e;font-size:13px;line-height:1.55;max-width:620px}.integration-unavailable{display:inline-block;margin-top:9px;padding:5px 9px;background:#f6eff0;border-radius:6px;color:#795963;font-size:12px;font-weight:700}.integration-captcha{padding-top:15px;border-top:1px solid #ead9dc}@media(max-width:600px){.integration-option{align-items:flex-start;flex-direction:column}.integration-option .integration-switch{align-self:flex-end}.integration-card .int-head{align-items:flex-start}}
+
+/* Shared authoring surface used for every authorized role (course, batch and branch). */
+.academy-shared-editor{width:100%;max-width:1380px;margin:0 auto 32px!important;padding:clamp(20px,3vw,38px)!important;border:1px solid #ecd9dc!important;border-radius:20px!important;background:#fff!important;box-shadow:0 10px 42px rgba(100,27,43,.07)!important}
+.academy-shared-editor-form{gap:14px 20px!important}
+.academy-shared-editor-form label{min-width:0}
+.academy-shared-editor-form input,.academy-shared-editor-form select,.academy-shared-editor-form textarea{width:100%;max-width:100%;box-sizing:border-box}
+.academy-shared-editor .form-actions{padding-top:20px;border-top:1px solid #eadfe1;margin-top:18px}
+.academy-shared-editor .form-actions button{min-height:46px;border-radius:11px}
+@media(max-width:760px){.academy-shared-editor{padding:18px!important;border-radius:15px!important}.academy-shared-editor-form{grid-template-columns:minmax(0,1fr)!important}.academy-shared-editor-form>*{grid-column:1/-1!important}.academy-shared-editor .form-actions{display:flex;flex-wrap:wrap}}
+
+/* v124 - Admin-wide tables and branch layout stability.
+   Keep horizontal scrolling for dense tables but never trap rows in a
+   vertically scrolling table card. No data, routes, or permissions altered. */
+.admin-app { grid-template-columns: var(--sidebar) minmax(0,1fr); width:100%; max-width:100%; }
+.admin-main, .content, #adminContent { min-width:0; max-width:100%; }
+#adminContent .table-wrap {
+  display:block;
+  width:100%;
+  max-width:100%;
+  height:auto !important;
+  max-height:none !important;
+  min-height:0;
+  overflow-x:auto;
+  overflow-y:hidden !important;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  border-radius:14px;
+}
+#adminContent .data-table {
+  width:100%;
+  height:auto;
+  table-layout:auto;
+  border-collapse:collapse;
+}
+#adminContent .data-table th,
+#adminContent .data-table td {
+  vertical-align:middle;
+  padding:14px 16px;
+  overflow-wrap:anywhere;
+}
+#adminContent .data-table th { white-space:nowrap; }
+#adminContent .data-table td .user-cell { min-width:0; align-items:center; }
+#adminContent .data-table td .user-cell > div { min-width:0; }
+#adminContent .data-table td .user-cell strong { overflow-wrap:anywhere; }
+#adminContent .data-table td .row-actions { flex-wrap:wrap; align-items:center; }
+#adminContent .data-table td .row-actions a {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-height:29px; padding:0 10px; border:1px solid var(--border);
+  border-radius:8px; color:var(--brand); font-size:10px;
+  font-weight:800; background:#fff;
+}
+#adminContent .data-table td .row-actions a:hover { background:var(--pink); }
+#adminContent .toolbar { min-height:36px; }
+#adminContent .toolbar .form-hint { margin:0; line-height:1.5; }
+@media (min-width:1100px) {
+  #adminContent .data-table th, #adminContent .data-table td { padding:15px 18px; }
+}
+@media (max-width:760px) {
+  #adminContent .table-wrap { border-radius:12px; }
+  #adminContent .data-table { min-width:720px; }
+  #adminContent .data-table th, #adminContent .data-table td { padding:12px; }
+}
+
+/* Consistent public course approvals / notifications across admin roles */
+.academy-alerts{position:relative;z-index:75;flex-shrink:0}
+.academy-alerts-trigger{position:relative;width:45px;height:45px;border:1px solid #ead6d9;border-radius:14px;background:#fff7f8;color:#812639;cursor:pointer;font-size:25px;display:grid;place-items:center}
+.academy-alerts-trigger:hover,.academy-alerts-trigger:focus-visible{background:#f8e8eb;outline:2px solid #eac9d0;outline-offset:2px}
+.academy-alerts-count,.academy-nav-count{background:#932a3f;color:#fff;font-weight:700;border-radius:999px;display:inline-grid;place-items:center;padding:1px 6px;font-size:11px;min-width:20px;line-height:20px}
+.academy-alerts-count{position:absolute;right:-7px;top:-7px;box-shadow:0 0 0 2px #fff}
+.academy-alerts-count[hidden],.academy-nav-count[hidden],.academy-alerts-panel[hidden]{display:none!important}
+.academy-nav-count{margin-left:auto}
+.academy-alerts-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(390px,calc(100vw - 32px));max-height:min(500px,70vh);background:#fff;border:1px solid #ebd6da;border-radius:18px;overflow:hidden;box-shadow:0 22px 60px rgba(38,18,27,.18);z-index:1000}
+.academy-alerts-panel>header{padding:18px 20px;border-bottom:1px solid #f3e5e8;display:flex;flex-direction:column;gap:2px}
+.academy-alerts-panel>header strong{font-size:17px;color:#263932}.academy-alerts-panel>header small{color:#718078}
+.academy-alerts-items{max-height:390px;overflow-y:auto;overscroll-behavior:contain}
+.academy-notice{width:100%;border:0;border-bottom:1px solid #f4e9eb;cursor:pointer;background:#fff;text-align:left;padding:13px 17px;display:flex;gap:11px;align-items:flex-start;color:#2c3935}
+.academy-notice:hover{background:#fff5f7}.academy-notice.is-new{background:#fffafb}.academy-notice span:last-child{display:grid;gap:5px}
+.academy-notice strong{font-size:13px}.academy-notice small{font-size:12px;line-height:1.45;color:#65756e}
+.academy-notice-dot{margin-top:6px;width:8px;height:8px;flex:none;border-radius:50%;background:#9a3044}.academy-notice.is-read .academy-notice-dot{background:#d3ccce}
+.academy-alerts-empty{text-align:center;color:#718078;padding:30px 12px;margin:0}
+@media(max-width:650px){.academy-alerts-panel{right:-90px}.academy-alerts-trigger{width:39px;height:39px}}
+
+#courseForm [data-central-publish-only][hidden]{display:none!important}
+
+
+/* =======================================================================
+   FSA v125 | Smart, premium, restrained dashboard visual system
+   Applies to all admin-panel roles. No permissions or behavior changed.
+   Keeps the public site CSS and the branding palette untouched.
+   ======================================================================= */
+.admin-app {
+  --ink: #263a33;
+  --muted: #69766f;
+  --border: #e9dfe1;
+  --surface: #faf7f8;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.admin-app :is(h1,h2,h3,h4,h5,h6),
+.modal-backdrop :is(h1,h2,h3,h4,h5,h6),
+body.fsa-editor-page .course-editor-modal :is(h1,h2,h3,h4) {
+  font-family: 'DM Sans', Inter, sans-serif;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  line-height: 1.3;
+}
+.admin-app .content { padding: 24px 26px 34px; }
+.admin-app .page-head { margin-bottom: 19px; gap: 16px; }
+.admin-app .page-head h1 { font-size: clamp(22px, 2vw, 26px) !important; font-weight: 600 !important; line-height: 1.25; letter-spacing: -.035em; }
+.admin-app .page-head p { font-size: 12.5px; line-height: 1.65; font-weight: 400; }
+.admin-app .topbar { min-height: 68px; padding-inline: 25px; }
+.admin-app .topbar-left strong { font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+.admin-app .topbar-label { font-size: 10px; font-weight: 500; }
+.admin-app .topbar .profile-chip strong { font-size: 11.5px; font-weight: 600; }
+.admin-app .topbar .profile-chip small { font-size: 10px; font-weight: 400; }
+.admin-app .system-status { font-size: 10px; font-weight: 600; }
+/* Keep left navigation visible, but make it refined and calmer. */
+.admin-app .sidebar { padding: 19px 14px; }
+.admin-app .admin-nav { margin-top: 24px; gap: 3px; }
+.admin-app .admin-nav button { min-height: 40px; padding-inline: 12px; font-family: Inter, Arial, sans-serif; font-size: 12px !important; font-weight: 550 !important; letter-spacing: 0; border-radius: 10px; }
+.admin-app .admin-nav button.active { font-weight: 650 !important; }
+.admin-app .nav-label { margin: 18px 12px 5px; font-size: 9px; font-weight: 650; letter-spacing: .09em; }
+.admin-app .sidebar-footer :is(a,button) { font-size: 11.5px; font-weight: 550; }
+.admin-app .admin-brand.compact strong { font-size: 13px; font-weight: 650; }
+/* Soft, compact cards and typography. */
+.admin-app :is(.panel, .settings-card, .metric-card, .template-card) { border-radius: 15px; box-shadow: 0 8px 24px rgba(51,30,36,.035); }
+.admin-app .panel { padding: 18px 19px; }
+.admin-app .panel-head { margin-bottom: 14px; }
+.admin-app .panel-head h2 { font-size: 16px !important; font-weight: 600 !important; }
+.admin-app .panel-head p, .admin-app .settings-card > p { font-size: 12px; line-height: 1.6; }
+.admin-app .panel-head :is(button,a) { font-size: 11.5px; font-weight: 600; }
+.admin-app .metric-grid { gap: 13px; }
+.admin-app .metric-card { padding: 17px; }
+.admin-app .metric-card span { font-size: 10.5px; font-weight: 600; letter-spacing: .035em; }
+.admin-app .metric-card strong { margin-top: 7px; font-size: 25px !important; font-weight: 650 !important; }
+.admin-app .metric-card small { font-size: 11px; font-weight: 500; }
+.admin-app .settings-card { padding: 21px; }
+.admin-app .settings-card h2, .admin-app .int-head h2 { font-size: 18px !important; font-weight: 600 !important; }
+.admin-app :is(.settings-section-title span, .template-card h2) { font-size: 15px; font-weight: 600; }
+.admin-app .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: .085em; margin-bottom: 8px; }
+/* Form typography and click-target sizes retain accessibility. */
+.admin-app :is(.form-grid, .settings-form, .student-editor-grid) label,
+.modal-backdrop :is(.form-grid, .settings-form, .student-editor-grid) label { font-size: 12px !important; font-weight: 600 !important; line-height: 1.45; }
+.admin-app :is(.form-grid, .settings-form) label small,
+.modal-backdrop :is(.form-grid, .settings-form) label small { font-size: 11px; font-weight: 400; line-height: 1.55; }
+.admin-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea),
+.modal-backdrop :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 12.5px; font-weight: 400; }
+.admin-app :is(.settings-form, .form-grid, .toolbar) :is(input:not([type=checkbox]):not([type=radio]),select),
+.modal-backdrop :is(.settings-form, .form-grid) :is(input:not([type=checkbox]):not([type=radio]),select) { min-height: 43px; border-radius: 10px; }
+.admin-app :is(.primary-button,.secondary-button,.danger-button),
+.modal-backdrop :is(.primary-button,.secondary-button,.danger-button) { font-size: 11.5px !important; font-weight: 600 !important; min-height: 40px; border-radius: 10px; box-shadow: none; }
+.admin-app :is(.primary-button,.secondary-button,.danger-button):hover,
+.modal-backdrop :is(.primary-button,.secondary-button,.danger-button):hover { transform: translateY(-1px); }
+.admin-app .form-hint { font-size: 11px; }
+/* Tables: calm headers with readable values and no trapped vertical scroll. */
+#adminContent .table-wrap { max-height: none !important; overflow-y: hidden !important; }
+#adminContent .data-table th { padding: 12px 14px; font-size: 10.5px !important; font-weight: 650 !important; letter-spacing: .04em; }
+#adminContent .data-table td { padding: 12px 14px; font-size: 12px !important; font-weight: 400; line-height: 1.5; }
+#adminContent .data-table td strong { font-weight: 600; }
+#adminContent .data-table td small { font-size: 10.5px; font-weight: 400; }
+#adminContent .data-table :is(.row-actions button,.row-actions a) { font-size: 11px !important; font-weight: 600 !important; min-height: 32px; }
+.admin-app .toolbar { gap: 10px; margin-bottom: 15px; }
+.admin-app .settings-menu button { font-size: 12px; font-weight: 550; }
+.admin-app .empty-state h3 { font-size: 17px; }
+.admin-app .empty-state p { font-size: 12px; }
+.admin-app :is(.activity-list, .template-card, .integration-option) { font-size: 12.5px; }
+.admin-app .integration-option strong { font-size: 14px; font-weight: 600; }
+.admin-app .integration-option p { font-size: 12px; }
+.admin-app .integration-switch-text { font-size: 12px; font-weight: 600; }
+.admin-app .academy-alerts-panel > header strong { font-size: 15px; font-weight: 600; }
+.admin-app .academy-notice strong { font-weight: 600; }
+/* Shared authoring forms across central and branch staff, and instructors. */
+.academy-shared-editor :is(h1,h2,h3),
+.course-editor-modal :is(h1,h2,h3),
+.student-editor-hero h2 { font-family: 'DM Sans', Inter, sans-serif; font-weight: 600 !important; letter-spacing: -.026em; }
+.academy-shared-editor h2, .course-editor-modal h2 { font-size: 20px !important; line-height: 1.32; }
+.course-editor-modal h3, .academy-shared-editor h3 { font-size: 16px !important; }
+.course-editor-modal :is(p,small,.form-hint) { line-height: 1.6; }
+.course-editor-modal label, .academy-shared-editor label { font-size: 12px; font-weight: 600; }
+.course-editor-modal :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 12.5px; }
+.modal-backdrop .modal > header h2 { font-size: 21px !important; font-weight: 600 !important; }
+/* Preserve all toggles, dialogs, editor visibility, badge counts and navigation. */
+@media (max-width:860px) {
+  .admin-app .content { padding: 20px 16px 29px; }
+  .admin-app .topbar { padding-inline: 15px; }
+  .admin-app .sidebar { padding: 18px 14px; }
+}
+@media (max-width:600px) {
+  .admin-app .page-head h1 { font-size: 22px !important; }
+  .admin-app .page-head { gap: 12px; }
+  .admin-app .metric-grid { gap: 10px; }
+  .admin-app .metric-card { padding: 16px; }
+  .admin-app .panel, .admin-app .settings-card { padding: 17px; }
+  #adminContent .data-table td, #adminContent .data-table th { padding: 11px 12px; }
+}

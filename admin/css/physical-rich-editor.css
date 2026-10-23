@@ -1,0 +1,15 @@
+/* Physical lesson private editor: brand-matched rich text and code styling */
+.pc-rich-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:#fdf7f8;padding:9px;border:1px solid #ead1d5;border-radius:12px 12px 0 0}
+.pc-rich-toolbar button{min-width:38px;border:1px solid #ead1d5;background:white;border-radius:7px;padding:7px 10px;color:#852937;cursor:pointer;font-weight:700}
+.pc-rich-toolbar button:hover,.pc-rich-toolbar button:focus-visible{background:#852937;color:white}
+.pc-rich-field textarea[data-pc-field=text]{border-radius:0 0 10px 10px!important;min-height:210px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:400;line-height:1.7}
+.pc-rich-preview-label{font-weight:700;color:#852937;font-size:12px;margin:15px 0 8px}
+.pc-rich-preview{padding:16px;background:#fff;border:1px solid #ead1d5;border-radius:12px;line-height:1.7;min-height:75px;overflow-wrap:anywhere}
+.pc-rich-preview p{margin:0 0 10px}.pc-rich-preview code{background:#f7edf0;border-radius:4px;padding:2px 5px}
+.pc-preview-item{margin:3px 0 3px 12px}
+.pc-code-preview,.pc-lesson-code{background:#18212c!important;color:#e7eef7!important;border-radius:12px;padding:18px!important;overflow-x:auto;white-space:pre;tab-size:2;font:14px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
+.pc-learning-code .pc-code-caption{font-size:12px;font-weight:800;color:#852937;text-transform:uppercase;margin-bottom:8px}
+.pc-learning-rich h2,.pc-learning-rich h3,.pc-learning-rich h4{color:#243a32;margin:17px 0 8px}
+.pc-learning-rich p{line-height:1.8;margin:8px 0}
+.pc-lesson-list{padding-left:20px;line-height:1.8}
+.pc-inline-code{font-family:ui-monospace,Consolas,monospace;background:#f6edef;color:#852937;border-radius:4px;padding:2px 5px}

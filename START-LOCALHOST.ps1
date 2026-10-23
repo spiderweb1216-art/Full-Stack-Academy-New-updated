@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $root = $PSScriptRoot
 $port = 8000
@@ -67,8 +67,28 @@ if (-not (Test-PortListening 3306)) {
 
 # Start PHP's local web server only when port 8000 is not already being used.
 if (-not (Test-PortListening $port)) {
-    $arguments = @('-S', "${hostName}:$port", '-t', $root)
-    Start-Process -FilePath $php -ArgumentList $arguments -WorkingDirectory $root -WindowStyle Minimized
+    # Start-Process joins array arguments without preserving spaces in path arguments.
+    # Supply a single argument string with the document root explicitly quoted.
+    $arguments = '-S {0}:{1} -t "{2}"' -f $hostName, $port, $root
+    $logDir = Join-Path ([System.IO.Path]::GetTempPath()) 'FSA-LMS'
+    if (-not (Test-Path -LiteralPath $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+    $stamp = [guid]::NewGuid().ToString('N').Substring(0, 8)
+    $errorLog = Join-Path $logDir ("php-server-$stamp-error.log")
+    $outputLog = Join-Path $logDir ("php-server-$stamp-output.log")
+    try {
+        Start-Process -FilePath $php -ArgumentList $arguments -WorkingDirectory $root `
+            -WindowStyle Minimized -RedirectStandardError $errorLog `
+            -RedirectStandardOutput $outputLog -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Host ''
+        Write-Host "Unable to launch PHP: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "PHP path: $php" -ForegroundColor Yellow
+        Write-Host "Project path: $root" -ForegroundColor Yellow
+        exit 1
+    }
 
     $started = $false
     for ($i = 0; $i -lt 20; $i++) {
@@ -82,7 +102,19 @@ if (-not (Test-PortListening $port)) {
     if (-not $started) {
         Write-Host ''
         Write-Host 'The PHP server did not start on port 8000.' -ForegroundColor Red
-        Write-Host 'Close any program already using port 8000 and run this file again.' -ForegroundColor Yellow
+        Write-Host "PHP path: $php" -ForegroundColor Yellow
+        Write-Host "Project path: $root" -ForegroundColor Yellow
+        if (Test-Path -LiteralPath $errorLog) {
+            $lastError = Get-Content -LiteralPath $errorLog -Tail 25 -ErrorAction SilentlyContinue
+            if ($lastError) {
+                Write-Host ''
+                Write-Host 'Actual PHP error:' -ForegroundColor Red
+                $lastError | ForEach-Object { Write-Host $_ }
+            }
+        }
+        Write-Host "PHP error log: $errorLog" -ForegroundColor Cyan
+        Write-Host "If needed, run this command from the project folder:" -ForegroundColor Yellow
+        Write-Host ('& "{0}" -S 127.0.0.1:8000 -t "{1}"' -f $php, $root) -ForegroundColor Yellow
         exit 1
     }
 }

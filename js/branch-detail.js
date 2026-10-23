@@ -38,7 +38,7 @@
     let payload;
     try { payload = raw ? JSON.parse(raw) : {}; }
     catch (_) { throw new Error(`Backend returned invalid JSON (${response.status}).`); }
-    if (!response.ok || payload.success === false) throw new Error(payload.message || `Backend request failed (${response.status}).`);
+    if (!response.ok || payload.success === false) {const error=new Error(payload.message || `Backend request failed (${response.status}).`);error.status=response.status;throw error;}
     return payload;
   };
 
@@ -47,9 +47,10 @@
     // pages in sync with Admin edits and also works for branches added later.
     const payload = await fetchJson(`../../api/index.php?action=catalog&_=${Date.now()}`);
     applyBackendTheme(payload.site?.theme || {});
+    window.FSA_DATA={...(window.FSA_DATA||{}),...payload};window.FSA_CONTENT?.set(payload.content||{});
     const allBranches = Array.isArray(payload.branches) ? payload.branches : [];
     const branch = allBranches.find(item => String(item.slug||item.id||'').toLowerCase() === branchSlug);
-    if (!branch) throw new Error('Published branch not found in backend.');
+    if (!branch){const error=new Error('Published branch not found in backend.');error.status=404;throw error;}
     const shortName = cleanBranchShortName(branch.shortName || branch.name) || cleanBranchShortName(branch.name) || branchSlug;
     data = {
       ...data,
@@ -63,8 +64,8 @@
       image: rootMedia(branch.image),
       heroImage: rootMedia(branch.heroImage || branch.image),
       gallery: (Array.isArray(branch.gallery) ? branch.gallery : []).map(rootMedia),
-      lat: Number(branch.lat),
-      lng: Number(branch.lng),
+      lat: (branch.lat == null || branch.lat === '' ? NaN : Number(branch.lat)),
+      lng: (branch.lng == null || branch.lng === '' ? NaN : Number(branch.lng)),
     };
     backendBranches = allBranches.map(item => ({...item, shortName:cleanBranchShortName(item.shortName||item.name)||item.shortName||item.name, image:rootMedia(item.image), heroImage:rootMedia(item.heroImage || item.image)}));
     const identities = new Set(branchIdentity(branch));
@@ -91,18 +92,22 @@
         image: rootMedia(branch.image),
         heroImage: rootMedia(branch.heroImage || branch.image),
         gallery: (Array.isArray(branch.gallery) ? branch.gallery : []).map(rootMedia),
-        lat: Number(branch.lat),
-        lng: Number(branch.lng),
+        lat: (branch.lat == null || branch.lat === '' ? NaN : Number(branch.lat)),
+        lng: (branch.lng == null || branch.lng === '' ? NaN : Number(branch.lng)),
       };
       backendInstructors = (Array.isArray(payload.instructors) ? payload.instructors : []).map(item => ({...item, avatar:rootMedia(item.avatar)}));
       backendBatches = Array.isArray(payload.batches) ? payload.batches : [];
       backendBranches = (Array.isArray(payload.branches) ? payload.branches : []).map(item => ({...item, shortName:cleanBranchShortName(item.shortName||item.name)||item.shortName||item.name, image:rootMedia(item.image), heroImage:rootMedia(item.heroImage || item.image)}));
     } catch (branchError) {
       console.error('[FSA branch backend]', catalogError, branchError);
+      const main=document.querySelector('main');
+      if(main)main.innerHTML='<section class="page-section"><div class="container"><h1>Page not found</h1><p>The page may have moved or the address may be incomplete.</p></div></section>';
+      return;
       data = {...data, name:cleanBranchShortName(data.name||data.shortName||data.title)||data.name||'Academy', gallery:(Array.isArray(data.gallery)?data.gallery:[]).map(rootMedia), heroImage:rootMedia(data.heroImage||data.image), image:rootMedia(data.image)};
     }
   }
   window.BRANCH_PAGE = data;
+  if(!window.FSA_DATA?.content){try{const response=await fetchJson('../../api/index.php?action=public_content');window.FSA_CONTENT?.set(response.content||{});}catch(_){}}
 
   const $ = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
@@ -350,11 +355,12 @@
   const distanceEl=$('[data-route-distance]'), timeEl=$('[data-route-time]'), messageEl=$('[data-route-message]');
   const directions=$('[data-open-directions]');
   let map=null, routeLayer=null, userMarker=null;
-  const destination={lat:Number(data.lat),lng:Number(data.lng)};
+  const destination={lat:(data.lat == null || data.lat === '' ? NaN : Number(data.lat)),lng:(data.lng == null || data.lng === '' ? NaN : Number(data.lng))};
+  const hasDestination=Number.isFinite(destination.lat)&&Number.isFinite(destination.lng)&&Math.abs(destination.lat)<=90&&Math.abs(destination.lng)<=180;
   const gmaps=(origin=null)=>'#location';
   if(directions){directions.href='#location';directions.removeAttribute('target');directions.removeAttribute('rel');}
   const initMap=()=>{
-    if(!mapEl || !window.L || !Number.isFinite(destination.lat))return;
+    if(!mapEl || !window.L || !hasDestination)return;
     map=L.map(mapEl,{scrollWheelZoom:false,attributionControl:false}).setView([destination.lat,destination.lng],15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
     const icon=L.divIcon({className:'fsa-map-pin',html:'<div style="width:34px;height:34px;border-radius:50% 50% 50% 0;background:#852937;transform:rotate(-45deg);display:grid;place-items:center;box-shadow:0 6px 14px rgba(0,0,0,.2)"><span style="transform:rotate(45deg);color:#fff;font:600 10px Inter">FSA</span></div>',iconSize:[34,34],iconAnchor:[17,34]});
@@ -381,6 +387,7 @@
   $('[data-track-location]')?.addEventListener('click',()=>{
     if(!navigator.geolocation){if(messageEl)messageEl.textContent='Location is not supported by this browser.';return;}
     if(messageEl)messageEl.textContent='Waiting for location permission…';
+    if (!hasDestination) {if(messageEl)messageEl.textContent='This branch has no map coordinates yet. Contact the branch for directions.';return;}
     navigator.geolocation.getCurrentPosition(pos=>route({lat:pos.coords.latitude,lng:pos.coords.longitude}),err=>{if(messageEl)messageEl.textContent=err.code===1?'Location permission was not granted. You can still use the branch location shown here.':'Could not get your location. Please try again.'},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
   });
 })();

@@ -1,0 +1,41 @@
+LMS / PREMIUM SMART DASHBOARD — STYLES ONLY
+==========================================
+REPLACEMENT FILES:
+  1) admin/css/admin.css   - Academy admins, Branch Heads, Branch Admins,
+                              shared staff course editor and notification UI
+  2) css/styles.css       - Student and Instructor dashboard views
+
+INSTALLATION
+  - Back up the two CSS files in your CURRENT LMS.
+  - Extract this ZIP to the project root, keeping directory structure.
+  - Replace only those two paths.
+  - Refresh with Ctrl+Shift+R to clear cached CSS.
+
+CHANGES
+  * Cleaner heading hierarchy, lighter font weights and readable 12–13px
+    interface text; smaller numerical stats and more balanced cards.
+  * Professional typography/spacing for navigation, tables, forms,
+    profile pages, instructors, branch views and shared public course form.
+  * Public website styling remains unchanged (student/instructor changes
+    are scoped to body[data-mode=dashboard] .dashboard-shell).
+  * Brand colors, navigation/sidebar visibility, editor fields, format
+    toggles, backend approvals, and business logic are unchanged.
+  * Responsive constraints are retained.
+
+COMPATIBILITY
+  These replacements incorporate admin/course-approval styles and the
+  latest instructor course creation CSS from earlier packages. If you
+  have edited the two CSS files since those packages, merge the new
+  CSS sections marked 'FSA v125' instead of overwriting your own changes.
+
+TEST CHECKLIST
+  Admin Staff / Super Admin: dashboard, User Management, Branches,
+    Batches, Public Course editor (all formats), Approvals, Integrations.
+  Branch Head / Branch Admin: assigned-branch lists, approval widgets,
+    Add Course, forms, tablets/mobile.
+  Instructor: My Courses, Create Public Course, Students, Certificates,
+    class tools, dropdowns and responsive sidebar.
+  Student: dashboard, courses, profile, checkout, certificates.
+
+Only static CSS was changed. No database migration required.
+CSS parsing checked; production browser visual QA is still recommended.

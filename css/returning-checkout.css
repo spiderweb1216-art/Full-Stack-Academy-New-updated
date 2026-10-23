@@ -1,0 +1,37 @@
+/* FSA returning-learner checkout. Reuses existing burgundy theme tokens. */
+.fsa-enrollment-state{border:1px solid var(--border,#ead9dc);border-radius:12px;padding:12px 14px;margin:10px 0 16px;background:#fff5f6;color:var(--brand,#852937);font-size:13px;font-weight:800}
+.fsa-owned-course-cta{background:#fff!important;color:var(--brand,#852937)!important;border:1px solid var(--brand,#852937)!important;text-decoration:none;white-space:normal;text-align:center}
+.fsa-return-checkout{background:linear-gradient(135deg,#fff,#fff8f9)}
+.fsa-checkout-profile-summary{display:grid;gap:5px;padding:15px;border:1px solid var(--border,#ead9dc);border-radius:13px;background:#fff;margin:14px 0}
+.fsa-checkout-profile-summary strong{font-size:16px;color:var(--ink,#19332b)}
+.fsa-checkout-profile-summary span,.fsa-checkout-profile-summary small{color:var(--muted,#6a756d);overflow-wrap:anywhere;line-height:1.6}
+.fsa-checkout-billing-editor{margin-top:16px;border-top:1px dashed var(--border,#ead9dc);padding-top:18px}
+.fsa-checkout-billing-editor[hidden]{display:none!important}
+.fsa-checkout-explainer{color:var(--muted,#6a756d);font-size:12px;text-align:center;margin:12px 0 0;line-height:1.6}
+
+/* v135 — per-format cards reuse the existing academy colors */
+.fsa-format-course .fsa-catalog-mode-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.fsa-format-course .fsa-catalog-mode-row .mode-pill{display:inline-flex;align-items:center;gap:6px}
+.fsa-format-ownership{font-size:10px;font-weight:750;color:var(--brand,#892738);border:1px solid currentColor;border-radius:100px;padding:4px 8px}
+.fsa-format-course .fsa-catalog-footer .button{max-width:100%;white-space:normal;text-align:center}
+
+/* Compact course-format labels: identical icon/text alignment across all modes. */
+.fsa-format-course .fsa-catalog-mode-row .mode-pill{
+  display:inline-flex;align-items:center;justify-content:flex-start;
+  gap:5px;max-width:100%;width:max-content;min-height:25px;
+  padding:4px 9px;line-height:1.1;white-space:nowrap;
+  font-size:9px;font-weight:650;vertical-align:middle;
+}
+.fsa-format-course .fsa-catalog-mode-row .fsa-catalog-badge-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 14px;width:14px;height:14px;line-height:0;
+}
+.fsa-format-course .fsa-catalog-mode-row .fsa-catalog-badge-icon svg{
+  display:block!important;width:14px!important;height:14px!important;
+  min-width:14px!important;min-height:14px!important;
+  max-width:14px!important;max-height:14px!important;
+  flex:none!important;margin:0!important;stroke-width:1.8;
+}
+.fsa-format-course .fsa-catalog-mode-row .fsa-catalog-badge-label{
+  display:inline-block;white-space:nowrap;line-height:1.1;
+}

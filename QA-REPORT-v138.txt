@@ -1,0 +1,10 @@
+FSA Public Course Modules v138 — Quality Check
+
+PASS — node --check: admin/js/admin.js and js/app.js.
+PASS — Chromium UI with mocked backend: recorded public page editor opens and displays only public syllabus modules; no FAQ, projects or reviews blocks.
+PASS — Edit module title, add lesson, add module, reorder, submit.
+PASS — Recorded save preserves Physical / Live content and pre-existing FAQ / project / review records in the submitted JSON.
+PASS — Physical and Live public page editors load their own module data.
+PASS — Chromium public course detail for all three formats: appropriate module titles shown, protected lesson titles not leaked, per-course FAQ, review and project sections hidden.
+PASS — No browser runtime JavaScript exceptions in tested flows.
+NOT TESTED — Real XAMPP / MariaDB authenticated save, paid checkout, and production deployment.

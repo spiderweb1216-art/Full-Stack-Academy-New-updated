@@ -1,0 +1,1195 @@
+{
+  "companies": [
+    "pickmysolar",
+    "skuad",
+    "Intelligent Machines Lab",
+    "Capgemini",
+    "Accenture",
+    "Cognizant",
+    "TCS",
+    "Rackspace",
+    "Infosys",
+    "Wipro",
+    "HCLTech",
+    "Tech Mahindra",
+    "Genpact",
+    "Coforge",
+    "Zazz",
+    "SingleView"
+  ],
+  "alumni": [
+    {
+      "name": "Mohammed Sameer",
+      "role": "Software Developer (Intern)",
+      "company": "Invertio Solutions",
+      "image": "assets/images/fsa-home/student-1.png"
+    },
+    {
+      "name": "Mohammed Yousuf",
+      "role": "Backend Developer (Intern)",
+      "company": "Invertio Solutions",
+      "image": "assets/images/fsa-home/student-2.png"
+    },
+    {
+      "name": "Shaik Parveez",
+      "role": "Frontend Developer (Intern)",
+      "company": "Invertio Solutions",
+      "image": "assets/images/fsa-home/student-3.png"
+    },
+    {
+      "name": "Mohammed Ahsaanuddin",
+      "role": "DevOps Engineer",
+      "company": "Nakshatra Systems",
+      "image": "assets/images/fsa-home/student-4.png"
+    },
+    {
+      "name": "Ankit Kumar Pathak",
+      "role": "DevOps Engineer",
+      "company": "Radiant Digital Solutions",
+      "image": "assets/images/fsa-home/student-5.png"
+    },
+    {
+      "name": "Syed Fayaz Ali",
+      "role": "Technical Engineer",
+      "company": "Mitsubishi Heavy Industries",
+      "image": "assets/images/fsa-home/student-6.png"
+    },
+    {
+      "name": "Shaik Inzamam ul Haq",
+      "role": "DevOps Intern",
+      "company": "Shop Online New York",
+      "image": "assets/images/fsa-home/student-1.png"
+    },
+    {
+      "name": "Mohammed Saifuddin",
+      "role": "DevOps Engineer",
+      "company": "Techdome Solution",
+      "image": "assets/images/fsa-home/student-2.png"
+    },
+    {
+      "name": "Mubashir Hussain",
+      "role": "ProdOps Engineer",
+      "company": "LoyaltyMethods",
+      "image": "assets/images/fsa-home/student-3.png"
+    },
+    {
+      "name": "Md Jaffar Hussain",
+      "role": "Software Associate",
+      "company": "Access Meditech",
+      "image": "assets/images/fsa-home/student-4.png"
+    },
+    {
+      "name": "Shaik Meer Mohammed",
+      "role": "Junior Support Engineer",
+      "company": "LoyaltyMethods",
+      "image": "assets/images/fsa-home/student-5.png"
+    },
+    {
+      "name": "MD Sabeel",
+      "role": "Process Associate Engineer",
+      "company": "Exploring Infinities",
+      "image": "assets/images/fsa-home/student-6.png"
+    },
+    {
+      "name": "Syed Mahasib Ali",
+      "role": "IT Engineer",
+      "company": "Saudi Arabia Railways",
+      "image": "assets/images/fsa-home/student-1.png"
+    },
+    {
+      "name": "Imran Baig",
+      "role": "Associate Cloud Consultant",
+      "company": "INFOLOB",
+      "image": "assets/images/fsa-home/student-2.png"
+    },
+    {
+      "name": "Ansari Saqib Sajid",
+      "role": "Technical Support Engineer",
+      "company": "Informage",
+      "image": "assets/images/fsa-home/student-3.png"
+    },
+    {
+      "name": "Mohammad Saiful Haq",
+      "role": "DevOps Engineer",
+      "company": "Verison",
+      "image": "assets/images/fsa-home/student-4.png"
+    },
+    {
+      "name": "Shaik Akheel Ahmed",
+      "role": "Software Developer",
+      "company": "Devbox",
+      "image": "assets/images/fsa-home/student-5.png"
+    },
+    {
+      "name": "Mohammed Junaid",
+      "role": "DevOps Engineer",
+      "company": "EverestDX",
+      "image": "assets/images/fsa-home/student-6.png"
+    },
+    {
+      "name": "Mohammed Ehtesham Ali",
+      "role": "Cloud Support Associate",
+      "company": "Amazon",
+      "image": "assets/images/fsa-home/student-1.png"
+    },
+    {
+      "name": "Mohd Muneer Uddin",
+      "role": "Cloud Support Associate",
+      "company": "Amazon",
+      "image": "assets/images/fsa-home/student-2.png"
+    }
+  ],
+  "reviews": [
+    {
+      "name": "Roshan Ara Khanam",
+      "course": "Online MERN Course",
+      "rating": 5,
+      "avatar": "assets/images/fsa-home/student-1.png",
+      "comment": "I have attended an online MERN course from Full Stack Academy. It was a great learning experience with Mr. Mujib Sir, an industry expert. The explanation and method of teaching were excellent. I have learned new skills and techniques in programming."
+    },
+    {
+      "name": "Burhan Ashraf",
+      "course": "FSA Alumni",
+      "rating": 5,
+      "avatar": "assets/images/fsa-home/student-2.png",
+      "comment": "One of the best academies for everyone who wants to learn and develop their skills in the IT world. The atmosphere here is amazing, and the encouragement you get from the staff and everyone is incredible. I secured an IT job by learning here at Full Stack Academy."
+    },
+    {
+      "name": "Jaseem Ansari",
+      "course": "FSA Student",
+      "rating": 5,
+      "avatar": "assets/images/fsa-home/student-3.png",
+      "comment": "Full Stack Academy is doing its best in training students in the latest technologies. It is one of the best institutes. You must enroll here to build a career in the IT world. The faculty is well-qualified, and the atmosphere for learning is excellent."
+    },
+    {
+      "name": "Imtiaz Shaik",
+      "course": "FSA Community",
+      "rating": 5,
+      "avatar": "assets/images/fsa-home/student-4.png",
+      "comment": "I have been following Full Stack Academy since Day 1, and they have been doing great, especially in filling the gap between IT industry expectations, requirements, and the skills of freshers. They have helped many freshers secure placements in top IT companies."
+    },
+    {
+      "name": "Areeba Atif",
+      "course": "FSA Student",
+      "rating": 5,
+      "avatar": "assets/images/fsa-home/student-5.png",
+      "comment": "Full Stack Academy is the best place to learn about almost everything—from soft skills like personality development to technical skills like coding. The environment and the staff here encourage and motivate us to learn more."
+    },
+    {
+      "name": "Mirza Faizan Baig",
+      "course": "Online Learner",
+      "rating": 5,
+      "avatar": "assets/images/fsa-home/student-6.png",
+      "comment": "A very good opportunity for students living abroad to learn new things easily. Every student must upgrade themselves in these high-demanding sectors."
+    },
+    {
+      "name": "ADNAN",
+      "course": "Public reviewer · Justdial",
+      "rating": 5,
+      "comment": "Top quality learning and very good ambience."
+    },
+    {
+      "name": "Muhammad Iqbal",
+      "course": "Public Google reviewer",
+      "rating": 5,
+      "comment": "Highlighted how the academy helps learners from both IT and non-IT backgrounds grow their careers in the technology field."
+    },
+    {
+      "name": "Mohammed Owais",
+      "course": "AWS DevOps learner · Public review",
+      "rating": 5,
+      "comment": "Shared that the AWS DevOps journey strengthened hands-on technical skills, confidence, communication, assessments and mock-interview readiness."
+    },
+    {
+      "name": "Md Abdullah",
+      "course": "MERN learner · Public review",
+      "rating": 5,
+      "comment": "Praised the training in current technologies, qualified faculty, learning atmosphere and domain-focused placement support."
+    }
+  ],
+  "videos": [
+    {
+      "src": "https://videos.pexels.com/video-files/4994144/4994144-uhd_2160_3840_25fps.mp4",
+      "poster": "assets/images/review-video-posters/video-review-01.svg",
+      "source": "https://www.pexels.com/video/man-sitting-while-talking-4994144/",
+      "label": "Video story 01"
+    },
+    {
+      "src": "https://videos.pexels.com/video-files/9019589/9019589-uhd_2160_3840_24fps.mp4",
+      "poster": "assets/images/review-video-posters/video-review-02.svg",
+      "source": "https://www.pexels.com/video/video-of-a-woman-smiling-9019589/",
+      "label": "Video story 02"
+    },
+    {
+      "src": "https://videos.pexels.com/video-files/8136210/8136210-hd_1080_1920_25fps.mp4",
+      "poster": "assets/images/review-video-posters/video-review-03.svg",
+      "source": "https://www.pexels.com/video/a-man-talking-to-the-camera-8136210/",
+      "label": "Video story 03"
+    },
+    {
+      "src": "https://videos.pexels.com/video-files/8135999/8135999-hd_1080_1920_25fps.mp4",
+      "poster": "assets/images/review-video-posters/video-review-04.svg",
+      "source": "https://www.pexels.com/video/a-woman-talking-to-the-camera-8135999/",
+      "label": "Video story 04"
+    },
+    {
+      "src": "https://videos.pexels.com/video-files/8688214/8688214-hd_1080_1920_25fps.mp4",
+      "poster": "assets/images/review-video-posters/video-review-05.svg",
+      "source": "https://www.pexels.com/video/man-video-recording-himself-8688214/",
+      "label": "Video story 05"
+    }
+  ],
+  "events": [
+    {
+      "slug": "fsa-charminar-4th-branch-inaugration",
+      "title": "FSA Charminar – 4th Branch Inaugration",
+      "location": "Charminar",
+      "time": "07:00 PM – 10:00 PM",
+      "description": "Full Stack Academy inaugurated its new branch at Charminar in the presence of honorable MLA Mir Zulfiqar Ali, Directors, Trainers, Alumni, and special guests.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG-20250926-WA0032-rcpmh96s5uuysln1ymq8u162pkjy0yfizcmppuyffk.jpg",
+      "featured": true,
+      "date": "2025-09-26",
+      "category": "Community",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG-20250926-WA0032-rcpmh96s5uuysln1ymq8u162pkjy0yfizcmppuyffk.jpg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Community",
+        "Charminar"
+      ]
+    },
+    {
+      "slug": "free-one-day-workshop-on-cyber-security",
+      "title": "Free One-Day Workshop on Cyber Security",
+      "location": "Gachibowli Branch",
+      "time": "10:00 AM – 4:00 PM",
+      "description": "The workshop on Cyber Security, hosted by Full Stack Academy on September 21st, 2024, aimed to equip engineers and graduates with insights into cybersecurity careers, certifications, and job opportunities.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-09-13-at-3.16.59-PM-qumi7v0g3enm81ysql6hozk0lgt1ontxgmxyz4v3q8.jpeg",
+      "date": "2024-09-21",
+      "category": "Workshop",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-09-13-at-3.16.59-PM-qumi7v0g3enm81ysql6hozk0lgt1ontxgmxyz4v3q8.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Workshop",
+        "Gachibowli Branch"
+      ]
+    },
+    {
+      "slug": "full-stack-academy-achievers-award-ceremony",
+      "title": "Full Stack Academy Achievers Award Ceremony",
+      "location": "Gachibowli Branch",
+      "time": "10 August – 2024 – 11:00 AM Onwards",
+      "description": "We celebrated a remarkable milestone at Full Stack Academy with our Achievers Award Ceremony, honoring our exceptional AWS and DevOps alumni.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-08-10-at-7.30.32-PM-2-qsjejc7d19rqkavwb2ir7idu0kf5nqgphdo72wrjq8.jpeg",
+      "date": "2024-08-10",
+      "category": "Awards",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-08-10-at-7.30.32-PM-2-qsjejc7d19rqkavwb2ir7idu0kf5nqgphdo72wrjq8.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Awards",
+        "Gachibowli Branch"
+      ]
+    },
+    {
+      "slug": "certificate-ceremony",
+      "title": "Certificate Ceremony.",
+      "location": "Gacchibowli, Hyderabad.",
+      "time": "25th, July 2024.",
+      "description": "The certificate ceremony organized by the Full Stack Academy Team on July 25th, 2024, was a resounding success. Held at the Gachibowli Campus, the event commenced at 2:00 PM.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-07-30-at-5.28.47-PM-qrvd8e7uwqh5ijdbxwidwcceg7gj7vdimisdn8kwbk.jpeg",
+      "date": "2024-07-25",
+      "category": "Ceremony",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-07-30-at-5.28.47-PM-qrvd8e7uwqh5ijdbxwidwcceg7gj7vdimisdn8kwbk.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Ceremony",
+        "Gacchibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "linux-challenge-certification-of-completion",
+      "title": "Linux Challenge Certification of Completion",
+      "location": "Tolichowki Branch",
+      "time": "20 July, 2024 – 10 AM Onwards",
+      "description": "A special certification distribution event honoring participants who successfully completed the Full Stack Academy Linux Challenge.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/Online-qr50n4psf6pibf2xnp1u0sgraou1lj5xjcwkeq18rk.png",
+      "date": "2024-07-20",
+      "category": "Ceremony",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/Online-qr50n4psf6pibf2xnp1u0sgraou1lj5xjcwkeq18rk.png",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Ceremony",
+        "Tolichowki Branch"
+      ]
+    },
+    {
+      "slug": "expert-talk-by-mr-sajjad-ahmed-shaikh-july-2024",
+      "title": "Expert talk by Mr.Sajjad Ahmed Shaikh.",
+      "location": "Gacchibowli, Hyderabad",
+      "time": "13 July, 2024 11:00 PM – 12:30 PM.",
+      "description": "A Full Stack Academy expert session with Mr. Sajjad Ahmed Shaikh focused on what companies expect during the hiring process.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-07-05-at-3.37.29-PM-qqnt6mlalp00o1t1xohzjqtmi36e8epmi447317ogw.jpeg",
+      "date": "2024-07-13",
+      "category": "Expert Talk",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-07-05-at-3.37.29-PM-qqnt6mlalp00o1t1xohzjqtmi36e8epmi447317ogw.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Expert Talk",
+        "Gacchibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "imrc-graduation-day-2023",
+      "title": "IMRC graduation day – 2023",
+      "location": "Gachibowli, Hyderabad.",
+      "time": "",
+      "description": "The IMRC graduation day, hosted by Full Stack Academy, marked the successful completion of a rigorous Data Science course by the participating students.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG_0519-scaled-qpzdjvo451lylliwi1yqh8l7qujovwx1q9ja23tdi8.jpg",
+      "date": "",
+      "category": "Graduation",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG_0519-scaled-qpzdjvo451lylliwi1yqh8l7qujovwx1q9ja23tdi8.jpg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Graduation",
+        "Gachibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "one-day-free-boot-camp-on-ai-data-sciences",
+      "title": "One day free boot – camp on ai & data sciences",
+      "location": "Gachibowli, Hyderabad.",
+      "time": "10 : 00 PM To 04 : 00 PM",
+      "description": "A free one-day boot camp on AI and Data Sciences with industry experts at Full Stack Academy, Gachibowli.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/file-e1718966853471-qpze6jk0x8muj4ls5umwlipbdauah6w26fsqma7nhc.jpg",
+      "date": "2024-06-22",
+      "category": "Boot Camp",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/file-e1718966853471-qpze6jk0x8muj4ls5umwlipbdauah6w26fsqma7nhc.jpg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Boot Camp",
+        "Gachibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "full-stack-analytics-hackathon-2024",
+      "title": "Full Stack Analytics Hackathon-2024",
+      "location": "Gachibowli, Hyderabad.",
+      "time": "31st Jan, 2024",
+      "description": "Full Stack Academy Gachibowli hosted an analytics hackathon where aspiring coders and analysts worked on practical problem statements and showcased their skills.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-20-at-6.27.46-PM-e1718979359658-qpzn92pn3bmrqiarfzv7s4bwe1emfx77qmf2cq25y8.jpeg",
+      "date": "2024-01-31",
+      "category": "Hackathon",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-20-at-6.27.46-PM-e1718979359658-qpzn92pn3bmrqiarfzv7s4bwe1emfx77qmf2cq25y8.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Hackathon",
+        "Gachibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "a-seminar-on-asp-net-core",
+      "title": "A Seminar On ASP.NET Core",
+      "location": "ToliChowki Branch.",
+      "time": "1 June 2024, 10:30am – 12:00pm",
+      "description": "Full Stack Academy presented an ASP.NET seminar with guest speakers Mohd Abubakr, Founder and CEO of Zibew, and Anil Kumar Gurindapalli, Technical Architect.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-01-at-2.00.16-PM-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+      "date": "2024-06-01",
+      "category": "Seminar",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-01-at-2.00.16-PM-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Seminar",
+        "ToliChowki Branch"
+      ]
+    },
+    {
+      "slug": "a-special-session-on-terraform-ansible",
+      "title": "A Special Session On Terraform & Ansible",
+      "location": "Tolichowki Branch",
+      "time": "18 May 2024, 9:30AM – 12:00AM",
+      "description": "A special session on Terraform and Ansible covering essential concepts, infrastructure automation, configuration management and practical use cases.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/rtgedthfk-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.png",
+      "date": "2024-05-18",
+      "category": "Workshop",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/rtgedthfk-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.png",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Workshop",
+        "Tolichowki Branch"
+      ]
+    },
+    {
+      "slug": "special-session-on-docker-kubernetes",
+      "title": "Special Session On Docker & Kubernetes",
+      "location": "Hyderabad, Telangana",
+      "time": "11 May 2024, 10:00am – 12:00pm",
+      "description": "A Full Stack Academy session led by Mohammed Riyyan Uddin covering Docker essentials and Kubernetes concepts with practical guidance.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-06-at-12.38.36-PM-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+      "date": "2024-05-11",
+      "category": "Workshop",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-06-at-12.38.36-PM-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Workshop",
+        "Hyderabad, Telangana"
+      ]
+    },
+    {
+      "slug": "it-job-preparing-expert-insights-with-mir-mujahid-ali",
+      "title": "“IT Job Preparing : Expert Insights with Mir Mujahid Ali”",
+      "location": "Hyderabad, India",
+      "time": "9 Mar 2024, 12:00pm – 2:00pm",
+      "description": "An industry expert session with Mir Mujahid Ali sharing current market trends, hiring insights and practical guidance for preparing for IT jobs.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/3-events-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+      "date": "2024-03-09",
+      "category": "Career Talk",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/3-events-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Career Talk",
+        "Hyderabad, India"
+      ]
+    },
+    {
+      "slug": "full-stack-analytics-hackathon-2-0-2024",
+      "title": "Full Stack Analytics Hackathon,2.O -2024",
+      "location": "Gachibowli,Hyderabad",
+      "time": "9th March,2024 10:00 AM To 04:00 PM",
+      "description": "The Full Stack Hackathon 24 Analytics invited participants from the Telangana Social Welfare Residential Educational Institutions Society for Women to take part in an analytical hackathon.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-20-at-5.10.24-PM-qpxpv7fnfu8kz4lc8s1a8y5mp730g1u1bbinyfoazk.jpeg",
+      "date": "2024-03-09",
+      "category": "Hackathon",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-20-at-5.10.24-PM-qpxpv7fnfu8kz4lc8s1a8y5mp730g1u1bbinyfoazk.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Hackathon",
+        "Gachibowli,Hyderabad"
+      ]
+    },
+    {
+      "slug": "the-sculptures-group",
+      "title": "The Sculpture’s Group",
+      "location": "Gachibowli, Hyderabad.",
+      "time": "8th March, 2024 – 05:00 PM To 06:30 PM.",
+      "description": "The Sculptors Group, led by Bala Ethirajalu and Vineetha Rohit, took part in a technology collaboration event with Full Stack Academy.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG_2931-scaled-qpxitfy8d0uskz751l67lhgp9bundresrb2kq5xktc.jpg",
+      "date": "2024-03-08",
+      "category": "Community",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG_2931-scaled-qpxitfy8d0uskz751l67lhgp9bundresrb2kq5xktc.jpg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Community",
+        "Gachibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "expert-talk-mr-kader-sakkaria",
+      "title": "EXPERT TALK MR. KADER SAKKARIA.",
+      "location": "Gachibowli, Hyderabad, India",
+      "time": "6 March, 2024 – 04:00 PM To 05:00 PM",
+      "description": "An expert talk on “Generative AI and Its Future Implications” featuring Mr. Kader Sakkaria, Head of Global Technology at Gallagher.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-03-04-at-4.16.12-PM-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+      "date": "2024-03-06",
+      "category": "Expert Talk",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-03-04-at-4.16.12-PM-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Expert Talk",
+        "Gachibowli, Hyderabad, India"
+      ]
+    },
+    {
+      "slug": "credo-technology-services-llc-uae",
+      "title": "Credo Technology Services LLC UAE",
+      "location": "Gachibowli, Hyderabad.",
+      "time": "1st March, 2024 – 05:00 PM To 07:00 PM",
+      "description": "Full Stack Academy hosted an event featuring Ms. Lynisha Rodrigues, Global HR at Credo Technology Services LLC UAE.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG_2767-scaled-qpxg9el560v1rivzhayay7kva3hsop0z3rg01sec2o.jpg",
+      "date": "2024-03-01",
+      "category": "Industry Talk",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/IMG_2767-scaled-qpxg9el560v1rivzhayay7kva3hsop0z3rg01sec2o.jpg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Industry Talk",
+        "Gachibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "expert-talk-by-mr-sajjad-ahmed-shaikh-feb-2024",
+      "title": "EXPERT TALK BY MR. SAJJAD AHMED SHAIKH",
+      "location": "Gachibowli, Hyderabad",
+      "time": "17th Feb, 2024 11:00 AM To 01:00 PM",
+      "description": "An expert session by Mr. Sajjad Ahmed Shaikh, Senior Director-HR at Capgemini, focused on handling nervousness during interviews.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-14-at-4.40.10-PM-qpndbyw6819kab5vg7473q780bd53l5h3uwrd6nesg.jpeg",
+      "date": "2024-02-17",
+      "category": "Expert Talk",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/WhatsApp-Image-2024-06-14-at-4.40.10-PM-qpndbyw6819kab5vg7473q780bd53l5h3uwrd6nesg.jpeg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Expert Talk",
+        "Gachibowli, Hyderabad"
+      ]
+    },
+    {
+      "slug": "grand-industry-readiness-workshop",
+      "title": "Grand Industry Readiness Workshop",
+      "location": "Hyderabad, India",
+      "time": "Thursday, Aug 31st, 2023 at 9:30 AM",
+      "description": "The FSA Grand Industry Readiness Workshop at Gachibowli Branch concluded a month-long Personality Development program focused on helping learners prepare for industry.",
+      "image": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/interview-session-1-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpg",
+      "date": "2023-08-31",
+      "category": "Career Workshop",
+      "organiser": {
+        "name": "Full Stack Academy",
+        "role": "Official Event Organiser",
+        "email": "info@fullstackacademy.in",
+        "phone": "+91 9015 236 236",
+        "description": "Full Stack Academy organises practical technology workshops, expert sessions, student celebrations and industry-focused community events across Hyderabad."
+      },
+      "media": [
+        {
+          "type": "image",
+          "src": "https://fullstackacademy.in/wp-content/uploads/elementor/thumbs/interview-session-1-qpfg7ayvajpowr5svqmysha9uel8z0586hhthw65cw.jpg",
+          "caption": "Event cover"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "video",
+          "src": "https://videos.pexels.com/video-files/6951403/6951403-hd_1920_1080_25fps.mp4",
+          "poster": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock event video"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        },
+        {
+          "type": "image",
+          "src": "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1800&q=82",
+          "caption": "Temporary stock gallery image"
+        }
+      ],
+      "sponsors": [],
+      "tags": [
+        "Career Workshop",
+        "Hyderabad, India"
+      ]
+    }
+  ]
+}

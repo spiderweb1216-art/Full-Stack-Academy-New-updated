@@ -1,0 +1,50 @@
+/* Physical-only learner private page: reuse site burgundy, neutral and green tokens. */
+.pc-learner-layout{grid-template-columns:minmax(0,1fr) 340px!important;align-items:start}
+.pc-learner-shell{padding:0!important}.pc-learner-main{min-width:0;padding:28px 30px 24px!important;min-height:440px}
+.pc-learner-main-header{padding-bottom:23px;border-bottom:1px solid var(--border,#e9dddd);margin-bottom:23px}
+.pc-learner-main-header h1{font-size:clamp(24px,2.7vw,35px);line-height:1.25;margin:8px 0 10px}
+.pc-learner-main-header p{color:var(--muted,#68756f);line-height:1.6;margin:0}
+.pc-learner-blocks{display:grid;gap:17px}.pc-learning-block{margin:0;padding:22px 24px;border:1px solid var(--border,#e6dadd);border-radius:15px;background:#fff;overflow-wrap:anywhere}
+.pc-learning-block h2{font-size:20px;line-height:1.4;margin:0 0 12px;color:var(--ink,#20352d)}.pc-learning-heading{padding:7px 0;border:0;background:transparent}
+.pc-learning-heading h2{font-size:25px;margin:0}.pc-learning-block p{white-space:normal;color:var(--muted,#68756f);margin:0;line-height:1.85;font-size:14px}
+.pc-learning-callout{background:var(--pink,#fff3f5);border-left:4px solid var(--brand,#852937)}
+.pc-learning-figure img{width:100%;max-height:500px;object-fit:contain;border-radius:10px;display:block;background:#f8f6f6}
+.pc-learning-figure figcaption{font-size:12px;margin-top:10px;color:var(--muted,#68756f);text-align:center}
+.pc-learning-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.pc-learning-gallery img{display:block;object-fit:cover;width:100%;aspect-ratio:4/3;border-radius:11px;border:1px solid var(--border,#ead8dc)}
+.pc-learning-divider{border:0;border-top:1px solid var(--border,#ead8dc);margin:14px 0}.pc-learning-download a{margin-top:4px}
+.pc-learner-toc{position:sticky!important;top:82px;max-height:calc(100vh - 105px);overflow-y:auto!important;min-width:0;border-left:1px solid var(--border,#ead8dc);background:#fff}
+.pc-learner-toc .curriculum-sidebar-head h2{font-size:17px;line-height:1.4;margin:8px 0;overflow-wrap:anywhere}
+.pc-toc-items{display:grid;gap:3px;padding:12px}.pc-toc-item{display:flex;align-items:flex-start;text-align:left;gap:12px;width:100%;border:0;border-radius:10px;background:transparent;color:var(--ink,#20352d);cursor:pointer;padding:14px 10px;min-height:62px}
+.pc-toc-item:hover:not([disabled]){background:var(--pink,#fff3f5)}.pc-toc-item.active{background:var(--pink,#fff3f5);box-shadow:inset 3px 0 0 var(--brand,#852937)}.pc-toc-item[disabled]{opacity:.57;cursor:not-allowed}
+.pc-toc-number{flex:0 0 33px;height:33px;border-radius:8px;background:#f8edef;color:var(--brand,#852937);display:grid;place-items:center;font-size:12px;font-weight:800}
+.pc-toc-item strong,.pc-toc-item small{display:block}.pc-toc-item strong{font-size:13px;line-height:1.5}.pc-toc-item small{font-size:11px;color:var(--muted,#68756f);margin-top:3px}
+.pc-learning-activity{border-color:var(--brand,#852937)}.pc-activity-kicker{font-size:12px;color:var(--brand,#852937);font-weight:750;margin-bottom:10px;display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.pc-required-tag,.pc-optional-tag{font-size:10px;border-radius:20px;padding:5px 9px;background:var(--pink,#fff3f5);color:var(--brand,#852937)}.pc-optional-tag{background:#edf3ef;color:#44624d}
+.pc-quiz-options{margin:18px 0;border:0;padding:0;display:grid;gap:10px}.pc-quiz-answer{display:flex;align-items:center;gap:11px;border:1px solid var(--border,#ead8dc);border-radius:10px;padding:13px;cursor:pointer;font-size:14px}.pc-quiz-answer:has(input:checked){border-color:var(--brand,#852937);background:var(--pink,#fff3f5)}
+.pc-quiz-answer input{accent-color:var(--brand,#852937);width:16px;height:16px}
+.pc-assignment-answer{display:grid;gap:10px;margin:18px 0;font-size:13px;font-weight:750}.pc-assignment-answer textarea{width:100%;min-height:110px;border:1px solid var(--border,#ead8dc);border-radius:10px;padding:12px;font:inherit;resize:vertical;box-sizing:border-box}
+.pc-activity-complete{display:flex;gap:8px;align-items:center;margin-top:16px;background:#edf7ef;color:#225a37;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:700}
+.pc-locked{display:flex;gap:12px;align-items:start;background:#f8f6f6;border:1px dashed var(--border,#ead8dc);border-radius:13px;padding:17px;color:var(--muted,#68756f)}.pc-locked strong{color:var(--ink,#20352d)}.pc-locked p{margin:6px 0 0;font-size:12px}
+.pc-learner-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border,#ead8dc);margin-top:26px;padding-top:20px}
+@media(max-width:1080px){.pc-learner-layout{grid-template-columns:minmax(0,1fr) 270px!important}.pc-learner-main{padding:20px!important}}
+@media(max-width:800px){.pc-learner-layout{display:flex!important;flex-direction:column-reverse!important}.pc-learner-toc{position:static!important;width:100%;max-height:none;border-left:0;border-bottom:1px solid var(--border,#ead8dc)}.pc-toc-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.pc-learner-main{width:100%;padding:19px!important}}
+@media(max-width:540px){.pc-toc-items{grid-template-columns:1fr}.pc-learning-block{padding:16px}.pc-learning-gallery{grid-template-columns:1fr}.pc-learner-pager{flex-wrap:wrap}.pc-learner-pager .button{flex:1}}
+
+/* Physical course hero widget: uses the existing site burgundy palette. */
+.pc-learning-banner{position:relative;min-height:230px;display:flex;align-items:flex-end;overflow:hidden;border-radius:16px;background:linear-gradient(110deg,var(--brand,#852937),#3c1724);color:white}
+.pc-learning-banner>img{position:absolute;inset:0;height:100%;width:100%;object-fit:cover}
+.pc-learning-banner:before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(43,22,27,.89),rgba(43,22,27,.3));z-index:1}
+.pc-learning-banner-text{position:relative;z-index:2;padding:26px;max-width:650px}
+.pc-learning-banner-text span{font-size:10px;font-weight:850;letter-spacing:.15em;opacity:.88}
+.pc-learning-banner-text h2{color:#fff;margin:8px 0;font-size:clamp(23px,3vw,34px)}
+.pc-learning-banner-text p{color:#fff;font-size:13px;line-height:1.75;opacity:.95}
+
+/* v130 — module headings and Coursera-style lesson list, using existing theme. */
+.pc-toc-module{display:flex;gap:10px;align-items:center;padding:19px 12px 9px;margin-top:5px;border-top:1px solid var(--border,#ead8dc);font-size:12px;color:var(--brand,#852937);line-height:1.5}
+.pc-toc-module:first-child{border-top:0;margin-top:0}
+.pc-toc-module span{display:grid;place-items:center;flex:none}
+.pc-toc-module strong{overflow-wrap:anywhere}
+.pc-learning-crumb{display:flex;gap:9px;align-items:center;flex-wrap:wrap;color:var(--brand,#852937);text-transform:none;font-size:12px;line-height:1.5;font-weight:750}
+.pc-learning-crumb span{color:var(--muted,#68756f)}
+.pc-toc-item.active .pc-toc-number{background:var(--brand,#852937);color:#fff}
+.pc-learner-toc .curriculum-sidebar-head{border-bottom:1px solid var(--border,#ead8dc)}

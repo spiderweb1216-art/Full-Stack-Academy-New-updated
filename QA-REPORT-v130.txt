@@ -1,0 +1,26 @@
+FSA physical lesson builder v130 — verification summary
+
+Scope: 8 changed site files. No new public or admin route. No SQL ALTER/DROP/RESET.
+Base UI: previous v127 physical builder / v129 compatible backend.
+
+PHP: api/index.php, api/lib/PhysicalCourses.php => php -l PASS.
+JavaScript: admin/js/admin.js, js/app.js => node --check PASS.
+Editor browser smoke test, Chromium with mock API: PASS.
+  - Widget search, 10 widgets and sidebar.
+  - 2 module headings / 3 initial lesson types.
+  - Quiz field editing and required toggle.
+  - New lesson, new standalone assignment, palette drag/drop gallery.
+  - JSON save to backend, reload preview with 5 lessons and 2 modules.
+  - Desktop 1510px and mobile 700px.
+Learner browser smoke test, Chromium with mock API: PASS.
+  - 4 lessons grouped into two modules.
+  - Required quiz locks subsequent lessons, INCLUDING empty lesson.
+  - Correct quiz answer unlocks next lesson.
+  - Assignment submission marks completion.
+PHP fake-PDO tests with provided legacy page: 21 PASS.
+  - Reads page_json, sections_json and mixed schema.
+  - Preserves original metadata, old gallery and quiz choices.
+  - Saves normalized lesson module/kind/description in both schemas.
+  - Recognizes older quiz-only and assignment-only sections.
+
+NOT VERIFIED: actual PHP/MySQL integration on user's localhost/XAMPP.

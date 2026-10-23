@@ -1,0 +1,18 @@
+FSA LMS v134 — QA Report (2026-10-21)
+
+PASS: node --check js/app.js
+PASS: php -l api/index.php
+PASS: browser page load with mocked catalog/student_data/auth responses
+PASS: enrolled Physical mode displays Open My Course
+PASS: pending Live mode displays Enrollment Requested / View Order
+PASS: available Recorded mode displays Add Course and can be added to cart
+PASS: returning-student compact checkout shows saved billing and payment choices
+PASS: submitting with saved billing sends reuse_billing=true
+PASS: expanding Edit saved details and submitting sends reuse_billing=false and edited address
+PASS: first-time buyer has full billing form and submits reuse_billing=false
+PASS: no JavaScript browser errors during the two tested flows
+PASS: ZIP content verification and SHA256 manifest
+
+NOT RUN: actual XAMPP/MariaDB login, payments and admin-approval integration on user's installation.
+
+Frontend ownership states read MySQL-backed student_data. Checkout PHP has existing duplicate enrollment and pending-order guards. No database migration.

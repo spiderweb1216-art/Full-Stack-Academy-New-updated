@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#68131b">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Academy Administration | Full Stack Academy</title>
+  <script>
+    // Keep the clean /admin URL working even when the trailing slash is omitted.
+    // This must run before relative CSS/JS URLs are parsed.
+    (function () {
+      var path = window.location.pathname || '';
+      if (/\/admin$/i.test(path)) {
+        var base = document.createElement('base');
+        base.href = path + '/';
+        document.head.appendChild(base);
+      }
+    })();
+  </script>
+  <link rel="icon" id="adminFavicon" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css?v=120.0">
+  <style id="eventAdminV15Styles">
+    .event-admin-table td:first-child{min-width:360px}.event-admin-main{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:16px;min-width:0}.event-admin-thumb{width:92px;height:64px;border-radius:13px;overflow:hidden;background:#f4e8eb;display:grid;place-items:center;flex:none}.event-admin-thumb img{width:100%;height:100%;object-fit:cover;display:block}.event-admin-thumb span{font-weight:800;color:var(--brand,#8f293a)}.event-admin-copy{min-width:0}.event-admin-copy strong,.event-admin-copy small{display:block;position:static!important;transform:none!important;margin:0}.event-admin-copy strong{font-size:14px;line-height:1.35;color:var(--ink,#19332b);white-space:normal}.event-admin-copy small{margin-top:5px;line-height:1.4;color:var(--muted,#68756f);overflow-wrap:anywhere}.event-featured-label{display:inline-flex;margin-left:6px;font-weight:700;color:var(--brand,#8f293a)}
+    .event-editor-card{overflow:visible}.event-builder-title{display:grid!important;grid-template-columns:1fr auto;gap:6px 16px;align-items:center;padding-top:14px}.event-builder-title>span{font-size:16px;font-weight:800}.event-builder-title>small{grid-column:1/2}.event-builder-title>button{grid-column:2;grid-row:1/3;align-self:center}.event-builder-list{display:grid;gap:14px}.event-builder-item{border:1px solid var(--border,#ead8dc);border-radius:16px;padding:16px;background:linear-gradient(180deg,#fff,#fffafb);box-shadow:0 8px 24px rgba(91,27,42,.045)}.event-builder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.event-builder-head strong{color:var(--brand,#8f293a);font-size:14px}.event-builder-order{display:flex;gap:7px;align-items:center}.event-builder-order button{min-width:34px;height:32px;border:1px solid var(--border,#ead8dc);background:#fff;border-radius:9px;cursor:pointer;color:var(--brand,#8f293a);font-weight:800}.event-builder-order .builder-remove{padding:0 10px;color:#a22d3f}.event-builder-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.event-builder-grid label{min-width:0}.event-builder-wide{grid-column:1/-1}.event-inline-upload{display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;border:1px dashed var(--border,#ead8dc);border-radius:11px;background:#fff}.event-inline-upload input[type=file]{max-width:290px}.event-inline-upload small{color:var(--muted,#68756f);line-height:1.35}.event-flow-builder{counter-reset:flow}.event-flow-item{position:relative}.event-flow-item:before{counter-increment:flow;content:"STEP " counter(flow);position:absolute;top:-10px;left:16px;background:var(--brand,#8f293a);color:white;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:800;letter-spacing:.08em}.media-thumb video{width:100%;height:100%;object-fit:cover;display:block}.media-thumb{position:relative}.media-video-badge{position:absolute;right:8px;bottom:8px;background:rgba(26,20,22,.8);color:white;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:800;letter-spacing:.08em}
+    @media(max-width:900px){.event-admin-table td:first-child{min-width:280px}.event-admin-main{grid-template-columns:74px minmax(0,1fr)}.event-admin-thumb{width:74px;height:54px}.event-builder-grid{grid-template-columns:1fr}.event-builder-title{grid-template-columns:1fr}.event-builder-title>button{grid-column:1;grid-row:auto;justify-self:start}.event-builder-title>small{grid-column:1}.event-inline-upload{align-items:flex-start;flex-direction:column}}
+  
+    /* V16 compact event editor */
+    .event-editor-section{border:1px solid var(--border,#ead8dc);border-radius:16px;background:#fff;overflow:hidden;margin:4px 0}.event-editor-section>summary{list-style:none;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;background:linear-gradient(180deg,#fff,#fffafb);user-select:none}.event-editor-section>summary::-webkit-details-marker{display:none}.event-editor-section>summary div{min-width:0}.event-editor-section>summary strong{display:block;font-size:15px;color:var(--ink,#19332b)}.event-editor-section>summary small{display:block;margin-top:3px;color:var(--muted,#68756f);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.event-section-count{display:grid;place-items:center;min-width:30px;height:28px;padding:0 9px;border-radius:999px;background:#f8eaed;color:var(--brand,#8f293a);font-weight:800;font-size:12px}.event-section-chevron{font-size:20px;color:var(--brand,#8f293a);transition:transform .2s}.event-editor-section[open] .event-section-chevron{transform:rotate(180deg)}.event-section-body{border-top:1px solid var(--border,#ead8dc);padding:14px}.event-section-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.event-section-toolbar>div{display:flex;gap:8px;flex-wrap:wrap}.event-section-toolbar small{color:var(--muted,#68756f);text-align:right}.event-media-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.event-media-tile{padding:0!important;border-radius:14px!important;overflow:hidden;box-shadow:none!important;background:#fff!important;min-width:0}.event-media-preview{position:relative;aspect-ratio:16/10;background:#f5edef;overflow:hidden}.event-media-preview img,.event-media-preview video{width:100%;height:100%;object-fit:cover;display:block}.event-media-empty{height:100%;display:grid;place-items:center;color:var(--muted,#68756f);font-size:12px}.event-media-remove,.event-drag-handle{position:absolute;z-index:3;border:0;display:grid;place-items:center;cursor:pointer;box-shadow:0 5px 14px rgba(40,20,26,.18)}.event-media-remove{right:8px;top:8px;width:28px;height:28px;border-radius:50%;background:#fff;color:#a22d3f;font-size:20px;line-height:1}.event-media-preview>.event-drag-handle{left:8px;top:8px;width:32px;height:28px;border-radius:8px;background:rgba(255,255,255,.94);color:var(--brand,#8f293a);font-size:14px;touch-action:none}.event-media-type-badge{position:absolute;left:8px;bottom:8px;padding:4px 7px;border-radius:999px;background:rgba(25,25,25,.78);color:#fff;font-size:9px;font-weight:800;letter-spacing:.08em}.event-media-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:9px}.event-media-meta input{min-width:0;height:36px!important;padding:8px 10px!important;font-size:12px!important}.event-mini-button{height:36px;border:1px solid var(--border,#ead8dc);background:#fff;border-radius:9px;color:var(--brand,#8f293a);font-weight:700;padding:0 9px;cursor:pointer}.event-builder-list{gap:8px!important}.event-compact-item{padding:0!important;border-radius:12px!important;overflow:hidden;box-shadow:none!important}.event-compact-item>summary{list-style:none;display:grid;grid-template-columns:26px minmax(0,1fr) auto 30px;align-items:center;gap:9px;padding:10px 12px;cursor:pointer}.event-compact-item>summary::-webkit-details-marker{display:none}.event-compact-item>summary .event-drag-handle{position:static;width:26px;height:28px;border:1px solid var(--border,#ead8dc);background:#fff;border-radius:7px;box-shadow:none;color:var(--brand,#8f293a);touch-action:none}.event-compact-item>summary strong{font-size:13px;color:var(--ink,#19332b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.event-compact-item>summary small{font-size:11px;color:var(--muted,#68756f);white-space:nowrap}.event-summary-remove{position:static!important;width:28px!important;height:28px!important;min-width:28px!important;padding:0!important;border-radius:50%!important;font-size:18px!important}.event-compact-item>.event-builder-grid{padding:12px;border-top:1px solid var(--border,#ead8dc)}.event-inline-upload-compact{padding:7px 9px!important}.event-builder-item.is-dragging{opacity:.48;outline:2px dashed var(--brand,#8f293a);outline-offset:2px}.event-flow-item:before{display:none!important}
+    @media(max-width:1200px){.event-media-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:900px){.event-media-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.event-section-toolbar{align-items:flex-start;flex-direction:column}.event-section-toolbar small{text-align:left}.event-editor-section>summary small{white-space:normal}}@media(max-width:620px){.event-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.event-compact-item>summary{grid-template-columns:26px minmax(0,1fr) 30px}.event-compact-item>summary small{display:none}.event-editor-section>summary{padding:12px}.event-section-body{padding:10px}}
+
+    /* V17 logo-only sponsor manager */
+    .event-sponsor-admin-grid{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px!important}.event-sponsor-tile{padding:0!important;border-radius:13px!important;overflow:hidden;box-shadow:none!important;background:#fff!important}.event-sponsor-preview{position:relative;aspect-ratio:3/2;display:grid;place-items:center;padding:14px;background:#fffafb;border-bottom:1px solid var(--border,#ead8dc)}.event-sponsor-preview img{max-width:100%;max-height:64px;width:auto;height:auto;object-fit:contain}.event-sponsor-empty{font-size:12px;color:var(--muted,#68756f)}.event-sponsor-preview>.event-drag-handle{left:7px;top:7px;width:30px;height:27px;border-radius:8px;background:rgba(255,255,255,.96);color:var(--brand,#8f293a);font-size:14px;touch-action:none}.event-sponsor-replace{margin:7px;width:calc(100% - 14px)}
+    @media(max-width:1200px){.event-sponsor-admin-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}@media(max-width:900px){.event-sponsor-admin-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:620px){.event-sponsor-admin-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+    /* V22 simple editors for Companies, Alumni and Job Seekers */
+    .easy-editor-card{max-width:1040px;margin:0 auto}.easy-editor-form{align-items:start}.easy-media-field{display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;align-items:center;padding:16px;border:1px solid var(--border,#ead8dc);border-radius:16px;background:linear-gradient(180deg,#fff,#fffafb)}.easy-media-preview{width:170px;aspect-ratio:4/3;border:1px dashed var(--border,#ead8dc);border-radius:14px;background:#faf4f5;display:grid;place-items:center;overflow:hidden;color:var(--muted,#68756f);font-size:12px}.easy-media-preview img{width:100%;height:100%;object-fit:cover;display:block}.easy-media-controls{min-width:0}.easy-media-controls>strong{display:block;font-size:15px;color:var(--ink,#19332b)}.easy-media-controls>small{display:block;margin-top:4px;color:var(--muted,#68756f);line-height:1.45}.easy-media-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.easy-upload-button{display:inline-flex!important;align-items:center;justify-content:center;cursor:pointer;margin:0!important}.easy-media-path{display:block;margin-top:8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.easy-editor-section{border:1px solid var(--border,#ead8dc);border-radius:14px;background:#fff;overflow:hidden}.easy-editor-section>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 15px;cursor:pointer;background:#fffafb}.easy-editor-section>summary::-webkit-details-marker{display:none}.easy-editor-section>summary strong{display:block;color:var(--ink,#19332b);font-size:14px}.easy-editor-section>summary small{display:block;margin-top:3px;color:var(--muted,#68756f)}.easy-editor-section>summary>span{font-size:20px;color:var(--brand,#8f293a);transition:transform .2s}.easy-editor-section[open]>summary>span{transform:rotate(180deg)}.easy-editor-body{padding:14px;border-top:1px solid var(--border,#ead8dc)}.easy-inner-grid{margin:0!important}.easy-inner-grid label{margin:0}.easy-editor-form textarea{resize:vertical;min-height:92px}.easy-editor-form .form-actions{position:sticky;bottom:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);padding:12px 0 2px;margin-top:4px}
+    @media(max-width:720px){.easy-media-field{grid-template-columns:1fr}.easy-media-preview{width:100%;max-width:260px}.easy-editor-card{max-width:none}}
+
+
+    /* V23 review admin tabs and non-overlapping reviewer rows */
+    .review-admin-tabs{display:inline-flex;gap:6px;padding:6px;margin:0 0 16px;border:1px solid var(--border,#ead8dc);border-radius:14px;background:#fffafb}.review-admin-tabs button{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 15px;border:0;border-radius:10px;background:transparent;color:var(--muted,#68756f);font-weight:800;cursor:pointer}.review-admin-tabs button span{display:grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:#f3e8ea;color:var(--brand,#8f293a);font-size:11px}.review-admin-tabs button.active{background:var(--brand,#8f293a);color:#fff}.review-admin-tabs button.active span{background:rgba(255,255,255,.18);color:#fff}.review-admin-table th:first-child{width:42%}.review-admin-person{display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;gap:14px;min-width:0}.review-admin-avatar{display:grid;place-items:center;width:58px;height:58px;overflow:hidden;border-radius:14px;background:#f6e9ec;color:var(--brand,#8f293a);font-weight:800}.review-admin-avatar img{display:block;width:100%;height:100%;object-fit:cover}.review-admin-copy{min-width:0;position:static!important}.review-admin-copy strong,.review-admin-copy small{display:block;position:static!important;transform:none!important;margin:0!important}.review-admin-copy strong{font-size:13px;line-height:1.35;color:var(--ink,#19332b)}.review-admin-copy small{margin-top:5px!important;max-width:460px;color:var(--muted,#68756f);font-size:11px;line-height:1.45;white-space:normal;overflow-wrap:anywhere}.review-admin-stars{white-space:nowrap;color:#a46d12;letter-spacing:1px}.review-admin-featured{display:inline-flex;margin-left:6px;color:var(--brand,#8f293a);font-weight:800}.review-admin-table-wrap{max-height:none!important;overflow:auto}.review-admin-table td{vertical-align:middle}
+
+
+    /* V27 course delivery mode editor */
+    .course-mode-switcher{grid-column:1/-1;border:1px solid var(--border,#ead8dc);border-radius:18px;padding:16px;background:linear-gradient(180deg,#fff,#fff8f9);box-shadow:0 10px 30px rgba(94,28,43,.045)}
+    .course-mode-switcher-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:12px}.course-mode-switcher-head strong{display:block;color:var(--ink,#19332b);font-size:16px}.course-mode-switcher-head small{display:block;margin-top:4px;color:var(--muted,#68756f);line-height:1.5;max-width:780px}.course-mode-required{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#f8e9ec;color:var(--brand,#8f293a);font-size:11px;font-weight:800;white-space:nowrap}
+    .course-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.course-mode-tab{border:1px solid var(--border,#ead8dc);border-radius:14px;background:#fff;padding:13px 15px;text-align:left;cursor:pointer;transition:.18s ease;color:var(--ink,#19332b)}.course-mode-tab:hover{border-color:#cfaeb5;transform:translateY(-1px);box-shadow:0 8px 20px rgba(91,27,42,.06)}.course-mode-tab strong{display:block;font-size:14px}.course-mode-tab span{display:block;margin-top:3px;color:var(--muted,#68756f);font-size:11px;line-height:1.4}.course-mode-tab.active{background:linear-gradient(135deg,var(--brand,#8f293a),#a13b4c);border-color:transparent;color:#fff;box-shadow:0 10px 24px rgba(133,41,55,.2)}.course-mode-tab.active span{color:rgba(255,255,255,.82)}
+    .course-mode-context{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#fbf4f5;border:1px solid #f0dde1;color:var(--muted,#68756f);font-size:12px}.course-mode-context strong{color:var(--brand,#8f293a)}
+    .course-mode-pill{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#f8e9ec;color:var(--brand,#8f293a);font-size:11px;font-weight:800;text-transform:capitalize}
+    @media(max-width:760px){.course-mode-tabs{grid-template-columns:1fr}.course-mode-switcher-head{flex-direction:column}.course-mode-required{align-self:flex-start}}
+
+    /* V29 course editor spacing: consistent for Physical, Live and Recorded */
+    .course-editor-modal{padding:30px 30px 26px!important;scroll-padding-bottom:40px}
+    .course-editor-modal>header{margin-bottom:26px!important}
+    #courseForm{row-gap:20px;padding-bottom:6px}
+    #courseForm>.course-mode-switcher,#courseForm>.course-mode-context,#courseForm>.course-form-section,#courseForm>.form-submit-status,#courseForm>.modal-actions{margin:0!important}
+    .course-mode-switcher{padding:20px!important;border-radius:20px!important}
+    .course-mode-switcher-head{margin-bottom:16px!important}
+    .course-mode-tabs{gap:12px!important}
+    .course-mode-tab{min-height:78px;padding-top:16px!important;padding-bottom:16px!important}
+    .course-mode-context{min-height:48px;padding:12px 16px!important;border-radius:14px!important;line-height:1.5;flex-wrap:wrap}
+    .course-form-section{padding:24px!important;border-radius:20px!important}
+    .course-form-section-head{margin-bottom:22px!important}
+    .course-form-section-head h3{margin-bottom:7px!important}
+    .course-form-section .nested-grid{column-gap:18px!important;row-gap:2px!important}
+    .course-form-section .nested-grid>label{margin-bottom:18px!important}
+    .course-form-section .nested-grid>label.full{margin-top:2px}
+    .course-form-section textarea{line-height:1.55}
+    .course-editor-modal .modal-actions{position:static!important;margin-top:2px!important;padding:18px 0 0!important;border-top:1px solid var(--border,#ead8dc);background:#fff!important}
+    .course-editor-modal .modal-actions .primary-button,.course-editor-modal .modal-actions .secondary-button{min-height:50px;padding-inline:22px}
+    @media(max-width:760px){.course-editor-modal{padding:22px 18px 20px!important}#courseForm{row-gap:16px}.course-mode-switcher{padding:16px!important}.course-form-section{padding:18px!important}.course-form-section-head{margin-bottom:18px!important}.course-editor-modal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.course-editor-modal .modal-actions button{width:100%}}
+
+
+    /* V28 multi-delivery course tabs */
+    .course-mode-tab{position:relative;padding-left:52px!important}.course-mode-check{position:absolute!important;left:14px;top:50%;transform:translateY(-50%);display:grid!important;place-items:center;width:26px;height:26px;border-radius:8px;background:#f5eaec;color:var(--brand,#8f293a)!important;font-size:14px!important;font-weight:900!important;margin:0!important}.course-mode-tab.enabled .course-mode-check{background:#e7f5ec;color:#2e7d4f!important}.course-mode-tab.active .course-mode-check{background:rgba(255,255,255,.2);color:#fff!important}.course-mode-tab:not(.enabled){opacity:.72}.course-mode-tab:not(.enabled):after{content:'Not enabled';position:absolute;right:10px;top:9px;font-size:9px;font-weight:800;color:#9d6d76}.course-mode-tab.active:after{display:none}.course-mode-context.is-disabled{background:#fff5e9;border-color:#f0d4ad}.course-mode-context.is-disabled strong{color:#9a5d14}
+
+
+    /* V43 unified student management */
+    .student-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.student-summary-card{border:1px solid var(--border,#ead8dc);border-radius:18px;background:#fff;padding:17px 18px;box-shadow:0 10px 30px rgba(87,29,42,.05)}.student-summary-card small{display:block;color:var(--muted,#68756f);font-weight:700}.student-summary-card strong{display:block;margin-top:6px;font-size:25px;color:var(--ink,#19332b)}.student-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding:6px;border:1px solid var(--border,#ead8dc);border-radius:15px;background:#fff}.student-tabs button{border:0;background:transparent;border-radius:11px;padding:10px 15px;font-family:inherit;font-size:13px;font-weight:700;color:var(--muted,#68756f);cursor:pointer}.student-tabs button.active{background:var(--brand,#852937);color:#fff}.student-profile-cell{display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:11px}.student-profile-cell img,.student-profile-cell>span{width:48px;height:48px;border-radius:14px;object-fit:cover;display:grid;place-items:center;background:#f7eaed;color:var(--brand,#852937);font-weight:800}.student-profile-cell strong,.student-profile-cell small{display:block}.student-id-chip{display:inline-flex;padding:5px 8px;border-radius:999px;background:#f7eaed;color:var(--brand,#852937);font-weight:800;font-size:11px}.fee-pill{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:800;text-transform:capitalize}.fee-complete{background:#e8f6ed;color:#2d744b}.fee-partial{background:#fff3db;color:#97620f}.fee-pending{background:#fbe8eb;color:#9d2d41}.student-editor{display:grid;gap:16px}.student-editor-card{border:1px solid var(--border,#ead8dc);border-radius:18px;background:#fff;padding:20px}.student-editor-card h2{margin:0 0 5px;font-size:18px}.student-editor-card>p{margin:0 0 18px;color:var(--muted,#68756f)}.student-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}.student-editor-grid .full{grid-column:1/-1}.student-checks{display:grid;grid-template-columns:1fr 1fr;gap:12px}.student-check-card{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border,#ead8dc);border-radius:14px;padding:14px;background:#fffafb}.student-check-card input{margin-top:3px}.student-check-card strong,.student-check-card small{display:block}.student-extra-panel{margin-top:14px;padding:16px;border-radius:14px;background:#fffafb;border:1px solid var(--border,#ead8dc)}.student-fee-meter{height:10px;border-radius:999px;background:#f2e5e8;overflow:hidden;margin-top:8px}.student-fee-meter span{display:block;height:100%;background:var(--brand,#852937);width:0}.student-fee-line{display:flex;justify-content:space-between;gap:12px;align-items:center}.student-fee-line strong{font-size:16px}.student-form-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:4px}.student-linked-badge{display:inline-flex;margin-left:5px;padding:3px 7px;border-radius:999px;background:#edf4ff;color:#365f93;font-size:9px;font-weight:800}.student-table-note{color:var(--muted,#68756f);font-size:12px}.nav-parent-group{display:grid;gap:2px}.nav-parent-group>.nav-parent-button{width:100%}.nav-submenu{display:grid;gap:2px;margin:0 0 4px 22px;padding:3px 0 3px 14px;border-left:1px solid rgba(255,255,255,.2)}.nav-submenu button{width:100%;min-height:36px;padding:8px 12px!important;border-radius:10px!important;font-size:12px!important;font-weight:700!important;opacity:.86;text-align:left}.nav-submenu button span{font-size:14px;opacity:.7}.nav-submenu button:hover,.nav-submenu button.active{background:rgba(255,255,255,.14)!important;color:#fff!important;opacity:1}.nav-parent-group.is-active>.nav-parent-button{background:rgba(255,255,255,.13)!important}.nav-parent-group.is-active .nav-submenu{display:grid}
+    @media(max-width:1000px){.student-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.student-editor-grid,.student-checks{grid-template-columns:1fr}.student-editor-grid .full{grid-column:auto}.student-summary-grid{grid-template-columns:1fr 1fr}.student-form-actions{display:grid;grid-template-columns:1fr 1fr}.student-form-actions button{width:100%}}
+
+    /* V49 premium student editor */
+    .student-editor{max-width:1180px;margin:0 auto 34px;gap:20px}
+    .student-editor-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:21px 24px;border:1px solid var(--border,#ead8dc);border-radius:20px;background:linear-gradient(135deg,#fff 0%,#fff8f9 100%);box-shadow:0 12px 34px rgba(91,27,42,.055)}
+    .student-editor-hero-copy{display:flex;align-items:center;gap:15px;min-width:0}.student-editor-hero-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;flex:none;background:#f7e8eb;color:var(--brand,#852937);font-size:22px;font-weight:900}.student-editor-hero h2{margin:0;color:var(--ink,#19332b);font-size:20px}.student-editor-hero p{margin:5px 0 0;color:var(--muted,#68756f);line-height:1.5}.student-editor-id{display:grid;justify-items:end;gap:4px;flex:none}.student-editor-id span{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted,#68756f)}.student-editor-id strong{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:10px;background:#fff;border:1px solid var(--border,#ead8dc);color:var(--brand,#852937);font-size:12px}
+    .student-editor-card{padding:0!important;border-radius:20px!important;overflow:hidden;box-shadow:0 10px 30px rgba(74,35,45,.045)}
+    .student-card-head{display:flex;align-items:flex-start;gap:13px;padding:19px 22px 17px;border-bottom:1px solid var(--border,#ead8dc);background:linear-gradient(180deg,#fff,#fffafb)}.student-card-step{width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:10px;background:#f7e8eb;color:var(--brand,#852937);font-size:12px;font-weight:900}.student-card-head h2{margin:0!important;font-size:17px!important;color:var(--ink,#19332b)}.student-card-head p{margin:4px 0 0!important;color:var(--muted,#68756f)!important;font-size:12px;line-height:1.45}.student-card-body{padding:22px}
+    .student-editor-grid{gap:17px 18px!important}.student-editor-grid>label{display:grid!important;gap:7px!important;align-content:start!important;margin:0!important;min-width:0;color:var(--ink,#19332b)!important;font-size:12px!important;font-weight:800!important}.student-editor-grid>label small{font-weight:500;color:var(--muted,#68756f)}
+    .student-editor input:not([type=checkbox]):not([type=file]),.student-editor select,.student-editor textarea{display:block;width:100%!important;max-width:none!important;min-width:0!important;border:1px solid #decbd0!important;border-radius:12px!important;background:#fff!important;color:var(--ink,#19332b)!important;font:inherit!important;font-size:13px!important;outline:none!important;box-shadow:0 1px 0 rgba(67,25,36,.02);transition:border-color .18s,box-shadow .18s,background .18s}.student-editor input:not([type=checkbox]):not([type=file]),.student-editor select{height:48px!important;padding:0 13px!important}.student-editor textarea{min-height:105px;padding:12px 13px!important;line-height:1.5;resize:vertical}.student-editor input[readonly]{background:#f8f5f5!important;color:#7e8581!important}.student-editor input:focus,.student-editor select:focus,.student-editor textarea:focus{border-color:var(--brand,#852937)!important;box-shadow:0 0 0 3px rgba(133,41,55,.09)!important}
+    .student-identity-layout{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:22px;align-items:start}.student-identity-main{min-width:0}.student-photo-panel{height:100%}.student-photo-panel .easy-media-field{grid-template-columns:1fr!important;gap:13px!important;height:100%;padding:16px!important;background:#fffafb!important;border-radius:16px!important}.student-photo-panel .easy-media-preview{width:100%!important;aspect-ratio:1/1!important;border-radius:15px!important;background:#fff!important}.student-photo-panel .easy-media-controls{text-align:left}.student-photo-panel .easy-media-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}.student-photo-panel .easy-media-actions>*{width:100%!important;min-height:40px!important;padding:8px 10px!important;font-size:11px!important}.student-photo-panel .easy-media-path{font-size:10px}
+    .student-course-grid{grid-template-columns:1.2fr .9fr 1.25fr .75fr!important}.student-fee-grid{grid-template-columns:1fr 1fr!important}.student-auto-source{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border:1px solid #e9d4d9;border-radius:14px;background:#fffafb;color:var(--muted,#68756f);font-size:12px}.student-auto-source strong{color:var(--brand,#852937);font-size:12px;white-space:nowrap}.student-auto-source span{text-align:right}.student-editor input[readonly]{background:#f7f3f4!important;color:#43504b!important;cursor:not-allowed}.student-fee-preview-card{padding:16px 17px;border:1px solid #ead8dc;border-radius:14px;background:#fffafb}.student-fee-line span{font-size:12px;font-weight:800;color:var(--brand,#852937)}.student-fee-line strong{font-size:15px!important}.student-fee-meter{height:8px!important;background:#eadfe1!important}.student-fee-meter span{background:linear-gradient(90deg,var(--brand,#852937),#b1495a)!important}
+    .student-checks{gap:14px!important}.student-check-card{position:relative;min-height:94px;padding:16px 16px 16px 52px!important;cursor:pointer;background:#fff!important;transition:border-color .18s,box-shadow .18s,transform .18s}.student-check-card:hover{border-color:#cfadb4;box-shadow:0 8px 22px rgba(91,27,42,.055);transform:translateY(-1px)}.student-check-card input{position:absolute;left:17px;top:18px;width:21px!important;height:21px!important;accent-color:var(--brand,#852937)}.student-check-card strong{font-size:14px;color:var(--ink,#19332b)}.student-check-card small{margin-top:5px;color:var(--muted,#68756f);line-height:1.45}.student-extra-panel{margin:16px 0 0!important;padding:18px!important;border-radius:16px!important;background:#fffafb!important}
+    .student-form-actions{position:sticky;bottom:12px;z-index:8;justify-content:flex-end!important;gap:10px!important;padding:12px!important;border:1px solid rgba(222,203,208,.9);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 40px rgba(61,28,36,.12);backdrop-filter:blur(10px)}.student-form-actions button{min-width:145px;min-height:46px}
+    @media(max-width:980px){.student-identity-layout{grid-template-columns:1fr}.student-photo-panel .easy-media-field{grid-template-columns:150px 1fr!important}.student-photo-panel .easy-media-preview{width:150px!important}.student-course-grid{grid-template-columns:1fr 1fr!important}.student-auto-source{grid-column:1/-1}}
+    @media(max-width:700px){.student-editor-hero{align-items:flex-start;padding:18px}.student-editor-id{display:none}.student-card-body{padding:17px}.student-editor-grid,.student-course-grid,.student-fee-grid{grid-template-columns:1fr!important}.student-auto-source{grid-column:auto;display:grid;justify-content:start}.student-auto-source span{text-align:left}.student-photo-panel .easy-media-field{grid-template-columns:1fr!important}.student-photo-panel .easy-media-preview{width:100%!important;max-width:230px!important;margin:auto}.student-form-actions{bottom:8px;grid-template-columns:1fr 1fr!important}.student-form-actions button{min-width:0}}
+
+    .certificate-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:22px}
+    .certificate-summary-card{position:relative;overflow:hidden;border:1px solid #ead8dc;border-radius:20px;background:linear-gradient(145deg,#fff 0%,#fffafb 100%);padding:20px 22px;box-shadow:0 12px 32px rgba(87,29,42,.055)}
+    .certificate-summary-card:after{content:"";position:absolute;right:-26px;bottom:-34px;width:100px;height:100px;border-radius:50%;background:rgba(133,41,55,.05)}
+    .certificate-summary-card small{display:block;color:#7b817e;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.certificate-summary-card strong{display:block;margin-top:8px;font-size:30px;line-height:1;color:#20352d}
+    .certificate-panel{border:1px solid #ead8dc;border-radius:22px;background:#fff;overflow:hidden;margin-bottom:22px;box-shadow:0 14px 38px rgba(77,31,42,.045)}
+    .certificate-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 26px;border-bottom:1px solid #ead8dc;background:linear-gradient(180deg,#fff,#fffafb)}
+    .certificate-panel-head h2{margin:0 0 5px;font-size:20px;color:#20352d}.certificate-panel-head p{margin:0;color:#737d78;line-height:1.5}
+    .certificate-panel-body{padding:26px}
+    .certificate-bulk-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);gap:24px;align-items:start}
+    .certificate-id-card,.certificate-authority-card{border:1px solid #ead8dc;border-radius:18px;background:#fffafb;padding:20px}
+    .certificate-id-card h3,.certificate-authority-card h3{margin:0 0 5px;font-size:15px;color:#20352d}.certificate-id-card>p,.certificate-authority-card>p{margin:0 0 16px;color:#78817d;font-size:12px;line-height:1.5}
+    .certificate-bulk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .certificate-bulk-grid .full{grid-column:1/-1}
+    .certificate-bulk-grid label,.signing-authority-form label{display:grid;gap:7px;margin:0;color:#24372f;font-size:12px;font-weight:800}
+    .certificate-bulk-grid label small,.signing-authority-form label small{font-weight:500;color:#7b827e}
+    .certificate-bulk-grid input,.certificate-bulk-grid select,.certificate-bulk-grid textarea,.signing-authority-form input,.signing-authority-form select,.signing-authority-form textarea{width:100%;max-width:none;box-sizing:border-box;border:1px solid #dcc8ce;border-radius:13px;background:#fff;color:#20352d;font:inherit;font-size:13px;outline:none;transition:border-color .18s,box-shadow .18s}
+    .certificate-bulk-grid input,.certificate-bulk-grid select,.signing-authority-form input,.signing-authority-form select{height:48px;padding:0 13px}
+    .certificate-bulk-grid textarea,.signing-authority-form textarea{min-height:210px;padding:13px;line-height:1.55;resize:vertical}
+    .certificate-bulk-grid input:focus,.certificate-bulk-grid select:focus,.certificate-bulk-grid textarea:focus,.signing-authority-form input:focus,.signing-authority-form select:focus,.signing-authority-form textarea:focus{border-color:#922f40;box-shadow:0 0 0 3px rgba(146,47,64,.09)}
+    .certificate-id-example{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:11px 13px;border-radius:12px;background:#f5e7ea;color:#7c3340;font-size:11px}.certificate-id-example code{font-weight:900;color:#672632}
+    .certificate-resolved-list{display:grid;gap:8px;margin-top:14px}.certificate-resolved-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #ead8dc;border-radius:12px;background:#fff}.certificate-resolved-item strong{display:block;font-size:12px;color:#20352d}.certificate-resolved-item small{display:block;margin-top:2px;color:#7b827e}.certificate-resolved-empty{padding:12px;border:1px dashed #decbd0;border-radius:12px;color:#7b827e;font-size:12px;background:#fff}
+    .certificate-authority-preview{display:grid;grid-template-columns:76px 1fr;gap:14px;align-items:center;margin-top:14px;padding:14px;border:1px solid #ead8dc;border-radius:14px;background:#fff}.certificate-authority-preview-image{width:76px;height:76px;border-radius:12px;border:1px solid #eee;background:#fafafa;display:grid;place-items:center;overflow:hidden;color:#8c8f8d;font-size:10px;text-align:center}.certificate-authority-preview-image img{width:100%;height:100%;object-fit:contain}.certificate-authority-preview-copy strong,.certificate-authority-preview-copy span,.certificate-authority-preview-copy small{display:block}.certificate-authority-preview-copy strong{font-size:14px;color:#20352d}.certificate-authority-preview-copy span{margin-top:3px;color:#853041;font-weight:800;font-size:12px}.certificate-authority-preview-copy small{margin-top:5px;color:#7b827e}
+    .certificate-help{padding:13px 15px;border-radius:13px;background:#f7eaed;color:#6f2936;font-size:12px;line-height:1.55}
+    .certificate-link-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#edf5ef;color:#245a3b;font-weight:800;font-size:11px;text-decoration:none}
+    .certificate-link-chip:hover{text-decoration:underline}.certificate-state{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid #ead8dc;border-radius:14px;background:#fffafb}
+    .certificate-state strong,.certificate-state small{display:block}.certificate-state small{margin-top:3px;color:#68756f}.certificate-state-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .certificate-editor-preview{border:1px dashed #d8c2c8;border-radius:16px;background:#fffafb;padding:16px;display:grid;gap:6px}.certificate-editor-preview strong{font-size:18px}.certificate-editor-preview small{color:#68756f}
+    .certificate-table-link{font-weight:800;color:#852937;text-decoration:none}.certificate-table-link:hover{text-decoration:underline}
+    .signing-authority-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .signing-authority-card{border:1px solid #ead8dc;border-radius:18px;background:#fff;padding:18px;box-shadow:0 9px 26px rgba(87,29,42,.045)}.signing-authority-card-head{display:flex;align-items:center;gap:13px}.signing-authority-avatar{width:58px;height:58px;flex:none;border:1px solid #ead8dc;border-radius:13px;background:#fffafb;display:grid;place-items:center;overflow:hidden;color:#8a817f;font-size:10px;text-align:center}.signing-authority-avatar img{width:100%;height:100%;object-fit:contain}.signing-authority-card h3{margin:0;font-size:15px;color:#20352d}.signing-authority-card p{margin:4px 0 0;color:#7a817e;font-size:12px}.signing-authority-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:15px;padding-top:13px;border-top:1px solid #f0e3e6}.signing-authority-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .signing-authority-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.signing-authority-form .full{grid-column:1/-1}.signing-authority-signature-preview{min-height:120px;border:1px dashed #d8c2c8;border-radius:14px;background:#fffafb;display:grid;place-items:center;padding:16px;color:#7b827e}.signing-authority-signature-preview img{max-width:280px;max-height:110px;object-fit:contain}
+    @media(max-width:1050px){.certificate-bulk-layout{grid-template-columns:1fr}.signing-authority-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:900px){.certificate-summary-grid,.certificate-bulk-grid{grid-template-columns:1fr}.certificate-bulk-grid .full{grid-column:auto}.certificate-panel-head,.certificate-state{align-items:stretch;flex-direction:column}.certificate-state-actions{justify-content:flex-start}.signing-authority-grid{grid-template-columns:1fr}}
+    @media(max-width:620px){.certificate-panel-body{padding:18px}.certificate-panel-head{padding:18px}.signing-authority-form{grid-template-columns:1fr}.signing-authority-form .full{grid-column:auto}}
+
+</style>
+
+<script src="../js/language-runtime.js?v=122.0" defer></script>
+</head>
+<body>
+  <main class="login-page" id="loginView">
+    <section class="login-panel">
+      <a class="admin-brand" href="../index.html">
+        <span class="brand-mark" data-admin-logo-fallback>FS</span>
+        <img class="admin-logo-image" data-admin-logo alt="Full Stack Academy" hidden>
+        <span class="admin-brand-copy"><strong data-admin-site-name>Full Stack Academy</strong><small>Administration</small></span>
+      </a>
+      <div class="login-copy">
+        <span class="eyebrow">Secure Administration</span>
+        <h1>Manage your academy from one dashboard.</h1>
+        <p>Control courses, orders, enrollments, users, email delivery and website settings.</p>
+      </div>
+      <div class="login-feature-grid">
+        <article><span>01</span><strong>Course Commerce</strong><p>Manage courses, orders and student access.</p></article>
+        <article><span>02</span><strong>User Control</strong><p>Create, edit and manage learner accounts.</p></article>
+        <article><span>03</span><strong>Email Centre</strong><p>Configure SMTP, templates and delivery records.</p></article>
+      </div>
+    </section>
+    <section class="login-form-side">
+      <form class="login-card" id="adminLoginForm" novalidate aria-describedby="adminLoginStatus">
+        <span class="eyebrow">Administrator Login</span>
+        <h2>Welcome back</h2>
+        <p>Enter your administrator account details.</p>
+        <label>Email address<input name="email" type="email" autocomplete="username" required></label>
+        <label>Password<span class="password-field"><input name="password" type="password" autocomplete="current-password" required minlength="8"><button type="button" data-action="toggle-password" aria-label="Show password">Show</button></span></label>
+        <button class="primary-button" type="submit">Sign In to Dashboard</button>
+        <p class="login-status" id="adminLoginStatus" role="status" aria-live="polite"></p>
+        <a class="back-link" href="../index.html">← Return to website</a>
+      </form>
+    </section>
+  </main>
+
+  <div class="admin-app" id="adminApp" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <a class="admin-brand compact" href="../index.html">
+          <span class="brand-mark" data-admin-logo-fallback>FS</span>
+          <img class="admin-logo-image" data-admin-logo alt="Full Stack Academy" hidden>
+          <span class="admin-brand-copy"><strong data-admin-site-name>Full Stack Academy</strong><small>Admin Dashboard</small></span>
+        </a>
+        <button class="icon-button mobile-only" data-action="close-sidebar" aria-label="Close navigation">×</button>
+      </div>
+      <nav class="admin-nav" aria-label="Administration navigation">
+        <button class="active" data-view="dashboard"><span>▦</span>Overview</button>
+        <span class="nav-label">Course Commerce</span>
+        <button data-view="courses"><span>▤</span>Courses</button>
+        <button data-view="batches"><span>◫</span>Batches</button>
+        <button data-view="branches"><span>⌂</span>Branches</button>
+        <button data-view="companies"><span>▥</span>Companies</button>
+        <button data-view="events"><span>◈</span>Events</button>
+        <button data-view="reviews"><span>✦</span>Reviews</button>
+        <div class="nav-parent-group" data-students-menu>
+          <button class="nav-parent-button" data-view="students"><span>◎</span>Students</button>
+          <div class="nav-submenu" aria-label="Students submenu">
+            <button data-student-section="enrolled"><span>•</span>Students Enrolled</button>
+            <button data-student-section="alumni"><span>•</span>Alumni</button>
+            <button data-student-section="candidates"><span>•</span>Job Seekers</button>
+            <button data-student-section="fees"><span>•</span>Fees</button>
+            <button data-student-section="certificates"><span>•</span>Certificates</button>
+            <button data-student-section="signing"><span>•</span>Signing Authorities</button>
+          </div>
+        </div>
+        <button data-view="video"><span>◉</span>Zoom Live</button>
+        <button data-view="media"><span>▧</span>Media Library</button>
+        <button data-view="orders"><span>₹</span>Orders</button>
+        <button data-view="enrollments"><span>✓</span>Enrollments</button>
+        <span class="nav-label">People & Support</span>
+        <button data-view="users"><span>◎</span>Users</button>
+        <button data-view="instructors"><span>♟</span>Instructors</button>
+        <button data-view="approvals"><span>✓</span>Approvals</button>
+        <button data-view="inquiries"><span>✉</span>Enquiries</button>
+        <span class="nav-label">Email Management</span>
+        <button data-view="smtp"><span>⇄</span>SMTP Setup</button>
+        <button data-view="templates"><span>▤</span>Email Templates</button>
+        <button data-view="logs"><span>◷</span>Email Logs</button>
+        <span class="nav-label">Website CMS</span>
+        <button data-view="pages"><span>▣</span>Pages</button>
+        <button data-view="snippets"><span>⌘</span>Code Snippets</button>
+        <button data-view="theme"><span>◉</span>Theme Colors</button>
+        <span class="nav-label">Configuration</span>
+        <button data-view="websiteContent"><span>✎</span>Website Content</button>
+        <button data-view="settings"><span>⚙</span>Website Settings</button>
+        <button data-view="account"><span>♙</span>Admin Account</button>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="../index.html" target="_blank" rel="noopener">Open Website ↗</a>
+        <button data-action="logout">Sign Out</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button mobile-only" data-action="open-sidebar" aria-label="Open navigation">☰</button>
+          <div><span class="topbar-label" data-admin-site-name>Full Stack Academy</span><strong id="viewTitle">Overview</strong></div>
+        </div>
+        <div class="topbar-right">
+          <span class="system-status"><i></i> System Online</span>
+          <button class="profile-chip" data-view="account"><span id="adminInitials">AD</span><span><strong id="adminName">Administrator</strong><small id="adminRole">Admin</small></span></button>
+        </div>
+      </header>
+      <section class="content" id="adminContent" aria-live="polite"></section>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header><div><span class="eyebrow">User Management</span><h2 id="modalTitle">Add User</h2></div><button class="icon-button" data-action="close-modal" aria-label="Close">×</button></header>
+      <form id="userForm" class="form-grid" novalidate>
+        <input type="hidden" name="id">
+        <label class="full">Full name<input name="name" required maxlength="120"></label>
+        <label>Email address<input name="email" type="email" required maxlength="190"></label>
+        <label>Phone number<input name="phone" maxlength="40"></label>
+        <label>User type<select name="role"><option value="super_admin">Super Admin</option><option value="admin_staff">Admin Staff</option><option value="branch_head">Branch Head</option><option value="branch_admin">Branch Admin</option><option value="instructor">Instructor</option><option value="student">Student</option></select></label>
+        <label>Status<select name="status"><option value="active">Active</option><option value="pending">Pending Approval</option><option value="blocked">Blocked</option></select></label>
+        <label>Academy login ID<input name="student_code" maxlength="40" placeholder="Auto-generated for students"></label>
+        <label>Branch<select name="branch" id="userBranchSelect"><option value="">Choose branch</option></select></label>
+        <label class="check-row full" id="recordedLecturePermissionRow" hidden><input name="can_record_lectures" type="checkbox"><span><strong>Can create recorded LMS lectures</strong><small>Only Super Admin / Admin Staff can grant this permission. Recorded LMS content still requires central approval before publishing.</small></span></label>
+        <label class="full">Password<input name="password" type="password" minlength="8" placeholder="Minimum 8 characters"></label>
+        <p class="form-hint full" id="passwordHint">A password is required for a new user.</p>
+        <p class="form-submit-status full" id="userFormStatus" role="status" aria-live="polite" hidden></p>
+        <div class="modal-actions full"><button class="secondary-button" type="button" data-action="close-modal">Cancel</button><button class="primary-button" type="submit">Save User</button></div>
+      </form>
+    </section>
+  </div>
+
+
+  <div class="modal-backdrop" id="accessModalBackdrop" hidden aria-hidden="true">
+    <section class="modal modal-wide access-editor-modal" role="dialog" aria-modal="true" aria-labelledby="accessModalTitle">
+      <header><div><span class="eyebrow">Student Access</span><h2 id="accessModalTitle">Grant Course Access</h2></div><button class="icon-button" data-action="close-access-modal" aria-label="Close">×</button></header>
+      <form id="accessForm" class="form-grid" novalidate>
+        <input type="hidden" name="id">
+        <label>Student<select name="user_id" required></select></label>
+        <label>Course<select name="course_id" required></select></label>
+        <label>Delivery mode<select name="delivery_mode" required><option value="offline">Physical / Offline</option><option value="live">Live</option><option value="recorded">Recorded</option></select></label>
+        <label>Access status<select name="status"><option value="active">Active</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
+        <label>Access starts<input name="access_starts_at" type="datetime-local"></label>
+        <label>Access expires<input name="access_expires_at" type="datetime-local"></label>
+        <label class="check-row"><input name="ip_lock_enabled" type="checkbox"><span><strong>Lock to first IP</strong><small>The first course opening saves the student IP.</small></span></label>
+        <label class="check-row full" id="resetIpRow" hidden><input name="reset_ip" type="checkbox"><span><strong>Reset saved IP</strong><small>Use when the student changes internet connection.</small></span></label>
+        <p class="form-submit-status full" id="accessFormStatus" role="status" aria-live="polite" hidden></p>
+        <div class="modal-actions full"><button class="secondary-button" type="button" data-action="close-access-modal">Cancel</button><button class="primary-button" type="submit">Save Access</button></div>
+      </form>
+    </section>
+  </div>
+
+
+  <div class="modal-backdrop" id="courseModalBackdrop" hidden aria-hidden="true">
+    <section class="modal modal-wide course-editor-modal" role="dialog" aria-modal="true" aria-labelledby="courseModalTitle">
+      <header><div><span class="eyebrow">Public Course Page</span><h2 id="courseModalTitle">Add Course</h2></div><button class="icon-button" data-action="close-course-modal" aria-label="Close">×</button></header>
+      <form id="courseForm" class="form-grid" novalidate>
+        <input type="hidden" name="id">
+        <div class="course-mode-switcher full">
+          <div class="course-mode-switcher-head">
+            <div><strong>Course delivery types</strong><small>Enable every version you sell. Each enabled tab keeps its own image, price, description, duration, learning outcomes, requirements, projects and reviews.</small></div>
+            <span class="course-mode-required">Enable at least one</span>
+          </div>
+          <div class="course-mode-tabs" role="tablist" aria-label="Course delivery types">
+            <button type="button" class="course-mode-tab active enabled" data-action="course-mode" data-mode="offline" role="tab" aria-selected="true"><span class="course-mode-check" data-action="toggle-course-mode" data-mode="offline">✓</span><strong>Physical / Offline</strong><span>Classroom or branch-based version</span></button>
+            <button type="button" class="course-mode-tab" data-action="course-mode" data-mode="live" role="tab" aria-selected="false"><span class="course-mode-check" data-action="toggle-course-mode" data-mode="live">+</span><strong>Live</strong><span>Instructor-led online/live version</span></button>
+            <button type="button" class="course-mode-tab" data-action="course-mode" data-mode="recorded" role="tab" aria-selected="false"><span class="course-mode-check" data-action="toggle-course-mode" data-mode="recorded">+</span><strong>Recorded</strong><span>Self-paced recorded version</span></button>
+          </div>
+        </div>
+        <div class="course-mode-context full" id="courseModeContext"><strong>Physical / Offline content</strong><span>This version is enabled. The fields below belong only to this delivery type.</span></div>
+        <div class="course-form-section full">
+          <div class="course-form-section-head"><div><h3>Basic Information</h3><p>Only the course title, category, slug and price are required. Empty optional fields stay hidden on the website.</p></div></div>
+          <div class="form-grid nested-grid">
+            <label>Course title<input name="title" required maxlength="190"></label>
+            <label>URL slug<input name="slug" required maxlength="190" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="course-name" autocapitalize="none" spellcheck="false"></label>
+            <label>Category<input name="category" required maxlength="120"></label>
+            <label>Status<select name="status"><option value="published">Published</option><option value="draft">Draft</option></select></label>
+            <label>Assigned branch<select name="branchName" id="courseBranchSelect"><option value="">Choose branch</option></select></label>
+            <label>Assigned instructor<select name="assignedInstructorId" id="courseInstructorSelect"><option value="0">No instructor assigned</option></select></label>
+            <label>Badge<input name="badge" maxlength="60" placeholder="Bestseller"></label>
+            <label class="check-row"><input name="featured" type="checkbox"><span><strong>Featured course</strong><small>Show prominently on the home page.</small></span></label>
+            <label>Price<input name="price" type="number" min="0" step="0.01" required></label>
+            <label>Original price<input name="originalPrice" type="number" min="0" step="0.01"></label>
+            <label>Duration<input name="duration" maxlength="80" placeholder="3 Months"></label>
+            <label>Level<input name="level" maxlength="100" placeholder="Beginner"></label>
+            <label>Learning hours<input name="hours" type="number" min="0"></label>
+            <label>Private lessons <small>Calculated automatically in the separate Private Lessons editor.</small><input name="lessons" type="number" min="0" readonly></label>
+            <label>Projects count <small>Calculated from project details when added.</small><input name="projects" type="number" min="0"></label>
+            <label>Rating<input name="rating" type="number" min="0" max="5" step="0.1"></label>
+            <label>Reviews count <small>Calculated from review details when added.</small><input name="reviews" type="number" min="0"></label>
+            <label>Students<input name="students" type="number" min="0"></label>
+            <label>Language<input name="language" maxlength="100"></label>
+            <label>Updated label<input name="updated" maxlength="80" placeholder="July 2026"></label>
+            <label>Instructor<input name="instructor" maxlength="150"></label>
+            <label>Instructor role<input name="instructorRole" maxlength="180"></label>
+            <label class="full">Course image<div class="media-input-row"><input name="image" maxlength="2000" placeholder="uploads/media/... or https://..."><button class="secondary-button" type="button" data-action="choose-media" data-media-target="image">Choose from Media</button></div><span class="field-preview" data-image-preview-for="image"></span></label>
+            <label class="full">Short description<textarea name="short" maxlength="2000"></textarea></label>
+          </div>
+        </div>
+
+        <div class="course-form-section full">
+          <div class="course-form-section-head"><div><h3>Overview</h3><p>Each item should be written on a new line. Leave any field empty to hide that block from the public course page.</p></div></div>
+          <div class="form-grid nested-grid">
+            <label class="full">Main course heading <small>Shown above the long-form course content.</small><input name="contentHeading" maxlength="190" placeholder="What you will master in this course"></label>
+            <label class="full">Key points <small>One clear outcome / point per line</small><textarea name="skills" rows="6" placeholder="Build responsive websites with HTML, CSS and JavaScript&#10;Create production-ready React applications"></textarea></label>
+            <label class="full">Main course content <small>The detailed explanation that follows the heading and key points.</small><textarea name="description" maxlength="20000" rows="8"></textarea></label>
+            <label class="full">Requirements <small>One per line</small><textarea name="requirements" rows="5"></textarea></label>
+            <label class="full">Who this course is for <small>One per line</small><textarea name="audience" rows="5"></textarea></label>
+          </div>
+        </div>
+
+        <div class="course-form-section full">
+          <div class="course-form-section-head"><div><h3>Projects</h3><p>Add the projects students will complete. Empty projects are ignored.</p></div><button class="secondary-button" type="button" data-action="add-project">+ Add Project</button></div>
+          <div class="content-builder" id="projectsBuilder"></div>
+          <p class="builder-empty" id="projectsEmpty">No project details added. The Projects tab will remain hidden.</p>
+        </div>
+
+        <div class="course-form-section full">
+          <div class="course-form-section-head"><div><h3>Course Reviews</h3><p>Add genuine course-specific reviews. Leave this empty to hide review cards.</p></div><button class="secondary-button" type="button" data-action="add-review">+ Add Review</button></div>
+          <div class="content-builder" id="reviewsBuilder"></div>
+          <p class="builder-empty" id="reviewsEmpty">No reviews added. The Reviews tab appears only when rating, review count or review details exist.</p>
+        </div>
+
+        <p class="form-submit-status full" id="courseFormStatus" role="status" aria-live="polite" hidden></p>
+        <div class="modal-actions full"><button class="secondary-button" type="button" data-action="close-course-modal">Cancel</button><button class="primary-button" type="submit">Save Public Page</button></div>
+      </form>
+    </section>
+  </div>
+
+
+  <div class="modal-backdrop" id="contentModalBackdrop" hidden aria-hidden="true">
+    <section class="modal modal-wide private-content-modal" role="dialog" aria-modal="true" aria-labelledby="contentModalTitle">
+      <header><div><span class="eyebrow">Protected Learning Area</span><h2 id="contentModalTitle">Private Lessons</h2><p id="contentModalCourseName">Only enrolled students can open this content.</p></div><button class="icon-button" data-action="close-content-modal" aria-label="Close">×</button></header>
+      <form id="privateContentForm" novalidate>
+        <input type="hidden" name="course_id">
+        <div class="private-editor-notice"><strong>Separate from the public course page</strong><p>Add modules, lessons, multiple lecture videos, text, images and resources here. The website sends this content only after login and active course access are confirmed.</p></div>
+        <div class="course-form-section">
+          <div class="course-form-section-head"><div><h3>Modules and Lessons</h3><p>Each lesson may contain one or many lecture videos. Use lecture titles such as Video 01, Video 02 or Topic 01.</p></div><button class="secondary-button" type="button" data-action="add-module">+ Add Module</button></div>
+          <div class="content-builder" id="curriculumBuilder"></div>
+          <p class="builder-empty" id="curriculumEmpty">No private lessons added yet.</p>
+        </div>
+        <p class="form-submit-status" id="privateContentFormStatus" role="status" aria-live="polite" hidden></p>
+        <div class="modal-actions"><button class="secondary-button" type="button" data-action="close-content-modal">Cancel</button><button class="primary-button" type="submit">Save Private Lessons</button></div>
+      </form>
+    </section>
+  </div>
+
+
+  <div class="modal-backdrop" id="mediaPickerBackdrop" hidden aria-hidden="true">
+    <section class="modal modal-wide media-picker-modal" role="dialog" aria-modal="true" aria-labelledby="mediaPickerTitle">
+      <header><div><span class="eyebrow">Media Library</span><h2 id="mediaPickerTitle">Choose an Image</h2></div><button class="icon-button" data-action="close-media-picker" aria-label="Close">×</button></header>
+      <p class="form-hint">Select an image below. Upload new files from the Media Library section.</p>
+      <div class="media-picker-grid" id="mediaPickerGrid"></div>
+    </section>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
+  <script src="js/admin.js?v=122.1-branches"></script>
+</body>
+</html>

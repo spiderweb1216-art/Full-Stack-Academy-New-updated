@@ -168,3 +168,600 @@ body.fsa-modal-locked{overflow:hidden}
 .course-mega-course-list .course-mega-course small{font-size:9px!important;line-height:1.35!important;display:block!important;margin-top:4px!important}
 .course-mega-course-list .course-mega-course:hover{transform:translateY(-1px);border-color:rgba(var(--brand-rgb),.24)!important;background:#fff8f8!important;box-shadow:0 10px 24px rgba(66,30,36,.08)!important}
 @media(max-width:1100px){.course-mega-course-list{grid-template-columns:1fr!important}.course-mega-course-list .course-mega-course:nth-child(n+5){display:none!important}}
+
+/* Footer contact icons: consistent square icon holders (fix tiny overlapping capsule). */
+.site-footer .footer-contact-chips a > span[data-premium-icon] {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  line-height: 1;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.07);
+}
+.site-footer .footer-contact-chips a > span[data-premium-icon] svg {
+  display: block;
+  width: 17px !important;
+  height: 17px !important;
+  flex: none;
+  stroke-width: 1.8;
+}
+.site-footer .footer-contact-chips a { align-items: center; gap: 10px; }
+
+/* V44: navigation link + independent toggle; contained, balanced six-card mega menu. */
+.desktop-nav .nav-mega-courses{display:inline-flex;align-items:center;gap:2px;position:relative}
+.desktop-nav .nav-mega-courses>.nav-mega-trigger{padding-right:3px!important}
+.desktop-nav .course-mega-toggle{display:inline-grid;place-items:center;width:26px;height:30px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--fsa-brand,#8b2538);cursor:pointer;font:700 15px/1 Poppins,sans-serif;transition:background .18s,transform .18s}
+.desktop-nav .course-mega-toggle:hover,.desktop-nav .course-mega-toggle:focus-visible{background:#f9edef;outline-offset:2px}
+.desktop-nav .course-mega-toggle[aria-expanded="true"] span{transform:rotate(45deg)}
+.desktop-nav .nav-mega-courses .course-mega-menu{position:fixed!important;left:50%!important;top:var(--course-mega-top,88px)!important;width:min(1050px,calc(100vw - 48px))!important;max-width:1050px!important;transform:translate(-50%,10px);z-index:1300;box-sizing:border-box}
+.desktop-nav .nav-mega-courses:hover .course-mega-menu,.desktop-nav .nav-mega-courses:focus-within .course-mega-menu,.desktop-nav .nav-mega-courses.is-open .course-mega-menu{transform:translate(-50%,0)!important}
+.desktop-nav .course-mega-panel{display:block!important;width:100%;border-radius:22px;box-sizing:border-box}
+.desktop-nav .course-mega-main{width:100%;box-sizing:border-box;padding:24px 27px 27px!important}
+.desktop-nav .course-mega-head{align-items:center;gap:28px}
+.desktop-nav .course-mega-head>div{min-width:0}
+.desktop-nav .course-mega-head h3{font-size:20px!important;max-width:none}
+.desktop-nav .course-mega-course-list{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px 14px!important;width:100%;margin-top:17px!important;min-width:0}
+.desktop-nav .course-mega-course-list .course-mega-course{min-width:0;min-height:92px!important;grid-template-columns:74px minmax(0,1fr)!important;padding:9px!important;gap:11px!important;border:1px solid #f1e2e5!important;background:#fff!important;box-sizing:border-box}
+.desktop-nav .course-mega-course-list .course-mega-course:hover{background:#fff7f8!important;border-color:#dfbfc7!important}
+.desktop-nav .course-mega-course-list .course-mega-copy strong{font-size:12px!important;overflow-wrap:break-word}
+.desktop-nav .course-mega-course-list .course-mega-copy small{font-size:9px!important}
+@media(min-width:901px) and (max-width:1070px){.desktop-nav .course-mega-course-list{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:900px){.desktop-nav .course-mega-menu{display:none!important}}
+
+/* V45: consistent, understated header navigation with chevron indicators. */
+@media (min-width:901px) {
+  .desktop-nav > a,
+  .desktop-nav > .nav-mega > a,
+  .desktop-nav > .placement-nav > button {text-decoration:none!important;box-shadow:none!important;border-bottom:0!important;}
+  .desktop-nav > a::after,
+  .desktop-nav > .nav-mega > a::after,
+  .desktop-nav > .placement-nav > button::after {content:none!important;display:none!important;}
+  .desktop-nav > a:hover, .desktop-nav > a.active,
+  .desktop-nav > .nav-mega > a:hover, .desktop-nav > .nav-mega > a.active,
+  .desktop-nav > .placement-nav > button:hover {text-decoration:none!important;}
+  .desktop-nav .nav-mega-courses {gap:0!important;}
+  .desktop-nav .course-mega-toggle {width:24px;height:35px;border-radius:8px;transition:background .18s ease,color .18s ease;}
+  .desktop-nav .course-mega-toggle .header-menu-chevron,
+  .desktop-nav .nav-mega-branches .header-menu-chevron {display:inline-block!important;flex:none!important;width:7px!important;height:7px!important;border-right:1.8px solid currentColor!important;border-bottom:1.8px solid currentColor!important;transform:rotate(45deg)!important;transition:transform .2s ease!important;position:relative;top:-2px;vertical-align:middle;}
+  .desktop-nav .nav-mega-branches .nav-mega-trigger {display:inline-flex;align-items:center;gap:9px;}
+  .desktop-nav .nav-mega-courses.is-open .header-menu-chevron,
+  .desktop-nav .nav-mega-courses .course-mega-toggle[aria-expanded="true"] .header-menu-chevron,
+  .desktop-nav .nav-mega-branches:hover .header-menu-chevron,
+  .desktop-nav .nav-mega-branches:focus-within .header-menu-chevron {transform:rotate(225deg)!important;top:2px;}
+  .desktop-nav .placement-nav-trigger [data-premium-icon] {display:inline-flex;vertical-align:middle;}
+  .desktop-nav .placement-nav-trigger svg {width:13px;height:13px;}
+}
+
+
+/* V46: unified desktop menu interaction and chevrons. All three dropdowns
+   use one text/arrow surface; course label remains a real navigation link. */
+@media (min-width:901px) {
+  .desktop-nav { align-items:center; }
+  .desktop-nav > a,
+  .desktop-nav > .nav-mega,
+  .desktop-nav > .placement-nav {
+    box-sizing:border-box;
+    min-height:44px;
+    border-radius:12px;
+    transition:background-color .18s ease,color .18s ease;
+  }
+  .desktop-nav > .nav-mega,
+  .desktop-nav > .placement-nav { display:inline-flex!important;align-items:center!important;gap:0!important; }
+  .desktop-nav > a,
+  .desktop-nav > .nav-mega > .nav-mega-trigger,
+  .desktop-nav > .placement-nav > .placement-nav-trigger {
+    font-family:inherit!important;
+    font-size:inherit!important;
+    font-weight:600!important;
+    line-height:1.35!important;
+    text-decoration:none!important;
+    border:0!important;
+    box-shadow:none!important;
+    white-space:nowrap;
+  }
+  .desktop-nav > .nav-mega > .nav-mega-trigger,
+  .desktop-nav > .placement-nav > .placement-nav-trigger {
+    display:inline-flex!important;align-items:center!important;
+    min-height:44px!important;
+    padding:0 5px 0 12px!important;
+    border-radius:12px!important;
+    background:transparent!important;
+  }
+  .desktop-nav > .placement-nav > .placement-nav-trigger,
+  .desktop-nav > .nav-mega-branches > .nav-mega-trigger { padding-right:12px!important;gap:9px!important; }
+  .desktop-nav > .nav-mega-courses > .nav-mega-trigger {padding-right:4px!important;}
+  .desktop-nav > .nav-mega-courses > .course-mega-toggle {
+    box-sizing:border-box;
+    display:inline-flex!important;align-items:center;justify-content:center;
+    width:29px!important;min-width:29px!important;height:44px!important;
+    min-height:44px!important;margin:0!important;padding:0 11px 0 3px!important;
+    border:0!important;border-radius:0 12px 12px 0!important;
+    background:transparent!important;box-shadow:none!important;
+    color:inherit!important;
+  }
+  .desktop-nav > .nav-mega:hover,
+  .desktop-nav > .nav-mega:focus-within,
+  .desktop-nav > .placement-nav:hover,
+  .desktop-nav > .placement-nav:focus-within,
+  .desktop-nav > .nav-mega.is-open { background:#fff0f2!important; }
+  .desktop-nav > .nav-mega > .nav-mega-trigger:hover,
+  .desktop-nav > .nav-mega > .nav-mega-trigger.active,
+  .desktop-nav > .placement-nav > .placement-nav-trigger:hover,
+  .desktop-nav > .nav-mega-courses > .course-mega-toggle:hover,
+  .desktop-nav > .nav-mega-courses > .course-mega-toggle:focus-visible {
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .desktop-nav .header-menu-chevron,
+  .desktop-nav .nav-mega-branches .header-menu-chevron,
+  .desktop-nav .course-mega-toggle .header-menu-chevron,
+  .desktop-nav .placement-nav-trigger .header-menu-chevron {
+    box-sizing:border-box;
+    display:inline-block!important;
+    width:8px!important;height:8px!important;flex:0 0 8px!important;
+    border:0!important;border-right:1.7px solid currentColor!important;
+    border-bottom:1.7px solid currentColor!important;
+    border-radius:0!important;
+    background:transparent!important;
+    position:relative!important;top:-2px!important;
+    transform:rotate(45deg)!important;
+    transition:transform .18s ease,top .18s ease!important;
+    vertical-align:middle;
+  }
+  .desktop-nav .nav-mega-courses.is-open .course-mega-toggle .header-menu-chevron,
+  .desktop-nav .nav-mega-courses .course-mega-toggle[aria-expanded="true"] .header-menu-chevron,
+  .desktop-nav .nav-mega-branches:hover .header-menu-chevron,
+  .desktop-nav .nav-mega-branches:focus-within .header-menu-chevron,
+  .desktop-nav .placement-nav:hover .header-menu-chevron,
+  .desktop-nav .placement-nav:focus-within .header-menu-chevron {
+    top:2px!important;transform:rotate(225deg)!important;
+  }
+  .desktop-nav > a::after,
+  .desktop-nav > .nav-mega > a::after,
+  .desktop-nav > .placement-nav > button::after { display:none!important;content:none!important; }
+}
+
+/* V47: compact, unboxed desktop navigation; preserve accessible dropdown controls. */
+@media (min-width:901px) {
+  .desktop-nav > a,
+  .desktop-nav > .nav-mega,
+  .desktop-nav > .placement-nav {
+    min-height:34px!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .desktop-nav > a,
+  .desktop-nav > .nav-mega > .nav-mega-trigger,
+  .desktop-nav > .placement-nav > .placement-nav-trigger {
+    font-size:13px!important;
+    font-weight:600!important;
+    min-height:34px!important;
+    padding:0 5px!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    text-decoration:none!important;
+  }
+  .desktop-nav > .nav-mega-courses > .course-mega-toggle {
+    width:16px!important;
+    min-width:16px!important;
+    height:34px!important;
+    min-height:34px!important;
+    padding:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .desktop-nav > .nav-mega-courses > .nav-mega-trigger {padding-right:1px!important;}
+  .desktop-nav > .nav-mega-branches > .nav-mega-trigger,
+  .desktop-nav > .placement-nav > .placement-nav-trigger {gap:6px!important;}
+  .desktop-nav .header-menu-chevron,
+  .desktop-nav .nav-mega-branches .header-menu-chevron,
+  .desktop-nav .course-mega-toggle .header-menu-chevron,
+  .desktop-nav .placement-nav-trigger .header-menu-chevron {
+    width:6px!important;height:6px!important;flex-basis:6px!important;
+    border-right-width:1.4px!important;border-bottom-width:1.4px!important;
+  }
+  .desktop-nav > a:hover,
+  .desktop-nav > .nav-mega:hover,
+  .desktop-nav > .nav-mega:focus-within,
+  .desktop-nav > .placement-nav:hover,
+  .desktop-nav > .placement-nav:focus-within,
+  .desktop-nav > .nav-mega.is-open,
+  .desktop-nav > .nav-mega > .nav-mega-trigger:hover,
+  .desktop-nav > .nav-mega > .nav-mega-trigger.active,
+  .desktop-nav > .placement-nav > .placement-nav-trigger:hover,
+  .desktop-nav > .nav-mega-courses > .course-mega-toggle:hover,
+  .desktop-nav > .nav-mega-courses > .course-mega-toggle:focus-visible {
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .desktop-nav > a::after,
+  .desktop-nav > .nav-mega > a::after,
+  .desktop-nav > .placement-nav > button::after {
+    display:none!important;content:none!important;
+  }
+  /* Keyboard focus remains visible without creating a filled background. */
+  .desktop-nav a:focus-visible,
+  .desktop-nav button:focus-visible {outline:2px solid currentColor!important;outline-offset:3px!important;}
+}
+
+
+/* V48 - final compact header alignment: consistent row, no boxed states. */
+@media (min-width: 901px) {
+  #siteHeader .desktop-nav {
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex-wrap:nowrap!important;
+    column-gap:17px!important;
+    row-gap:0!important;
+    line-height:1!important;
+  }
+  #siteHeader .desktop-nav > a,
+  #siteHeader .desktop-nav > .nav-mega,
+  #siteHeader .desktop-nav > .placement-nav {
+    box-sizing:border-box!important;
+    position:relative;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 auto!important;
+    min-height:36px!important;
+    height:36px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    vertical-align:middle!important;
+  }
+  #siteHeader .desktop-nav > a,
+  #siteHeader .desktop-nav > .nav-mega > .nav-mega-trigger,
+  #siteHeader .desktop-nav > .placement-nav > .placement-nav-trigger {
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    box-sizing:border-box!important;
+    flex:0 0 auto!important;
+    height:36px!important;
+    min-height:36px!important;
+    margin:0!important;
+    padding:0!important;
+    gap:6px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    font-family:Poppins,sans-serif!important;
+    font-size:13px!important;
+    font-weight:600!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+    text-decoration:none!important;
+    vertical-align:middle!important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > .course-mega-toggle {
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 14px!important;
+    width:14px!important;
+    min-width:14px!important;
+    height:36px!important;
+    min-height:36px!important;
+    margin:0 0 0 6px!important;
+    padding:0!important;
+    background:transparent!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    color:inherit!important;
+  }
+  #siteHeader .desktop-nav .header-menu-chevron {
+    display:block!important;
+    box-sizing:border-box!important;
+    width:7px!important;
+    height:7px!important;
+    flex:0 0 7px!important;
+    margin:0!important;
+    padding:0!important;
+    top:-2px!important;
+    border:0!important;
+    border-right:1.5px solid currentColor!important;
+    border-bottom:1.5px solid currentColor!important;
+    border-radius:0!important;
+    background:transparent!important;
+    transform:rotate(45deg)!important;
+  }
+  #siteHeader .desktop-nav .nav-mega-courses.is-open .header-menu-chevron,
+  #siteHeader .desktop-nav .course-mega-toggle[aria-expanded="true"] .header-menu-chevron,
+  #siteHeader .desktop-nav .nav-mega-branches:hover .header-menu-chevron,
+  #siteHeader .desktop-nav .nav-mega-branches:focus-within .header-menu-chevron,
+  #siteHeader .desktop-nav .placement-nav:hover .header-menu-chevron,
+  #siteHeader .desktop-nav .placement-nav:focus-within .header-menu-chevron {
+    top:2px!important;
+    transform:rotate(225deg)!important;
+  }
+  #siteHeader .desktop-nav > a:hover,
+  #siteHeader .desktop-nav > a.active,
+  #siteHeader .desktop-nav > .nav-mega:hover,
+  #siteHeader .desktop-nav > .nav-mega:focus-within,
+  #siteHeader .desktop-nav > .nav-mega.is-open,
+  #siteHeader .desktop-nav > .placement-nav:hover,
+  #siteHeader .desktop-nav > .placement-nav:focus-within,
+  #siteHeader .desktop-nav > .nav-mega > .nav-mega-trigger:hover,
+  #siteHeader .desktop-nav > .nav-mega > .nav-mega-trigger.active,
+  #siteHeader .desktop-nav > .placement-nav > .placement-nav-trigger:hover,
+  #siteHeader .desktop-nav .course-mega-toggle:hover {
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  #siteHeader .desktop-nav > a::after,
+  #siteHeader .desktop-nav > .nav-mega > .nav-mega-trigger::after,
+  #siteHeader .desktop-nav > .placement-nav > .placement-nav-trigger::after {display:none!important;content:none!important;}
+}
+@media (min-width:901px) and (max-width:1250px) {
+  #siteHeader .desktop-nav { column-gap:11px!important; }
+  #siteHeader .desktop-nav > a,
+  #siteHeader .desktop-nav > .nav-mega > .nav-mega-trigger,
+  #siteHeader .desktop-nav > .placement-nav > .placement-nav-trigger {font-size:12px!important;}
+}
+
+
+/* V49 — One shared dropdown baseline for Courses, Branches and Placements.
+   Scope to desktop site header; do not change trigger styling or menu content. */
+@media (min-width: 901px) {
+  #siteHeader .desktop-nav {
+    position: relative !important;
+    isolation: isolate;
+  }
+  /* All dropdowns use the navigation row as their positioning ancestor,
+     rather than three differently sized/positioned trigger wrappers. */
+  #siteHeader .desktop-nav > .nav-mega,
+  #siteHeader .desktop-nav > .placement-nav {
+    position: static !important;
+  }
+  #siteHeader .desktop-nav .course-mega-menu,
+  #siteHeader .desktop-nav .branch-mega-menu,
+  #siteHeader .desktop-nav .placement-nav-menu {
+    position: absolute !important;
+    top: 100% !important;
+    margin-top: 0 !important;
+    box-sizing: border-box !important;
+    z-index: 1600 !important;
+    transition: opacity .18s ease, visibility .18s ease, transform .18s ease !important;
+  }
+  /* An 8px breathing space, but still within each popup's hoverable box. */
+  #siteHeader .desktop-nav .course-mega-menu {
+    left: 50% !important;
+    width: min(1050px, calc(100vw - 36px)) !important;
+    max-width: 1050px !important;
+    padding-top: 8px !important;
+    transform: translate(-50%, 9px) !important;
+  }
+  #siteHeader .desktop-nav .branch-mega-menu {
+    left: 50% !important;
+    width: min(920px, calc(100vw - 36px)) !important;
+    padding-top: 8px !important;
+    transform: translate(-50%, 9px) !important;
+  }
+  #siteHeader .desktop-nav .placement-nav-menu {
+    left: auto !important;
+    right: 0 !important;
+    top: calc(100% + 8px) !important;
+    width: min(330px, calc(100vw - 36px)) !important;
+    padding: 9px !important;
+    border-radius: 18px !important;
+    transform: translateY(9px) !important;
+  }
+  #siteHeader .desktop-nav .placement-nav-menu::before {
+    content: "";
+    position: absolute;
+    height: 8px;
+    left: 0;
+    right: 0;
+    top: -8px;
+  }
+  #siteHeader .desktop-nav .nav-mega-courses:hover .course-mega-menu,
+  #siteHeader .desktop-nav .nav-mega-courses:focus-within .course-mega-menu,
+  #siteHeader .desktop-nav .nav-mega-courses.is-open .course-mega-menu,
+  #siteHeader .desktop-nav .nav-mega-branches:hover .branch-mega-menu,
+  #siteHeader .desktop-nav .nav-mega-branches:focus-within .branch-mega-menu {
+    transform: translate(-50%, 0) !important;
+  }
+  #siteHeader .desktop-nav .placement-nav:hover .placement-nav-menu,
+  #siteHeader .desktop-nav .placement-nav:focus-within .placement-nav-menu {
+    transform: translateY(0) !important;
+  }
+}
+
+
+/* V50 — Navigation affordance correction. Applied after all older overrides. */
+@media (min-width: 901px) {
+  #siteHeader .desktop-nav a[href],
+  #siteHeader .desktop-nav button:not(:disabled),
+  #siteHeader .desktop-nav .nav-mega-trigger[href],
+  #siteHeader .desktop-nav .course-mega-toggle,
+  #siteHeader .desktop-nav .placement-nav-trigger {
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #siteHeader .desktop-nav a[href]:hover,
+  #siteHeader .desktop-nav button:not(:disabled):hover {
+    cursor: pointer !important;
+  }
+  #siteHeader .desktop-nav a[href]:focus-visible,
+  #siteHeader .desktop-nav button:focus-visible {
+    outline: 2px solid var(--fsa-brand, #8a2538) !important;
+    outline-offset: 3px !important;
+    border-radius: 4px;
+  }
+  /* Keep the user's preferred plain, compact navigation. */
+  #siteHeader .desktop-nav > a,
+  #siteHeader .desktop-nav > .nav-mega > .nav-mega-trigger,
+  #siteHeader .desktop-nav > .placement-nav > .placement-nav-trigger {
+    text-decoration: none !important;
+  }
+}
+
+/* V51 — Align the actual Courses link's hit area with its visible label.
+   The dropdown chevron remains a separate, equally centered button. */
+@media (min-width:901px) {
+  #siteHeader .desktop-nav > .nav-mega-courses {
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    height:36px !important;
+    min-height:36px !important;
+    gap:0 !important;
+    pointer-events:auto !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger {
+    position:relative !important;
+    z-index:3 !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    align-self:center !important;
+    height:36px !important;
+    min-height:36px !important;
+    padding:0 1px !important;
+    margin:0 !important;
+    line-height:1.2 !important;
+    transform:none !important;
+    cursor:pointer !important;
+    pointer-events:auto !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle {
+    position:relative !important;
+    z-index:3 !important;
+    align-self:center !important;
+    height:36px !important;
+    min-height:36px !important;
+    margin:0 0 0 6px !important;
+    transform:none !important;
+    cursor:pointer !important;
+    pointer-events:auto !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger::before,
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle::before {
+    pointer-events:none !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > .course-mega-menu {
+    z-index:2 !important;
+  }
+}
+
+/* V52 — Courses hitbox fix: remove the overlapping pseudo-hit-area and
+   normalize BOTH sibling controls into the same nav row used by Branches.
+   The Courses label is a link; the chevron is its own accessible button. */
+@media (min-width:901px) {
+  #siteHeader .desktop-nav > .nav-mega-courses {
+    position:relative !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    flex-flow:row nowrap !important;
+    gap:6px !important;
+    height:36px !important;
+    min-height:36px !important;
+    padding:0 !important;
+    margin:0 !important;
+    isolation:isolate;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger,
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle {
+    box-sizing:border-box !important;
+    position:relative !important;
+    inset:auto !important;
+    top:auto !important;
+    right:auto !important;
+    bottom:auto !important;
+    left:auto !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    align-self:center !important;
+    height:36px !important;
+    min-height:36px !important;
+    line-height:1 !important;
+    margin:0 !important;
+    padding:0 !important;
+    transform:none !important;
+    vertical-align:middle !important;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+    cursor:pointer !important;
+    pointer-events:auto !important;
+    z-index:3 !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger {
+    width:auto !important;
+    min-width:0 !important;
+    flex:0 0 auto !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle {
+    width:14px !important;
+    min-width:14px !important;
+    flex:0 0 14px !important;
+    border-radius:0 !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger::before,
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger::after,
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle::before,
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle::after {
+    content:none !important;
+    display:none !important;
+  }
+  /* Mega menu must never overlay the label while closed. */
+  #siteHeader .desktop-nav > .nav-mega-courses > .course-mega-menu:not(:hover) {
+    z-index:1 !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > a.nav-mega-trigger:hover,
+  #siteHeader .desktop-nav > .nav-mega-courses > button.course-mega-toggle:hover {
+    color:var(--fsa-brand,#8b2538) !important;
+  }
+}
+
+
+/* V53 — Correct centering of Courses mega menu after the hover-hitbox fix.
+   The previous rule made .nav-mega-courses positioned again, so left:50%
+   centered the dropdown on the narrow Courses trigger. Restore the common
+   desktop-nav positioning context without altering the links or cards. */
+@media (min-width: 901px) {
+  #siteHeader .desktop-nav {
+    position: relative !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses {
+    position: static !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses > .course-mega-menu {
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    top: 100% !important;
+    margin: 0 !important;
+    width: min(1050px, calc(100vw - 36px)) !important;
+    max-width: 1050px !important;
+    translate: none !important;
+    transform: translate(-50%, 9px) !important;
+    box-sizing: border-box !important;
+  }
+  #siteHeader .desktop-nav > .nav-mega-courses:hover > .course-mega-menu,
+  #siteHeader .desktop-nav > .nav-mega-courses:focus-within > .course-mega-menu,
+  #siteHeader .desktop-nav > .nav-mega-courses.is-open > .course-mega-menu {
+    transform: translate(-50%, 0) !important;
+  }
+}

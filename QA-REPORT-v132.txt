@@ -1,0 +1,23 @@
+v132 MODULE BUILDER VALIDATION
+==============================
+PASS — JavaScript syntax: node --check admin/js/admin.js.
+PASS — PHP syntax: php -l api/index.php.
+PASS — Browser: new physical private page opens empty with Add Module 01.
+PASS — Clicking Add Module creates Module 01 with auto Lesson 01.
+PASS — Adding second module assigns Module 02 in fresh courses.
+PASS — Existing pages retain saved headings, quiz questions and required status.
+PASS — Inline module rename persists across every section in its group.
+PASS — Module-specific add buttons create multiple lessons, quizzes and assignments.
+PASS — Lesson 01/02 and Quiz 02/03 titles increment within selected module.
+PASS — Widget drag/drop inserts widget into selected lesson and saves widget fields.
+PASS — Dragging a lesson between modules updates its owning module.
+PASS — Moving an entire module preserves its member lessons.
+PASS — Deleting a module deletes its own items and preserves the other module.
+PASS — Delete-last-module blocked to avoid unsavable page.
+PASS — Save mock API returns sections and correct module grouping.
+PASS — Private preview groups activity titles under saved module headings.
+PASS — Existing responsive layout keeps a one-column mobile editor.
+PASS — Previous PHP physical page compatibility suite: 21 checks (test_v130.php).
+BACKEND CHANGE — Removed the no-content-block rejection from admin_physical_page_save.
+Quiz validation (nonempty question, min 2 answers) remains in place.
+NOT TESTED — Live XAMPP/MariaDB integration and all real user permission roles.

@@ -3,7 +3,7 @@
   'use strict';
 
   const API_URL = 'api/index.php?action=public_cms';
-  const CMS_DISABLED = true; // Page/snippet overrides remain disabled; theme is applied by app.js from the backend catalog.
+  const CMS_DISABLED = false; // Page/snippet overrides remain disabled; theme is applied by app.js from the backend catalog.
   const state = { pages: [], snippets: [], theme: {}, loaded: false, route: '/', once: new Set() };
   const THEME_VARS = {
     brand:'--brand', brand_hover:'--brand-hover', brand_dark:'--brand-dark', brand_deep:'--brand-deep',

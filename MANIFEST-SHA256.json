@@ -1,0 +1,10 @@
+{
+  "package": "FSA Physical Storage Fix v128",
+  "based_on": "v127",
+  "files": {
+    "README-v128.txt": "3e0a80b854e59ea1eab7a6b73bceef86e4c8bd3caf6595ccdd0b6b7f0ca85c35",
+    "api/index.php": "888b5bb04f10aaca1fc2cee2779c47c8177ef712608bd3bd5ade11615d772357",
+    "api/lib/PhysicalCourses.php": "5bfe8b7e5504a02e8f34870bff4350b639d852c38c633ea587ba1c1d3ae62b40",
+    "database/physical-course-storage-v128.sql": "11c9bde6773a3baffbd5f57e919d38d081d3d9447f55e569fe5f1f0fa83fb286"
+  }
+}

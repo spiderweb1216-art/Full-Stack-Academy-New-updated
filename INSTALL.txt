@@ -1,0 +1,30 @@
+FULL STACK ACADEMY — PUBLIC COURSE FORMATS FIX
+
+REPLACE ONLY:
+  admin/index.html
+  admin/js/admin.js
+
+1. Back up your existing admin/index.html and admin/js/admin.js.
+2. Extract the two files into the matching locations in your project.
+3. Reload the editor with Ctrl+Shift+R (or a private/incognito window).
+4. Test Add Course: Physical, Live, and Recorded now start enabled.
+5. For a previously saved course: select an inactive format card to enable it,
+   OR click Enable all formats in the formats bar. Add its course details.
+6. Click Save Public Page to persist the enabled formats in MySQL.
+7. Reopen the course to verify that the enabled flags persist.
+
+CHANGES:
+- Removes conflicting +/- nested click action causing selected/disabled mismatch.
+- Uses one consistent format card click handler.
+- Starts NEW courses with all three delivery modes enabled.
+- Adds Enable all formats and working individual format checkboxes.
+- Does not change course approval, publishing permissions, sidebar, or DB schema.
+
+IMPORTANT:
+Existing course format settings are not changed until you save. A format's
+active state controls whether it can appear to buyers; fill in its own price
+and public details before publishing. Recorded teaching/publishing permissions
+remain subject to existing academy approvals.
+
+Checks: JavaScript syntax and static UI/state checks passed. Full end-to-end
+browser/DB testing was not possible in this environment.

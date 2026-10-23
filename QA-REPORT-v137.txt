@@ -1,0 +1,20 @@
+FSA v137 – Course Types QA report
+
+Passed checks:
+- PHP syntax: api/index.php and api/lib/PhysicalCourses.php
+- JavaScript syntax: admin/js/admin.js and js/app.js
+- Browser smoke test with mocked responses: Course Types tab, all three switches,
+  last-switch deactivation, per-category filtering, reactivation, responsive layout.
+- No browser JavaScript exceptions during the tested workflow.
+- Server-side change endpoint uses an authorized admin role, row lock and transaction.
+- Backend no longer falls back to an active format for a fully deactivated course.
+- Public catalog, batches, direct checkout and new learning-plan enrollments exclude
+  disabled formats; existing course content, order and enrollment records are unchanged.
+
+Not tested:
+- Real XAMPP Windows/PHP/MySQL integration and authenticated accounts.
+- All unrelated LMS routes and third-party payment system flows.
+
+Snapshots:
+- FSA-v137-Course-Types-QA.png
+- FSA-v137-Course-Types-Mobile-QA.png

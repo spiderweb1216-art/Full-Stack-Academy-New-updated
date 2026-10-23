@@ -1,0 +1,8 @@
+/* One course card, compact clickable backend-enabled formats. */
+.fsa-catalog-offerings{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.fsa-catalog-offerings .fsa-catalog-offering{display:inline-flex;gap:5px;align-items:center;white-space:nowrap;text-decoration:none;cursor:pointer;line-height:1.2;padding:6px 9px;height:auto;min-height:27px;}
+.fsa-catalog-offering .fsa-catalog-badge-icon,.fsa-catalog-offering .fsa-catalog-badge-icon svg{width:13px;height:13px;flex:none;}
+.fsa-catalog-offering .fsa-catalog-badge-label{white-space:nowrap;}
+.fsa-catalog-offering:hover,.fsa-catalog-offering:focus-visible{filter:brightness(.94);outline-offset:2px;}
+.fsa-catalog-price-note{display:block;font-size:10px;color:#85777b;font-weight:400;}
+@media(max-width:640px){.fsa-catalog-offerings{gap:5px}.fsa-catalog-offerings .fsa-catalog-offering{padding:5px 7px;font-size:10px;}}

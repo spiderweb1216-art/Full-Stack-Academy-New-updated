@@ -4897,3 +4897,221 @@ textarea.form-control{padding:12px 14px;line-height:1.55}
 .module-intro-panel{display:grid;gap:16px;margin:0 0 18px;padding:18px;border:1px solid #ead9dc;border-radius:16px;background:#fffaf9}.module-intro-heading{display:grid;gap:8px}.module-intro-heading p{margin:0;color:#53605b;line-height:1.7}.module-point-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.module-point-list li{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #efe2e4}.module-point-list svg{width:16px;height:16px;color:#942d3e;flex:0 0 auto;margin-top:2px}
 .module-rich-blocks{display:grid;gap:14px}.course-rich-block{border:1px solid #eadfe1;border-radius:14px;background:#fff;overflow:hidden}.course-rich-text{padding:14px 16px}.course-rich-text h4,.course-rich-video h4{margin:0 0 8px}.course-rich-image img{width:100%;max-height:420px;object-fit:contain;background:#f6f3f2}.course-rich-image figcaption{display:grid;gap:5px;padding:12px 14px}.course-rich-image figcaption span{color:#66716d;line-height:1.6}.course-rich-video{padding:14px}.course-rich-video-frame{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:#111;margin-bottom:10px}.course-rich-video-frame iframe,.course-rich-video-frame video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#111}.course-rich-file{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:14px}.course-rich-file>span{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#f7e9ec;color:#942d3e}.course-rich-file p{margin:4px 0 0;color:#6b7470}
 @media(max-width:760px){.module-content-block-grid,.module-point-list{grid-template-columns:1fr}.module-rich-content-head,.io-subsection-head{align-items:flex-start;flex-direction:column}.course-rich-file{grid-template-columns:auto 1fr}.course-rich-file .button{grid-column:1/-1;width:100%}}
+
+/* Refined global course search popup — 2026-10 */
+#searchModal { display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden; }
+#searchModal .search-modal { position: relative; inset: auto; left: auto; top: auto; transform: translateY(12px); width: min(100%, 990px); max-height: calc(100dvh - 40px); overflow: hidden; padding: clamp(20px, 3vw, 34px); border: 1px solid #f0e4e4; border-radius: 26px; box-shadow: 0 24px 75px rgba(40, 22, 26, .22); }
+#searchModal.open .search-modal { transform: translateY(0); }
+#searchModal .search-modal-head { align-items: center; margin-bottom: 17px; }
+#searchModal .search-modal h2 { margin: 6px 0 0; font-size: clamp(22px, 3vw, 30px); line-height: 1.15; }
+#searchModal .large-search { min-height: 56px; border-radius: 16px; }
+#searchModal .large-search input { height: 52px; font-size: 15px; }
+#searchModal .quick-search-tags { margin: 13px 0 20px; gap: 8px; }
+#searchModal .quick-search-tags button { font-size: 11px; padding: 9px 13px; transition: background .2s, transform .2s; }
+#searchModal .quick-search-tags button:hover { background: #f3d8db; transform: translateY(-1px); }
+#searchModal .global-search-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; min-width: 0; }
+#searchModal .search-result-item { min-width: 0; display: grid; grid-template-columns: 74px minmax(0,1fr) 19px; gap: 12px; align-items: center; padding: 11px; min-height: 91px; border-radius: 15px; background: #fff; border: 1px solid #eee0e2; text-decoration: none; transition: border-color .2s, box-shadow .2s, transform .2s; }
+#searchModal .search-result-item:hover, #searchModal .search-result-item:focus-visible { border-color: #a92c3e; box-shadow: 0 6px 20px rgba(121,29,48,.1); transform: translateY(-1px); outline-offset: 2px; }
+#searchModal .search-result-thumb { width: 74px; height: 64px; border-radius: 11px; }
+#searchModal .search-result-item > span:nth-child(2) { min-width: 0; }
+#searchModal .search-result-item strong { font-size: 13px; font-weight: 750; line-height: 1.35; overflow-wrap: anywhere; }
+#searchModal .search-result-item > span:nth-child(2) > span { font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+#searchModal .global-search-results > .empty-state { grid-column: 1 / -1; }
+@media(max-width: 760px) {
+ #searchModal { padding: 12px; }
+ #searchModal .search-modal { padding: 20px 16px; border-radius: 20px; max-height: calc(100dvh - 24px); overflow-y: auto; scrollbar-width: none; }
+ #searchModal .search-modal::-webkit-scrollbar { display: none; }
+ #searchModal .search-modal-head { margin-bottom: 13px; }
+ #searchModal .global-search-results { grid-template-columns: 1fr; gap: 8px; }
+ #searchModal .search-result-item { min-height: 76px; grid-template-columns: 62px minmax(0,1fr) 16px; padding: 8px; }
+ #searchModal .search-result-thumb { width: 62px; height: 56px; }
+ #searchModal .quick-search-tags { margin: 11px 0 14px; }
+}
+@media(max-height: 710px) and (min-width: 761px) {
+ #searchModal .search-modal { padding: 18px 25px; }
+ #searchModal .search-modal-head { margin-bottom: 10px; }
+ #searchModal .quick-search-tags { margin: 9px 0 12px; }
+ #searchModal .search-result-item { min-height: 70px; padding: 7px; }
+ #searchModal .search-result-thumb { height: 52px; }
+}
+
+/* Universal academy search — stable popup geometry, scoped filtering */
+#searchModal .search-modal { height: min(680px, calc(100dvh - 42px)); max-height: calc(100dvh - 42px); display: flex; flex-direction: column; box-sizing: border-box; }
+#searchModal .search-modal-head, #searchModal .fsa-universal-search-bar, #searchModal .quick-search-tags, #searchModal .fsa-search-count { flex: 0 0 auto; }
+#searchModal .fsa-universal-search-bar { display: flex; gap: 10px; align-items: stretch; min-width: 0; }
+#searchModal .fsa-universal-search-bar .large-search { flex: 1 1 auto; min-width: 0; margin: 0; }
+#searchModal .fsa-search-scope-label { flex: 0 0 180px; display: flex; }
+#searchModal #globalSearchScope { width: 100%; min-width: 0; padding: 0 26px 0 14px; border: 1px solid #e8cbd0; border-radius: 15px; background: #fff; color: #762337; font-weight: 700; font-size: 13px; cursor: pointer; }
+#searchModal #globalSearchScope:focus-visible { outline: 2px solid #9c293c; outline-offset: 2px; }
+#searchModal .fsa-search-count { margin: 0 0 9px; color: #826c72; font-size: 12px; }
+#searchModal .global-search-results { flex: 1 1 auto; min-height: 0; align-content: start; overflow-y: auto; overscroll-behavior: contain; padding: 2px 5px 8px 2px; scrollbar-width: thin; scrollbar-color: #d5b7be transparent; }
+#searchModal .fsa-search-type { display: block; color: #a02d40; font-size: 10px; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
+#searchModal .search-result-item > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }
+#searchModal .fsa-universal-empty { padding: 24px; }
+@media (max-width:760px) {
+ #searchModal .search-modal { height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); overflow: hidden; }
+ #searchModal .fsa-universal-search-bar { flex-direction: column; gap: 8px; }
+ #searchModal .fsa-universal-search-bar .large-search { flex: 0 0 auto; width: 100%; }
+ #searchModal .fsa-search-scope-label { flex: 0 0 44px; }
+ #searchModal #globalSearchScope { min-height: 44px; }
+ #searchModal .global-search-results { overflow-y: auto; }
+}
+
+/* Custom burgundy category dropdown — visually matched to the academy search. */
+#searchModal .fsa-search-scope-label { position:relative; display:block; flex:0 0 220px; min-width:0; z-index:10; }
+#searchModal .fsa-scope-native { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); opacity:0; pointer-events:none; }
+#searchModal .fsa-scope-trigger { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; height:100%; min-height:58px; padding:7px 8px 7px 19px; border:1px solid #e8cbd0; border-radius:18px; background:#fffafa; color:#792539; text-align:left; cursor:pointer; font:700 13px/1.3 inherit; box-shadow:0 2px 8px rgba(116,31,50,.03); transition:border-color .2s,box-shadow .2s; }
+#searchModal .fsa-scope-trigger:hover, #searchModal .fsa-scope-trigger[aria-expanded="true"] { border-color:#ac5365; box-shadow:0 0 0 4px rgba(146,39,61,.08); }
+#searchModal .fsa-scope-trigger:focus-visible { outline:3px solid #c98a98; outline-offset:2px; }
+#searchModal .fsa-scope-chevron { display:grid; place-items:center; box-sizing:content-box; flex:0 0 16px; padding:11px; border-radius:12px; background:#87283d; color:#fff; transition:transform .2s; }
+#searchModal .fsa-scope-trigger[aria-expanded="true"] .fsa-scope-chevron { transform:rotate(180deg); }
+#searchModal .fsa-scope-menu { position:absolute; right:0; top:calc(100% + 9px); width:max(100%, 222px); max-height:min(350px,45vh); overflow-y:auto; padding:7px; background:#fff; border:1px solid #ecd5d9; border-radius:17px; box-shadow:0 18px 42px rgba(69,19,31,.18); z-index:100; scrollbar-width:thin; scrollbar-color:#ddbdc5 transparent; }
+#searchModal .fsa-scope-menu[hidden] { display:none; }
+#searchModal .fsa-scope-option { display:block; width:100%; text-align:left; border:0; border-radius:11px; padding:12px 13px; color:#473039; font-size:13px; font-weight:600; background:transparent; cursor:pointer; transition:background .15s,color .15s; }
+#searchModal .fsa-scope-option:hover, #searchModal .fsa-scope-option:focus-visible { background:#faedf0; color:#87283d; outline:none; }
+#searchModal .fsa-scope-option.is-selected { background:#87283d; color:#fff; }
+#searchModal .fsa-scope-option.is-selected:hover, #searchModal .fsa-scope-option.is-selected:focus-visible { background:#6e2032; color:#fff; }
+@media(max-width:760px) { #searchModal .fsa-search-scope-label { flex:0 0 auto; width:100%; } #searchModal .fsa-scope-trigger { min-height:46px; } #searchModal .fsa-scope-menu { width:100%; } }
+
+/* Search design system: single-chevron category control, harmonised with FSA burgundy. */
+#searchModal #globalSearchScope.fsa-scope-native { display:none !important; }
+#searchModal .fsa-scope-trigger { position:relative; font-family:inherit; font-size:15px; font-weight:600; color:var(--brand-dark,#87283d); border-radius:18px; background:#fffafa; }
+#searchModal .fsa-scope-trigger::before,#searchModal .fsa-scope-trigger::after { content:none !important; display:none !important; }
+#searchModal .fsa-scope-chevron { width:16px; height:16px; padding:12px; border-radius:13px; background:#87283d; color:#fff; }
+#searchModal .fsa-scope-menu { background:#fffdfd; border-color:#ead5d9; }
+#searchModal .fsa-scope-option { font-family:inherit; }
+#searchModal .fsa-search-group-title { grid-column:1 / -1; padding:6px 1px 0; font-size:12px; letter-spacing:.075em; text-transform:uppercase; font-weight:800; color:#87283d; }
+#searchModal .fsa-search-group-title:not(:first-child) { margin-top:9px; border-top:1px solid #f0e3e5; padding-top:14px; }
+#searchModal .fsa-search-count { min-height:18px; }
+
+/* Responsive homepage banner, retaining existing site styles */
+.fsa-main-slide picture {display:block;width:100%;height:100%}
+.fsa-main-slide picture img {display:block;width:100%;height:100%;object-fit:cover}
+@media (min-width:681px) and (max-width:1024px){.fsa-main-slider{aspect-ratio:1280/800}}
+@media (max-width:680px){.fsa-main-slider{aspect-ratio:1066/1600}}
+
+/* FSA uniform portraits | Homepage placed students | 2026-10-22
+   Aspect and focal alignment only; surrounding cards and styling remain unchanged. */
+.fsa-placement-card .fsa-placement-photo { aspect-ratio: 1 / 1; height: auto; }
+.fsa-placement-card .fsa-placement-photo > img { display:block; width:100%; height:100%; object-fit:cover; object-position:50% 0%; }
+
+/* FSA layout update: six homepage placement cards per row on large screens. */
+@media (min-width: 1450px) {
+  .fsa-home-placements .fsa-placement-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+}
+@media (min-width: 1100px) and (max-width: 1449.98px) {
+  .fsa-home-placements .fsa-placement-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  .fsa-home-placements .fsa-placement-copy { padding: 10px 9px 12px; }
+}
+
+/* Homepage branch cards: three across on wide screens; preserve existing breakpoints. */
+@media (min-width: 1025px) {
+  .fsa-home-branches-section .fsa-home-branch-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+
+/* Instructor public course creation — uses the existing shared Admin course editor. */
+.instructor-public-course-cta{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:22px 26px;margin-bottom:20px;border:1px solid #ead3d9;border-radius:20px;background:linear-gradient(112deg,#fff 0%,#fff9fa 62%,#f8ebee 100%);box-shadow:0 12px 28px rgba(75,28,41,.045)}
+.instructor-public-course-cta-copy{min-width:0;max-width:760px}
+.instructor-public-course-cta .eyebrow{display:block;margin-bottom:7px;color:#912e40;font-size:11px;font-weight:800;letter-spacing:.12em}
+.instructor-public-course-cta h2{color:#20342e;margin:0 0 6px;font-size:clamp(18px,2vw,24px);line-height:1.2}
+.instructor-public-course-cta p{font-size:13px;line-height:1.55;color:#69766f;margin:0}
+.instructor-public-course-button{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;min-height:46px}
+.dashboard-nav a.instructor-course-create-nav{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.10);color:#fff;margin:6px 0 11px}
+.dashboard-nav a.instructor-course-create-nav:hover,.dashboard-nav a.instructor-course-create-nav:focus-visible{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.5)}
+.instructor-course-summary-top{flex-wrap:wrap}
+@media(max-width:760px){.instructor-public-course-cta{align-items:stretch;flex-direction:column;padding:19px;gap:16px}.instructor-public-course-button{width:100%;white-space:normal}}
+
+
+/* =======================================================================
+   FSA v125 | Shared student + instructor dashboard refinement.
+   Scoped exclusively to .dashboard-shell; PUBLIC website stays unchanged.
+   No navigation, route, role, cart, security or modal logic is altered.
+   ======================================================================= */
+body[data-mode="dashboard"] .dashboard-shell {
+  font-family: Inter, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: #283a33;
+  --dash-ink: #283a33;
+  --dash-muted: #697870;
+}
+body[data-mode="dashboard"] .dashboard-shell :is(h1,h2,h3,h4,h5),
+body[data-mode="dashboard"] .dashboard-shell :is(.dashboard-nav, .metric-card strong) {
+  font-family: Poppins, Inter, sans-serif;
+  letter-spacing: -.022em;
+}
+body[data-mode="dashboard"] .dashboard-shell :is(h1,h2,h3,h4,h5) {
+  font-weight: 600 !important;
+  line-height: 1.3;
+}
+/* Consistent, compact navigation for students and instructors. */
+body[data-mode="dashboard"] .dashboard-sidebar { padding-inline: 16px; }
+body[data-mode="dashboard"] .dashboard-nav { gap: 3px; }
+body[data-mode="dashboard"] .dashboard-nav :is(a,button) { font-family: Inter, Arial, sans-serif; font-size: 12px !important; font-weight: 550 !important; letter-spacing: 0; min-height: 41px; border-radius: 10px; }
+body[data-mode="dashboard"] .dashboard-nav :is(a,button).active { font-weight: 650 !important; }
+body[data-mode="dashboard"] .dashboard-sidebar .dashboard-profile-mini strong { font-size: 12px; font-weight: 600; }
+body[data-mode="dashboard"] .dashboard-sidebar .dashboard-profile-mini span { font-size: 10.5px; font-weight: 400; }
+body[data-mode="dashboard"] .dashboard-sidebar :is(.dashboard-nav-label,.nav-label) { font-size: 9.5px; font-weight: 650; letter-spacing: .08em; }
+/* Smart page sizing — avoids billboard-style oversized headers. */
+body[data-mode="dashboard"] .dashboard-main { padding: 0; }
+body[data-mode="dashboard"] .dashboard-content { padding: 24px 26px 34px !important; }
+body[data-mode="dashboard"] .dashboard-admin-topbar-copy strong { font-size: 15px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-admin-profile-chip strong { font-size: 11.5px; font-weight: 600; }
+body[data-mode="dashboard"] .dashboard-topbar { min-height: 66px; margin-bottom: 18px; }
+body[data-mode="dashboard"] .dashboard-topbar h1 { font-size: clamp(21px, 2vw, 25px) !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-topbar p { font-size: 12px !important; line-height: 1.55; }
+body[data-mode="dashboard"] .dashboard-page-head { margin-bottom: 19px; }
+body[data-mode="dashboard"] .dashboard-page-head h1 { font-size: clamp(21px, 2vw, 25px) !important; font-weight: 600 !important; line-height: 1.3; }
+body[data-mode="dashboard"] .dashboard-page-head p { font-size: 12.5px !important; line-height: 1.62 !important; font-weight: 400; }
+body[data-mode="dashboard"] .dashboard-shell .eyebrow { font-size: 10px !important; font-weight: 650 !important; letter-spacing: .09em; }
+/* Calm cards, crisp section headers, easy-to-read stat values. */
+body[data-mode="dashboard"] .dashboard-shell .panel { padding: 19px; border-radius: 16px; box-shadow: 0 8px 24px rgba(50,32,38,.04); }
+body[data-mode="dashboard"] .dashboard-shell .panel-head h2 { font-size: 16px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .panel-head :is(a,button) { font-size: 11.5px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .panel :is(p,small) { line-height: 1.6; }
+body[data-mode="dashboard"] .dashboard-shell .metric-card { min-height: 118px; padding: 16px; border-radius: 15px; box-shadow: 0 7px 22px rgba(50,32,38,.04); }
+body[data-mode="dashboard"] .dashboard-shell .metric-card strong { margin-top: 10px; font-size: 24px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .metric-card span { font-size: 11.5px !important; font-weight: 500 !important; }
+body[data-mode="dashboard"] .dashboard-shell .metric-card small { font-size: 11px !important; font-weight: 500; }
+body[data-mode="dashboard"] .dashboard-shell .premium-dashboard-hero { padding: 21px 24px; border-radius: 17px; box-shadow: 0 12px 30px rgba(var(--brand-rgb),.14); }
+body[data-mode="dashboard"] .dashboard-shell .premium-dashboard-hero h2 { font-size: clamp(19px, 2vw, 23px) !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .premium-dashboard-hero p { font-size: 12px !important; }
+body[data-mode="dashboard"] .dashboard-shell .premium-resume-copy h2 { font-size: 19px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .premium-resume-copy p { font-size: 12px; }
+body[data-mode="dashboard"] .dashboard-shell .premium-summary-line strong { font-size: 19px; font-weight: 600; }
+/* Courses, live classes, lists, learner details. */
+body[data-mode="dashboard"] .dashboard-shell .instructor-page-actions { padding: 16px 18px; border-radius: 16px; }
+body[data-mode="dashboard"] .dashboard-shell .instructor-page-actions p { font-size: 12px !important; line-height: 1.6 !important; }
+body[data-mode="dashboard"] .dashboard-shell .instructor-public-course-cta { padding: 19px 22px; border-radius: 16px; }
+body[data-mode="dashboard"] .dashboard-shell .instructor-public-course-cta h2 { font-size: 19px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell :is(.instructor-course-card,.classroom-manage-card,.student-detail-block) h3 { font-size: 15px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .continue-card-dashboard h3 { font-size: 15px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell :is(.continue-card-dashboard p,.instructor-course-body p,.classwork-card p) { font-size: 12px !important; line-height: 1.6; }
+body[data-mode="dashboard"] .dashboard-shell .student-detail-identity h3 { font-size: 17px !important; }
+body[data-mode="dashboard"] .dashboard-shell :is(.student-detail-metrics,.student-detail-placement) strong { font-weight: 600 !important; }
+/* Form consistency: not too small, not heavy, normal 44px tap targets. */
+body[data-mode="dashboard"] .dashboard-shell :is(label,legend) { font-weight: 600; }
+body[data-mode="dashboard"] .dashboard-shell :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-family: Inter, Arial, sans-serif; font-size: 13px; font-weight: 400; }
+body[data-mode="dashboard"] .dashboard-shell :is(.form-grid,.profile-form,.fsa-profile-editor) :is(input:not([type=checkbox]):not([type=radio]),select) { min-height: 44px; }
+body[data-mode="dashboard"] .dashboard-shell :is(.button,.button-primary,.button-secondary) { font-family: Inter, Arial, sans-serif; font-size: 12px !important; font-weight: 600 !important; letter-spacing: 0; box-shadow: none; }
+body[data-mode="dashboard"] .dashboard-shell .button:hover { transform: translateY(-1px); }
+body[data-mode="dashboard"] .dashboard-shell :is(.status-pill,.course-visibility,.coursework-state) { font-size: 10px; font-weight: 600; letter-spacing: 0; }
+body[data-mode="dashboard"] .dashboard-shell :is(.history-table,.data-table) th { font-size: 10.5px !important; font-weight: 650 !important; letter-spacing: .04em; }
+body[data-mode="dashboard"] .dashboard-shell :is(.history-table,.data-table) td { font-size: 12px !important; font-weight: 400; }
+/* Profile editor: professional heading scale with no restored tabs/sidebar. */
+body[data-mode="dashboard"] .dashboard-shell .fsa-profile-hero h1 { font-size: clamp(22px,2.4vw,28px) !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .fsa-profile-editor :is(h2,h3) { font-size: 17px !important; font-weight: 600 !important; }
+body[data-mode="dashboard"] .dashboard-shell .fsa-profile-editor :is(label,small) { line-height: 1.55; }
+/* Mobile: preserve existing slide-out sidebar and dashboard layout behavior. */
+@media(max-width:850px) {
+  body[data-mode="dashboard"] .dashboard-content { padding: 20px 17px 28px !important; }
+  body[data-mode="dashboard"] .dashboard-shell .panel { padding: 17px; }
+}
+@media(max-width:520px) {
+  body[data-mode="dashboard"] .dashboard-content { padding: 18px 13px 24px !important; }
+  body[data-mode="dashboard"] .dashboard-page-head h1,
+  body[data-mode="dashboard"] .dashboard-topbar h1 { font-size: 21px !important; }
+  body[data-mode="dashboard"] .dashboard-shell .premium-dashboard-hero { padding: 19px; }
+  body[data-mode="dashboard"] .dashboard-shell .metric-card { padding: 14px; }
+}

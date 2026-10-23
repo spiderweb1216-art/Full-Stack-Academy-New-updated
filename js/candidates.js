@@ -18,7 +18,7 @@
     courses:new Set(),
     skills:new Set(),
     skillQuery:'',
-    sort:'recommended',
+    sort:'newest',
     page:1,
     perPage:9,
     filtersOpen:false,
@@ -74,6 +74,10 @@
       return queryMatch && courseMatch && skillMatch;
     });
 
+    if (state.sort === 'newest') rows.sort((a,b)=>{
+      const time=r=>{ const v=r.created_at||r.createdAt||r.created_on||r.published_at||''; const d=v?Date.parse(String(v)):NaN;return Number.isFinite(d)?d:0; };
+      return time(b)-time(a) || (Number(b.id)||0)-(Number(a.id)||0);
+    });
     if (state.sort === 'name-asc') rows.sort((a,b)=>a.name.localeCompare(b.name));
     if (state.sort === 'name-desc') rows.sort((a,b)=>b.name.localeCompare(a.name));
     if (state.sort === 'course') rows.sort((a,b)=>a.course.localeCompare(b.course) || a.name.localeCompare(b.name));
@@ -88,7 +92,7 @@
   function requestCvUrl(candidate) {
     const subject = encodeURIComponent(`Resume request — ${candidate.name}`);
     const body = encodeURIComponent(`Hello Full Stack Academy Placement Team,\n\nI would like to request the latest resume/CV for ${candidate.name} (${candidate.course}).\n\nRegards,`);
-    return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+    return `mailto:${encodeURIComponent(window.FSA_DATA?.content?.placementEmail||window.FSA_DATA?.site?.support_email||CONTACT_EMAIL)}?subject=${subject}&body=${body}`;
   }
 
   function renderHero() {
@@ -176,7 +180,7 @@
       <div class="candidate-card-photo">
         <span class="candidate-photo-fallback">${esc(initials(candidate.name))}</span>
         <img src="${esc(candidate.image)}" alt="${esc(candidate.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="this.previousElementSibling.hidden=true" onerror="this.style.display='none'">
-        <span class="candidate-available"><i></i> Available</span>
+        <span class="candidate-available"><i></i> ${esc(candidate.availability || "Availability not specified")}</span>
       </div>
       <div class="candidate-card-body">
         <div class="candidate-card-topline"><span>${icon('briefcase')} Trained in</span><small>FSA Candidate</small></div>
@@ -207,7 +211,7 @@
           <p><strong>${rows.length}</strong> candidate${rows.length === 1 ? '' : 's'} found <span>· Showing ${from}–${to}</span></p>
         </div>
         <label class="candidate-sort"><span>Sort by</span><select data-candidate-sort>
-          <option value="recommended" ${state.sort==='recommended'?'selected':''}>Recommended</option>
+          <option value="newest" ${state.sort==='newest'?'selected':''}>Newest First</option>
           <option value="name-asc" ${state.sort==='name-asc'?'selected':''}>Name: A–Z</option>
           <option value="name-desc" ${state.sort==='name-desc'?'selected':''}>Name: Z–A</option>
           <option value="course" ${state.sort==='course'?'selected':''}>Training track</option>
@@ -255,7 +259,7 @@
   }
 
   function resetFilters(app) {
-    state.query=''; state.courses.clear(); state.skills.clear(); state.skillQuery=''; state.sort='recommended'; state.page=1; state.expandedSkills=false;
+    state.query=''; state.courses.clear(); state.skills.clear(); state.skillQuery=''; state.sort='newest'; state.page=1; state.expandedSkills=false;
     const search = app?.querySelector('[data-candidate-search]'); if (search) search.value='';
     renderDirectory(app);
   }

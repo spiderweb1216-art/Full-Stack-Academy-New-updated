@@ -1,0 +1,14 @@
+/* v138 public course module editor: existing academy colours and tokens only */
+#publicCurriculumBuilder {display:grid;gap:14px}
+.public-module-editor{border-radius:14px;overflow:hidden}
+.public-module-editor>.builder-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.public-module-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.public-module-controls button,.public-lesson-controls button{background:#fff;border:1px solid var(--border,#ecd7db);border-radius:8px;padding:7px 10px;color:var(--brand,#852a39);font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.public-module-controls button:hover,.public-lesson-controls button:hover{background:var(--pink,#fff3f5)}
+.public-lesson-list{display:grid;gap:10px;margin-top:16px}
+.public-lesson-editor{display:grid;grid-template-columns:36px minmax(0,2.2fr) minmax(96px,.8fr) auto;gap:10px;align-items:end;border:1px solid var(--border,#ecd7db);border-radius:11px;background:#fff;padding:13px}
+.public-lesson-num{width:33px;height:37px;display:grid;place-items:center;border-radius:8px;color:var(--brand,#852a39);background:var(--pink,#fff3f5);font-weight:800;font-size:12px}
+.public-lesson-editor label{min-width:0}.public-lesson-editor label input{width:100%;box-sizing:border-box}
+.public-lesson-controls{display:flex;gap:5px;align-items:center;padding-bottom:2px}
+.public-add-lesson{margin-top:12px}
+@media(max-width:760px){.public-lesson-editor{grid-template-columns:36px minmax(0,1fr)}.public-lesson-editor label:nth-of-type(2){grid-column:2}.public-lesson-controls{grid-column:2}.public-module-controls{gap:4px}}

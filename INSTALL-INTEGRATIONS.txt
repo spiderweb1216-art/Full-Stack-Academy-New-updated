@@ -1,0 +1,13 @@
+STUDENT LOGIN INTEGRATIONS — REPLACEMENT FILES
+
+1. Make a backup. Overlay the included files into the matching project paths.
+2. Import database/social_identities.sql (if not previously imported) and database/student_auth_limits.sql into your LMS MySQL database.
+3. In PHP server environment set FSA_SOCIAL_BASE_URL to your website base URL, e.g. http://localhost/academy for local testing and https://academy.example.com for production. Must match callback URL exactly.
+4. Open ADMIN > INTEGRATIONS as Super Admin. Enter OAuth client IDs and secrets, toggle only providers ready to use, and save.
+5. Register <site-base>/api/social-callback.php as redirect URI in EACH provider developer console. Providers may require HTTPS for local testing; use an HTTPS dev tunnel when needed.
+6. Test with new student email and an existing staff email (staff email must NOT be allowed to create social-student).
+7. Never commit passwords, API secrets, database.php, .env, or server credentials to Git.
+
+IMPLEMENTED: Google, Microsoft, LinkedIn provider controls and encrypted secret storage, dynamic student-only provider display with icons, OAuth student sign-in, student password login 5 failures/15 minute lock (requires migration).
+NOT YET IMPLEMENTED: SMS OTP challenge, SMS gateway integration, active reCAPTCHA verification. The admin page has preparatory configuration controls only and explicitly warns of this. These functions must NOT be represented as protecting logins until implemented and tested.
+NOTES: Email OTP intercepts student password login, sends a six-digit code to the registered email using configured SMTP, and requires successful code verification before session login. Social OAuth sign-in does not require an additional email OTP. reCAPTCHA keys are stored but do not enforce challenges. You can keep those disabled. The application requires your configured SMTP for future email OTP delivery. Production security review, browser/E2E, session and OAuth provider tests are required.

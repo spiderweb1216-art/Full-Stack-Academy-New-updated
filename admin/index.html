@@ -22,7 +22,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/admin.css?v=120.0">
+  <link rel="stylesheet" href="css/admin.css?v=123.0-physical">
+  <link rel="stylesheet" href="css/physical-pages.css?v=132.0-module-first">
   <style id="eventAdminV15Styles">
     .event-admin-table td:first-child{min-width:360px}.event-admin-main{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:16px;min-width:0}.event-admin-thumb{width:92px;height:64px;border-radius:13px;overflow:hidden;background:#f4e8eb;display:grid;place-items:center;flex:none}.event-admin-thumb img{width:100%;height:100%;object-fit:cover;display:block}.event-admin-thumb span{font-weight:800;color:var(--brand,#8f293a)}.event-admin-copy{min-width:0}.event-admin-copy strong,.event-admin-copy small{display:block;position:static!important;transform:none!important;margin:0}.event-admin-copy strong{font-size:14px;line-height:1.35;color:var(--ink,#19332b);white-space:normal}.event-admin-copy small{margin-top:5px;line-height:1.4;color:var(--muted,#68756f);overflow-wrap:anywhere}.event-featured-label{display:inline-flex;margin-left:6px;font-weight:700;color:var(--brand,#8f293a)}
     .event-editor-card{overflow:visible}.event-builder-title{display:grid!important;grid-template-columns:1fr auto;gap:6px 16px;align-items:center;padding-top:14px}.event-builder-title>span{font-size:16px;font-weight:800}.event-builder-title>small{grid-column:1/2}.event-builder-title>button{grid-column:2;grid-row:1/3;align-self:center}.event-builder-list{display:grid;gap:14px}.event-builder-item{border:1px solid var(--border,#ead8dc);border-radius:16px;padding:16px;background:linear-gradient(180deg,#fff,#fffafb);box-shadow:0 8px 24px rgba(91,27,42,.045)}.event-builder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.event-builder-head strong{color:var(--brand,#8f293a);font-size:14px}.event-builder-order{display:flex;gap:7px;align-items:center}.event-builder-order button{min-width:34px;height:32px;border:1px solid var(--border,#ead8dc);background:#fff;border-radius:9px;cursor:pointer;color:var(--brand,#8f293a);font-weight:800}.event-builder-order .builder-remove{padding:0 10px;color:#a22d3f}.event-builder-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.event-builder-grid label{min-width:0}.event-builder-wide{grid-column:1/-1}.event-inline-upload{display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;border:1px dashed var(--border,#ead8dc);border-radius:11px;background:#fff}.event-inline-upload input[type=file]{max-width:290px}.event-inline-upload small{color:var(--muted,#68756f);line-height:1.35}.event-flow-builder{counter-reset:flow}.event-flow-item{position:relative}.event-flow-item:before{counter-increment:flow;content:"STEP " counter(flow);position:absolute;top:-10px;left:16px;background:var(--brand,#8f293a);color:white;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:800;letter-spacing:.08em}.media-thumb video{width:100%;height:100%;object-fit:cover;display:block}.media-thumb{position:relative}.media-video-badge{position:absolute;right:8px;bottom:8px;background:rgba(26,20,22,.8);color:white;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:800;letter-spacing:.08em}
@@ -133,8 +134,130 @@
     @media(max-width:900px){.certificate-summary-grid,.certificate-bulk-grid{grid-template-columns:1fr}.certificate-bulk-grid .full{grid-column:auto}.certificate-panel-head,.certificate-state{align-items:stretch;flex-direction:column}.certificate-state-actions{justify-content:flex-start}.signing-authority-grid{grid-template-columns:1fr}}
     @media(max-width:620px){.certificate-panel-body{padding:18px}.certificate-panel-head{padding:18px}.signing-authority-form{grid-template-columns:1fr}.signing-authority-form .full{grid-column:auto}}
 
+
+/* Full-page course editor (separate browser tab, no popup). */
+body.fsa-editor-page{overflow:auto!important;background:#fff9fa!important}
+body.fsa-editor-page #adminApp{display:grid!important;min-height:0!important;height:0!important;overflow:visible!important}
+body.fsa-editor-page #adminApp .admin-main{visibility:hidden!important;pointer-events:none!important}
+body.fsa-editor-page #adminApp .sidebar{visibility:visible!important;pointer-events:auto!important}
+body.fsa-editor-page #courseModalBackdrop{position:relative!important;inset:auto!important;display:block!important;visibility:visible!important;opacity:1!important;background:none!important;padding:0!important;overflow:visible!important;z-index:auto!important}
+body.fsa-editor-page #courseModalBackdrop[hidden]{display:block!important}
+body.fsa-editor-page #courseModalBackdrop>.course-editor-modal{width:min(1380px,calc(100% - 36px))!important;max-width:1380px!important;max-height:none!important;height:auto!important;overflow:visible!important;margin:24px auto 50px!important;border:1px solid #ecd9dc!important;border-radius:20px!important;box-shadow:0 10px 42px rgba(100,27,43,.07)!important;transform:none!important}
+body.fsa-editor-page #courseModalBackdrop>.course-editor-modal>header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #eadfe1}
+/* Full-page editor: readable header action, separate from square icon buttons. */
+body.fsa-editor-page .course-editor-modal > header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:20px!important;flex-wrap:wrap!important}
+body.fsa-editor-page .course-editor-modal > header > div{flex:1 1 480px;min-width:0}
+body.fsa-editor-page .course-editor-modal > header .fsa-back-to-courses{display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 0 auto!important;position:static!important;width:auto!important;min-width:max-content!important;max-width:none!important;height:42px!important;min-height:42px!important;padding:0 18px!important;margin:0!important;border:1px solid #e9cbd1!important;border-radius:11px!important;background:#fff!important;color:#8e293e!important;font-size:13px!important;font-weight:600!important;line-height:1.2!important;font-family:inherit!important;letter-spacing:0!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;text-align:center!important;cursor:pointer!important}
+body.fsa-editor-page .course-editor-modal > header .fsa-back-to-courses:hover{background:#fff4f5!important;border-color:#a33e50!important}
+body.fsa-editor-page .course-editor-modal > header .fsa-back-to-courses:focus-visible{outline:3px solid #dc9bac!important;outline-offset:3px!important}
+@media(max-width:680px){body.fsa-editor-page .course-editor-modal > header{align-items:flex-start!important}body.fsa-editor-page .course-editor-modal > header .fsa-back-to-courses{min-width:0!important;padding:0 14px!important}}
+
+body.fsa-editor-page #courseForm{overflow:visible!important;max-height:none!important}
+body.fsa-editor-page .course-mode-switcher-head{display:none!important}
+body.fsa-editor-page #fsaFormatAvailability{display:block!important}
+body.fsa-editor-page .course-mode-switcher{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important}
+body.fsa-editor-page .course-mode-tabs{margin:0!important}
+body.fsa-editor-page .modal-actions{position:sticky;bottom:0;z-index:15;background:#fff;padding:16px 20px!important;border-top:1px solid #eadfe1}
+@media(max-width:720px){body.fsa-editor-page #courseModalBackdrop>.course-editor-modal{width:calc(100% - 16px)!important;margin:8px auto 25px!important}}
+
+
+/* Course editor: full-width text navigation, never the icon-only close button. */
+body.fsa-editor-page #courseModalBackdrop .course-editor-modal > header button.fsa-back-to-courses {
+  appearance:none!important;display:inline-flex!important;align-items:center!important;
+  justify-content:center!important;box-sizing:border-box!important;
+  flex:0 0 auto!important;align-self:center!important;
+  position:relative!important;inset:auto!important;float:none!important;
+  width:auto!important;min-width:192px!important;max-width:none!important;
+  height:44px!important;min-height:44px!important;
+  padding:0 18px!important;margin:0!important;
+  background:#fff!important;color:#852937!important;
+  border:1px solid #e9cbd1!important;border-radius:12px!important;
+  font-size:13px!important;font-weight:600!important;line-height:1.2!important;font-family:inherit!important;
+  text-align:center!important;white-space:nowrap!important;word-break:keep-all!important;
+  overflow-wrap:normal!important;transform:none!important;cursor:pointer!important;
+}
+body.fsa-editor-page #courseModalBackdrop .course-editor-modal > header button.fsa-back-to-courses:hover{background:#fff1f3!important;border-color:#852937!important}
+body.fsa-editor-page #courseModalBackdrop .course-editor-modal > header button.fsa-back-to-courses:focus-visible{outline:3px solid #d99fac!important;outline-offset:2px!important}
+@media(max-width:720px){body.fsa-editor-page #courseModalBackdrop .course-editor-modal > header button.fsa-back-to-courses{min-width:0!important;max-width:100%!important}}
+
 </style>
 
+<script src="../js/language-runtime.js?v=122.0" defer></script>
+<link rel="stylesheet" href="css/public-modules.css?v=138">
+<style>
+/* All Courses management only — existing admin theme is unchanged. */
+.fsa-all-courses-panel{overflow:hidden}
+.fsa-all-course-row{display:grid;grid-template-columns:minmax(230px,1.2fr) minmax(290px,1.5fr) auto;align-items:center;gap:20px;padding:20px 24px;border-top:1px solid #f0dcdd}
+.fsa-all-course-main{display:flex;gap:13px;align-items:center;min-width:0}
+.fsa-all-course-main h3{margin:0 0 5px;color:#23372f;font-size:15px}
+.fsa-all-course-main small{color:#78847e;overflow-wrap:anywhere}
+.fsa-all-format-links{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.fsa-all-format-active,.fsa-all-format-off{font-size:11px;border-radius:99px;padding:5px 8px;white-space:nowrap}
+.fsa-all-format-active{background:#e8f5ed;color:#236944}
+.fsa-all-format-off{background:#f6f3f2;color:#908989}
+.fsa-all-course-actions{display:flex;gap:9px;flex-wrap:wrap}
+.fsa-all-course-action{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:5px 8px;background:#fbf7f7;border-radius:9px}
+.fsa-all-course-action strong{font-size:11px;color:#832638}
+.fsa-all-course-action .cm-mini-action{font-size:11px;padding:6px 8px}
+.fsa-all-course-manage .secondary-button{white-space:nowrap}
+.fsa-all-inactive{font-size:12px;color:#957c82}
+@media(max-width:1200px){.fsa-all-course-row{grid-template-columns:1fr;gap:10px}.fsa-all-course-manage{justify-self:start}}
+</style>
+<style id="fsa-course-admin-unified-actions">
+.fsa-course-actions-unified{display:grid;gap:12px;width:100%;}
+.fsa-course-action-group{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.fsa-course-action-group>strong{font-size:12px;color:#8f293a;min-width:82px;padding-top:10px;}
+.fsa-action-wrap{display:flex;gap:7px;flex-wrap:wrap;align-items:center;flex:1;}
+.fsa-action-wrap .secondary-button,.fsa-action-wrap .cm-mini-action{white-space:nowrap;cursor:pointer;}
+.fsa-private-hint{color:#7a817f;font-size:11px;flex-basis:100%;margin-left:94px;}
+.fsa-all-course-row{grid-template-columns:minmax(225px,1fr) minmax(400px,1.5fr)!important;}
+.fsa-all-course-manage:empty{display:none!important;}
+@media(max-width:1000px){.fsa-all-course-row{grid-template-columns:1fr!important}.fsa-private-hint{margin-left:0;}}
+</style>
+<link rel="stylesheet" href="css/physical-rich-editor.css?v=1">
+
+<style id="fsa-course-editor-dashboard-repair">
+/* Preserve the dashboard navigation while editing a course in page mode. */
+body.fsa-editor-page #adminApp{display:grid!important;grid-template-columns:var(--sidebar,270px) minmax(0,1fr)!important;min-height:0!important;height:0!important;}
+body.fsa-editor-page #adminApp .admin-main{height:0!important;min-height:0!important;overflow:hidden!important;}
+body.fsa-editor-page #adminApp .sidebar{position:fixed!important;left:0;top:0;bottom:0;z-index:65!important;overflow-y:auto!important;}
+body.fsa-editor-page #courseModalBackdrop{margin-left:var(--sidebar,270px)!important;width:calc(100% - var(--sidebar,270px))!important;}
+body.fsa-editor-page #courseModalBackdrop>.course-editor-modal{width:min(1320px,calc(100% - 32px))!important;}
+body.fsa-editor-page #fsaFormatAvailability{display:block!important;margin:0 0 18px!important;}
+body.fsa-editor-page .course-mode-tab:not(.enabled):after{content:'Click to enable'!important;}
+body.fsa-editor-page .course-mode-tab:not(.enabled){opacity:1!important;cursor:pointer!important;}
+body.fsa-editor-page .course-mode-tabs .course-mode-tab{min-width:0!important;}
+@media(max-width:860px){
+ body.fsa-editor-page #adminApp{display:block!important;}
+ body.fsa-editor-page #adminApp .sidebar{position:fixed!important;transform:translateX(-105%);}
+ body.fsa-editor-page #adminApp .sidebar.open{transform:none;}
+ body.fsa-editor-page #courseModalBackdrop{margin-left:0!important;width:100%!important;}
+ body.fsa-editor-page #courseModalBackdrop>.course-editor-modal{width:calc(100% - 16px)!important;}
+}
+</style>
+
+<style id="fsa-course-format-enabled-fix">
+/* Course editor: accessible, visible format availability controls. */
+#courseForm #fsaFormatAvailability{display:block!important;visibility:visible!important;opacity:1!important;margin:0 0 16px!important;padding:14px 16px!important;border:1px solid #ead7db!important;border-radius:14px!important;background:#fffafb!important;}
+#courseForm #fsaFormatAvailability .fsa-format-label{display:flex!important;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;color:#233b32;}
+#courseForm #fsaFormatAvailability .fsa-format-label strong{display:block;font-weight:650;font-size:13px;}
+#courseForm #fsaFormatAvailability .fsa-format-label span{display:block;font-weight:400;color:#77817c;font-size:12px;margin-top:2px;line-height:1.5;}
+#courseForm #fsaFormatAvailability .fsa-format-options{display:flex;flex-wrap:wrap;gap:10px;}
+#courseForm #fsaFormatAvailability .fsa-format-option{display:inline-flex;align-items:center;gap:9px;min-height:41px;padding:8px 12px;border-radius:10px;border:1px solid #ead5d9;background:white;font-size:12px;font-weight:600;cursor:pointer;}
+#courseForm #fsaFormatAvailability .fsa-format-option.is-enabled{border-color:#b9d8c3;background:#f6fcf8;}
+#courseForm #fsaFormatAvailability .fsa-format-option input{height:16px;width:16px;min-height:0;accent-color:#872a3d;cursor:pointer;}
+#courseForm #fsaFormatAvailability .fsa-format-option small{margin-left:5px;font-size:10px;font-weight:500;color:#69756e;}
+#courseForm #fsaFormatAvailability [data-format-summary]{display:block;margin-top:9px;color:#6c7570;font-weight:400;font-size:11px;}
+#courseForm #fsaFormatAvailability .fsa-enable-all-formats{border:1px solid #eed4d9;color:#842b3d;background:white;border-radius:9px;min-height:34px;padding:6px 12px;font:inherit;font-weight:600;font-size:12px;cursor:pointer;}
+#courseForm #fsaFormatAvailability .fsa-enable-all-formats:hover{background:#fff3f5;}
+#courseForm .course-mode-tab:not(.enabled){opacity:1!important;cursor:pointer;}
+#courseForm .course-mode-tab:not(.enabled):after{content:'Click to enable';}
+#courseForm .course-mode-tab.enabled:after{content:'Enabled';position:absolute;right:11px;top:9px;font-size:10px;color:#2b7950;font-weight:600;}
+#courseForm .course-mode-tab.active.enabled:after{color:#fff;opacity:.9;}
+#courseForm .course-mode-tab{user-select:none;}
+#courseForm .course-mode-check{pointer-events:none!important;}
+@media(max-width:700px){#courseForm #fsaFormatAvailability .fsa-format-options{display:grid;grid-template-columns:1fr;width:100%;}#courseForm #fsaFormatAvailability .fsa-format-option{width:100%;}}
+</style>
 </head>
 <body>
   <main class="login-page" id="loginView">
@@ -182,7 +305,8 @@
       <nav class="admin-nav" aria-label="Administration navigation">
         <button class="active" data-view="dashboard"><span>▦</span>Overview</button>
         <span class="nav-label">Course Commerce</span>
-        <button data-view="courses"><span>▤</span>Courses</button>
+        <button data-view="courses"><span>▤</span>All Courses</button>
+        <button data-view="heroSlider"><span>▧</span>Homepage Slider</button>
         <button data-view="batches"><span>◫</span>Batches</button>
         <button data-view="branches"><span>⌂</span>Branches</button>
         <button data-view="companies"><span>▥</span>Companies</button>
@@ -206,7 +330,7 @@
         <span class="nav-label">People & Support</span>
         <button data-view="users"><span>◎</span>Users</button>
         <button data-view="instructors"><span>♟</span>Instructors</button>
-        <button data-view="approvals"><span>✓</span>Approvals</button>
+        <button data-view="approvals"><span>✓</span>Approvals <span id="adminApprovalsCount" class="academy-nav-count" hidden></span></button>
         <button data-view="inquiries"><span>✉</span>Enquiries</button>
         <span class="nav-label">Email Management</span>
         <button data-view="smtp"><span>⇄</span>SMTP Setup</button>
@@ -217,7 +341,9 @@
         <button data-view="snippets"><span>⌘</span>Code Snippets</button>
         <button data-view="theme"><span>◉</span>Theme Colors</button>
         <span class="nav-label">Configuration</span>
+        <button data-view="websiteContent"><span>✎</span>Website Content</button>
         <button data-view="settings"><span>⚙</span>Website Settings</button>
+        <button data-view="integrations"><span>◇</span>Integrations</button>
         <button data-view="account"><span>♙</span>Admin Account</button>
       </nav>
       <div class="sidebar-footer">
@@ -233,6 +359,13 @@
           <div><span class="topbar-label" data-admin-site-name>Full Stack Academy</span><strong id="viewTitle">Overview</strong></div>
         </div>
         <div class="topbar-right">
+          <div class="academy-alerts">
+            <button type="button" class="academy-alerts-trigger" id="adminAlertsButton" aria-label="Notifications" aria-expanded="false" aria-controls="adminAlertsPanel"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg> <span id="adminAlertsCount" class="academy-alerts-count" hidden></span></button>
+            <div class="academy-alerts-panel" id="adminAlertsPanel" role="region" aria-label="Notifications" hidden>
+              <header><strong>Notifications</strong><small>Approvals &amp; new enrollments</small></header>
+              <div id="adminAlertsItems" class="academy-alerts-items"><p class="academy-alerts-empty">Checking notifications…</p></div>
+            </div>
+          </div>
           <span class="system-status"><i></i> System Online</span>
           <button class="profile-chip" data-view="account"><span id="adminInitials">AD</span><span><strong id="adminName">Administrator</strong><small id="adminRole">Admin</small></span></button>
         </div>
@@ -249,10 +382,9 @@
         <label class="full">Full name<input name="name" required maxlength="120"></label>
         <label>Email address<input name="email" type="email" required maxlength="190"></label>
         <label>Phone number<input name="phone" maxlength="40"></label>
-        <label>User type<select name="role"><option value="super_admin">Super Admin</option><option value="admin_staff">Admin Staff</option><option value="branch_head">Branch Head</option><option value="branch_admin">Branch Admin</option><option value="instructor">Instructor</option><option value="student">Student</option></select></label>
+        <label>User type<select name="role"><option value="super_admin">Super Admin</option><option value="admin_staff">Admin Staff</option><option value="branch_head">Branch Head</option><option value="branch_admin">Branch Admin</option><option value="instructor">Instructor</option></select></label>
         <label>Status<select name="status"><option value="active">Active</option><option value="pending">Pending Approval</option><option value="blocked">Blocked</option></select></label>
-        <label>Academy login ID<input name="student_code" maxlength="40" placeholder="Auto-generated for students"></label>
-        <label>Branch<select name="branch" id="userBranchSelect"><option value="">Choose branch</option></select></label>
+        <label id="userBranchRow" hidden>Branch <span aria-hidden="true">*</span><select name="branch" id="userBranchSelect"><option value="">Choose branch</option></select></label>
         <label class="check-row full" id="recordedLecturePermissionRow" hidden><input name="can_record_lectures" type="checkbox"><span><strong>Can create recorded LMS lectures</strong><small>Only Super Admin / Admin Staff can grant this permission. Recorded LMS content still requires central approval before publishing.</small></span></label>
         <label class="full">Password<input name="password" type="password" minlength="8" placeholder="Minimum 8 characters"></label>
         <p class="form-hint full" id="passwordHint">A password is required for a new user.</p>
@@ -290,13 +422,13 @@
         <input type="hidden" name="id">
         <div class="course-mode-switcher full">
           <div class="course-mode-switcher-head">
-            <div><strong>Course delivery types</strong><small>Enable every version you sell. Each enabled tab keeps its own image, price, description, duration, learning outcomes, requirements, projects and reviews.</small></div>
+            <div><strong>Course delivery types</strong><small>Enable every version you sell. Each delivery format has its own public image, price, overview, learning outcomes and module syllabus.</small></div>
             <span class="course-mode-required">Enable at least one</span>
           </div>
           <div class="course-mode-tabs" role="tablist" aria-label="Course delivery types">
-            <button type="button" class="course-mode-tab active enabled" data-action="course-mode" data-mode="offline" role="tab" aria-selected="true"><span class="course-mode-check" data-action="toggle-course-mode" data-mode="offline">✓</span><strong>Physical / Offline</strong><span>Classroom or branch-based version</span></button>
-            <button type="button" class="course-mode-tab" data-action="course-mode" data-mode="live" role="tab" aria-selected="false"><span class="course-mode-check" data-action="toggle-course-mode" data-mode="live">+</span><strong>Live</strong><span>Instructor-led online/live version</span></button>
-            <button type="button" class="course-mode-tab" data-action="course-mode" data-mode="recorded" role="tab" aria-selected="false"><span class="course-mode-check" data-action="toggle-course-mode" data-mode="recorded">+</span><strong>Recorded</strong><span>Self-paced recorded version</span></button>
+            <button type="button" class="course-mode-tab active enabled" data-action="course-mode" data-mode="offline" role="tab" aria-selected="true"><span class="course-mode-check" aria-hidden="true">✓</span><strong>Physical / Offline</strong><span>Classroom or branch-based version</span></button>
+            <button type="button" class="course-mode-tab" data-action="course-mode" data-mode="live" role="tab" aria-selected="false"><span class="course-mode-check" aria-hidden="true">+</span><strong>Live</strong><span>Instructor-led online/live version</span></button>
+            <button type="button" class="course-mode-tab" data-action="course-mode" data-mode="recorded" role="tab" aria-selected="false"><span class="course-mode-check" aria-hidden="true">+</span><strong>Recorded</strong><span>Self-paced recorded version</span></button>
           </div>
         </div>
         <div class="course-mode-context full" id="courseModeContext"><strong>Physical / Offline content</strong><span>This version is enabled. The fields below belong only to this delivery type.</span></div>
@@ -306,7 +438,8 @@
             <label>Course title<input name="title" required maxlength="190"></label>
             <label>URL slug<input name="slug" required maxlength="190" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="course-name" autocapitalize="none" spellcheck="false"></label>
             <label>Category<input name="category" required maxlength="120"></label>
-            <label>Status<select name="status"><option value="published">Published</option><option value="draft">Draft</option></select></label>
+            <label data-central-publish-only>Status<select name="status"><option value="published">Published</option><option value="draft">Draft</option></select></label>
+            <label data-central-publish-only>Course visibility<select name="visibility"><option value="public">Public course</option><option value="private">Private course (not listed publicly)</option></select></label>
             <label>Assigned branch<select name="branchName" id="courseBranchSelect"><option value="">Choose branch</option></select></label>
             <label>Assigned instructor<select name="assignedInstructorId" id="courseInstructorSelect"><option value="0">No instructor assigned</option></select></label>
             <label>Badge<input name="badge" maxlength="60" placeholder="Bestseller"></label>
@@ -316,15 +449,9 @@
             <label>Duration<input name="duration" maxlength="80" placeholder="3 Months"></label>
             <label>Level<input name="level" maxlength="100" placeholder="Beginner"></label>
             <label>Learning hours<input name="hours" type="number" min="0"></label>
-            <label>Private lessons <small>Calculated automatically in the separate Private Lessons editor.</small><input name="lessons" type="number" min="0" readonly></label>
-            <label>Projects count <small>Calculated from project details when added.</small><input name="projects" type="number" min="0"></label>
-            <label>Rating<input name="rating" type="number" min="0" max="5" step="0.1"></label>
-            <label>Reviews count <small>Calculated from review details when added.</small><input name="reviews" type="number" min="0"></label>
             <label>Students<input name="students" type="number" min="0"></label>
             <label>Language<input name="language" maxlength="100"></label>
-            <label>Updated label<input name="updated" maxlength="80" placeholder="July 2026"></label>
             <label>Instructor<input name="instructor" maxlength="150"></label>
-            <label>Instructor role<input name="instructorRole" maxlength="180"></label>
             <label class="full">Course image<div class="media-input-row"><input name="image" maxlength="2000" placeholder="uploads/media/... or https://..."><button class="secondary-button" type="button" data-action="choose-media" data-media-target="image">Choose from Media</button></div><span class="field-preview" data-image-preview-for="image"></span></label>
             <label class="full">Short description<textarea name="short" maxlength="2000"></textarea></label>
           </div>
@@ -341,16 +468,11 @@
           </div>
         </div>
 
-        <div class="course-form-section full">
-          <div class="course-form-section-head"><div><h3>Projects</h3><p>Add the projects students will complete. Empty projects are ignored.</p></div><button class="secondary-button" type="button" data-action="add-project">+ Add Project</button></div>
-          <div class="content-builder" id="projectsBuilder"></div>
-          <p class="builder-empty" id="projectsEmpty">No project details added. The Projects tab will remain hidden.</p>
-        </div>
 
-        <div class="course-form-section full">
-          <div class="course-form-section-head"><div><h3>Course Reviews</h3><p>Add genuine course-specific reviews. Leave this empty to hide review cards.</p></div><button class="secondary-button" type="button" data-action="add-review">+ Add Review</button></div>
-          <div class="content-builder" id="reviewsBuilder"></div>
-          <p class="builder-empty" id="reviewsEmpty">No reviews added. The Reviews tab appears only when rating, review count or review details exist.</p>
+        <div class="course-form-section full" id="publicCurriculumSection">
+          <div class="course-form-section-head"><div><h3>Public curriculum preview</h3><p>Create modules and add lesson titles for this delivery format. These are public syllabus previews, not private lesson content.</p></div><button class="secondary-button" type="button" data-action="public-add-module">+ Add Module</button></div>
+          <div id="publicCurriculumBuilder" class="content-builder"></div>
+          <p class="form-hint">Start with Module 01 and Lesson 01, then add more modules and lessons. Content is saved separately for Physical, Recorded and Live.</p>
         </div>
 
         <p class="form-submit-status full" id="courseFormStatus" role="status" aria-live="polite" hidden></p>
@@ -387,6 +509,6 @@
   </div>
 
   <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
-  <script src="js/admin.js?v=120"></script>
+  <script src="js/admin.js?v=137.0-course-types"></script>
 </body>
 </html>

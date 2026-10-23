@@ -1,141 +1,12 @@
 (function () {
   'use strict';
 
-  const semesters = [
-    ['Semester 1', ['Principles of Management','Basics of Marketing','Business Economics','Environmental Studies','English – 1']],
-    ['Semester 2', ['Organizational Behaviour','Business Statistics','Financial Accounting','Basic Computer Skills','English – 2','Second Language – 2']],
-    ['Semester 3', ['Human Resource Management','Introduction to Information Technology','Financial Management','Communication Skills','Professional Skills','Basic Quality Management','Advanced Computer Skills']],
-    ['Semester 4', ['Business Law and Ethics','Marketing Research','Management Science','Leadership and Management Skills','Universal Human Values','Start Up Opportunity and Feasibility','Business Policy and Strategy']],
-    ['Semester 5', ['Entrepreneurship Development','Business Analytics','Financial Markets and Services','Brand Management','Organizational Development','Fundamentals of Retail Management','Mobile Commerce']],
-    ['Semester 6', ['Supply Chain Management','Business Intelligence and Data Visualization','Banking','Buyer Behaviour','Leadership and Change Management','Customer Relationship Management','Project Report']]
-  ];
-
-  const chapters = [
-    {
-      id:'C1', title:'Personal Effectiveness & Digital Professionalism',
-      intro:'Build growth habits, confident communication, digital professionalism, career foundations and emotional intelligence.',
-      groups:[
-        ['Growth Mindset & Success Habits',['Goal Setting','Discipline & Consistency','Building Winning Habits','Personal Accountability','Time Management']],
-        ['Communication Fundamentals',['Professional Speaking Skills','Active Listening','Confidence Building','Voice & Body Language','Public Speaking Basics']],
-        ['Digital Professionalism',['Digital Etiquette','Professional Email Writing','WhatsApp & Workplace Communication','Online Meeting Etiquette','Personal Branding Basics']],
-        ['Career Foundation Skills',['Resume Basics','LinkedIn Profile Creation','Networking Fundamentals','Professional Introductions','Elevator Pitch']],
-        ['Emotional Intelligence',['Self-Awareness','Self-Control','Empathy','Managing Emotions','Relationship Building']]
-      ],
-      outcomes:['Confidence','Communication Skills','Professional Behaviour','Digital Presence','Career Awareness']
-    },
-    {
-      id:'C2', title:'Collaboration, Leadership & Problem Solving',
-      intro:'Strengthen teamwork, critical thinking, business communication, leadership and innovation skills.',
-      groups:[
-        ['Teamwork Excellence',['Team Dynamics','Collaboration Skills','Accountability','Conflict Resolution','Working in Diverse Teams']],
-        ['Critical Thinking',['Logical Reasoning','Problem Solving Frameworks','Decision Making','Analytical Thinking','Root Cause Analysis']],
-        ['Business Communication',['Business Writing','Presentation Skills','Storytelling for Business','Persuasion Techniques','Professional Meetings']],
-        ['Leadership Foundations',['Leadership Styles','Situational Leadership','Initiative Taking','Ownership Mindset','Influencing Skills']],
-        ['Innovation & Creativity',['Design Thinking','Idea Generation','Creative Problem Solving','Innovation Mindset','Entrepreneurial Thinking']]
-      ],
-      outcomes:['Leadership Skills','Team Collaboration','Critical Thinking','Presentation Skills','Problem Solving Ability']
-    },
-    {
-      id:'C3', title:'AI Era Leadership & Corporate Readiness',
-      intro:'Prepare for AI-enabled workplaces, corporate environments, executive presentations, personal branding and interviews.',
-      groups:[
-        ['AI-Era Professional Skills',['Working with AI Tools','AI Productivity Techniques','Prompt Communication','Human + AI Collaboration','AI Ethics']],
-        ['Corporate Readiness',['Workplace Behaviour','Corporate Culture','Professional Conduct','Workplace Ethics','Business Etiquette']],
-        ['Advanced Presentation Mastery',['Executive Presentations','Data Storytelling','Boardroom Communication','Pitching Ideas','Handling Q&A']],
-        ['Personal Branding & Influence',['LinkedIn Personal Branding','Building Professional Authority','Networking Mastery','Thought Leadership Basics','Digital Reputation Management']],
-        ['Career Acceleration',['Interview Mastery','Group Discussions','HR Interviews','Salary Negotiation Basics','Career Planning']]
-      ],
-      outcomes:['AI-Age Workplace Skills','Corporate Readiness','Leadership Presence','Personal Brand','Interview Confidence']
-    }
-  ];
-
-  const tracks = [
-    {
-      badge:'Flagship Program', title:'BBA + Business Analytics',
-      text:'Develop the ability to analyse business information, build dashboards and support data-led decisions across modern organisations.',
-      tech:['Advanced Excel','Power BI','Tableau','Google Looker Studio','SQL','Python for Analytics','AI Tools for Business','Dashboard Development','Agile Business Analysis','Agile Frameworks','Requirements in Agile','Agile Modelling','Agile Testing & Quality Assurance'],
-      careers:['Business Analyst','Data Analyst','MIS Executive','Reporting Analyst','Operations Analyst']
-    },
-    {
-      badge:'AI + Digital Business', title:'BBA + AI & Digital Business',
-      text:'Learn how AI is reshaping marketing, HR, finance, operations, entrepreneurship and everyday business productivity.',
-      tech:['ChatGPT','Gemini','Claude','Julius AI','Polymer AI','Excel Copilot','AIxploria','Quadratic AI','Prompt Engineering','AI Automation','No-Code AI Tools','AI Agents','Business Productivity Tools','Digital Transformation'],
-      careers:['AI Business Consultant','AI Operations Executive','Business Automation Specialist','Digital Transformation Associate','AI Productivity Consultant']
-    },
-    {
-      badge:'Growth Analytics', title:'BBA + Digital Marketing & Growth Analytics',
-      text:'Build practical skills for generating leads, customers and revenue while measuring growth through modern marketing analytics.',
-      tech:['Digital Marketing','SEO','Google Ads','Social Media Marketing','Meta Ads','Content Marketing','Google Analytics','AI Marketing Tools','Marketing Dashboards'],
-      careers:['Digital Marketing Executive','Growth Analyst','Performance Marketing Associate','SEO Specialist','Brand Executive']
-    }
-  ];
-
-  const why = [
-    ['01','The Job Market Has Changed','Employers increasingly expect graduates to communicate well, use technology, solve problems and contribute quickly.'],
-    ['02','The Real Graduate Gap','Many degree holders leave college without enough practical exposure, leadership practice or interview confidence.'],
-    ['03','Designed to Bridge the Gap','SUPER40 combines business education with AI, analytics, leadership development and hands-on learning.'],
-    ['04','Focused on Career Readiness','Students build portfolios, complete projects, gain internship exposure and prepare systematically for placements.']
-  ];
-
-  const outcomes = ['BBA Degree','Leadership & Future Skills Certification','Technology Specialization','Industry Projects','LinkedIn Profile','Internship Experience','Professional Portfolio','Presentation Skills','AI Productivity Skills','Placement Readiness'];
-
-  const practical = [
-    ['Real Business Projects',['Sales Dashboards','HR Analytics Reports','Marketing Analysis','Business KPI Reports','Automation Workflows','Presentation Projects']],
-    ['Hackathons & Innovation Challenges',['Team Competitions','Business Problem Solving','Startup Challenges','Analytics Events','Presentation Battles']],
-    ['Internship Opportunities',['Startup Internships','Industry Assignments','Mini Projects','Real Client Tasks','Corporate Simulations']],
-    ['Portfolio Development',['LinkedIn Profile','Resume Portfolio','Dashboard Portfolio','Presentation Portfolio','Project Portfolio']]
-  ];
-
-  const highlights = [
-    ['Only 40 Students','Focused mentoring and personalised career guidance.'],
-    ['AI-Integrated BBA Program','Business education combined with modern AI tools.'],
-    ['Industry-Oriented Curriculum','Practical learning aligned with current workplace needs.'],
-    ['Internship & Career Support','Career preparation begins from Year 1.'],
-    ['Corporate Communication Training','Confidence, leadership and presentation skills are developed continuously.'],
-    ['Real-Time Projects','Hands-on practical business learning throughout the program.'],
-    ['Startup & Entrepreneurship Exposure','Understand how modern businesses launch, operate and grow.'],
-    ['Placement Preparation Ecosystem','Mock interviews, aptitude preparation and resume building.']
-  ];
-
-  const programFeatures = ['University Affiliated Degree','AI-Integrated Learning','Industry-Oriented Curriculum','Internship Opportunities','Corporate Exposure','Placement Preparation','Leadership Development','Practical Project Learning'];
-  const admissionSteps = ['Apply','Assessment','Counseling','Scholarship Evaluation','Selection','Admission Confirmation'];
-  const admissionDocs = ['10th / SSC Certificate','12th / Intermediate Certificate','Character Certificate','Migration Certificate (if applicable)','GAP Certificate (if applicable)','Achievement Certificate (if applicable)','Aadhar Card','5 Passport Size Photos'];
-
-  const feeRows = [
-    ['Admission Fee','On the day of Personal Interview','₹10,000'],
-    ['Semester I Fee','June 20, 2026','₹55,000'],
-    ['Semester II Fee','November 01–10, 2026','₹55,000'],
-    ['Semester III Fee','June 01–10, 2027','₹55,000'],
-    ['Semester IV Fee','November 01–10, 2027','₹55,000'],
-    ['Semester V Fee','June 01–10, 2028','₹55,000'],
-    ['Semester VI Fee','November 01–10, 2028','₹55,000']
-  ];
-
-  const admissionScholarships = [
-    ['≥ 90%','₹6,750 / semester','₹40,500 total'],
-    ['≥ 80% – < 90%','₹5,400 / semester','₹32,400 total'],
-    ['≥ 70% – < 80%','₹3,600 / semester','₹21,600 total']
-  ];
-  const performanceScholarships = [
-    ['≥ 9.00 SGPA','₹5,400 / semester'],
-    ['≥ 8.00 – < 9.00 SGPA','₹4,050 / semester'],
-    ['≥ 7.00 – < 8.00 SGPA','₹3,150 / semester']
-  ];
-
-  const leadership = [
-    ['Board of Directors','Mohammed Abubakr','Co-Founder, Investor & Technical Advisor'],
-    ['Board of Directors','Aijaz Ahmed','Co-Founder and Director'],
-    ['Board of Directors','Tamhid Unnisa','Director'],
-    ['Advisory Council','Abdul Mujeeb Khan','Transformational Leadership Facilitator · Ex McKinsey & Company and Boston Consulting Group · Founder, IQ Circle Coimbatore & Hyderabad'],
-    ['Advisory Council','Syed Fasiuddin','B.Tech, KITS Warangal · 24 years of professional experience in the USA · Senior Java Developer on U.S. Government projects'],
-    ['Advisory Council','Shubham Lal','Founder AILinc · Former Microsoft developer · Emerging Leader in AI recognition · aided 80+ Ed-Techs · speaker at 800+ events including TEDx · mentor/trainer to 50,000+ learners · Data Science, Full Stack, AI & soft-skills'],
-    ['Advisory Council','Mir Mahmood Ali','Career & Life Transformation Strategist · Founder of Careerifyx · Career clarity and transformation expert']
-  ];
-
   const list = items => `<ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
   const chips = items => `<div class="s40-chip-list">${items.map(x => `<span>${x}</span>`).join('')}</div>`;
 
   function render(app) {
+    const {semesters,chapters,tracks,why,outcomes,practical,highlights,programFeatures,admissionSteps,admissionDocs,feeRows,admissionScholarships,performanceScholarships,leadership,programMeta}=window.FSA_DATA?.content?.super40||{};
+    if(!semesters){app.innerHTML="";return;}
     app.innerHTML = `
       <div class="s40-page">
         <section class="s40-hero">
@@ -144,7 +15,7 @@
               <span class="s40-kicker">Full Stack Academy Degree Program</span>
               <h1>SUPER40 <em>BBA</em></h1>
               <p>Three years of business education integrated with leadership training, AI skills, internships and preparation for future-ready careers.</p>
-              <div class="s40-hero-meta"><span><b>36</b><small>Months</small></span><span><b>4.9</b><small>Rating</small></span><span><b>40</b><small>Students</small></span></div>
+              <div class="s40-hero-meta"><span><b>${programMeta.durationMonths}</b><small>Months</small></span><span><b>${programMeta.rating}</b><small>Rating</small></span><span><b>${programMeta.seats}</b><small>Students</small></span></div>
               <div class="s40-actions"><button class="button button-primary button-lg" type="button" data-action="open-call-popup">Apply / Book Now</button><a class="button button-secondary button-lg" href="#/contact">Request Program Brochure</a></div>
               <div class="s40-admission-contact"><strong>Industry Integrated BBA Program · Affiliated to Osmania University</strong><span>Gachibowli, Hyderabad · Admissions: 8019 85 8811 / 8019 85 8833 · info@fullstackacademy.in</span></div>
             </div>
@@ -234,10 +105,10 @@
         <section class="s40-section s40-surface">
           <div class="container">
             <div class="s40-heading reveal"><span>Official Brochure Details</span><h2>Fee schedule & <em>scholarships</em></h2><p>These figures reproduce the fee and scholarship data published in the currently linked SUPER40 brochure. Verify dates before final publication if the academy revises the schedule.</p></div>
-            <div class="s40-table-card reveal"><div class="s40-table-title"><h3>SUPER40 BBA Fee Schedule</h3><strong>Total Program Fee: ₹3,40,000</strong></div><div class="s40-table-wrap"><table><thead><tr><th>Particular</th><th>Due Date</th><th>Amount</th></tr></thead><tbody>${feeRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div><p class="s40-note">A refundable caution deposit of ₹10,000 is payable with the first instalment. University examination fees are separate; fees are subject to revision.</p></div>
+            <div class="s40-table-card reveal"><div class="s40-table-title"><h3>SUPER40 BBA Fee Schedule</h3><strong>Total Program Fee: ${programMeta.totalFee}</strong></div><div class="s40-table-wrap"><table><thead><tr><th>Particular</th><th>Due Date</th><th>Amount</th></tr></thead><tbody>${feeRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div><p class="s40-note">A refundable caution deposit of ${programMeta.cautionDeposit} is payable with the first instalment. University examination fees are separate; fees are subject to revision.</p></div>
             <div class="s40-scholarship-grid">
               <article class="s40-table-card reveal"><div class="s40-table-title"><h3>Merit Scholarship — Admission</h3></div><div class="s40-table-wrap"><table><thead><tr><th>Class XII Aggregate</th><th>Per Semester</th><th>6-Semester Total</th></tr></thead><tbody>${admissionScholarships.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div></article>
-              <article class="s40-table-card reveal reveal-delay-2"><div class="s40-table-title"><h3>Semester-Wise Performance Scholarship</h3></div><div class="s40-table-wrap"><table><thead><tr><th>Academic Performance</th><th>Scholarship</th></tr></thead><tbody>${performanceScholarships.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</tbody></table></div><p class="s40-note"><strong>Early Bird Offer:</strong> up to 10% fee waiver.</p></article>
+              <article class="s40-table-card reveal reveal-delay-2"><div class="s40-table-title"><h3>Semester-Wise Performance Scholarship</h3></div><div class="s40-table-wrap"><table><thead><tr><th>Academic Performance</th><th>Scholarship</th></tr></thead><tbody>${performanceScholarships.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</tbody></table></div><p class="s40-note"><strong>Early Bird Offer:</strong> ${programMeta.earlyBirdOffer}</p></article>
             </div>
           </div>
         </section>

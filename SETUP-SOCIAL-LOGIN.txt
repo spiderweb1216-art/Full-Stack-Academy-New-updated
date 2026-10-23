@@ -1,0 +1,27 @@
+STUDENT SOCIAL LOGIN — GOOGLE / MICROSOFT / LINKEDIN
+
+1. Apply database/social_identities.sql once using phpMyAdmin or your SQL migration process.
+2. Replace index.html, app.js, js/app.js, api/index.php, add api/lib/SocialAuth.php and social-auth.css.
+3. Set server-side environment variables (never commit secrets):
+   FSA_SOCIAL_BASE_URL=http://localhost/your-folder
+   FSA_GOOGLE_CLIENT_ID=...    FSA_GOOGLE_CLIENT_SECRET=...
+   FSA_MICROSOFT_CLIENT_ID=... FSA_MICROSOFT_CLIENT_SECRET=...
+   FSA_LINKEDIN_CLIENT_ID=... FSA_LINKEDIN_CLIENT_SECRET=...
+4. Configure ALL three providers' callback/redirect URI to exactly:
+   http://localhost/your-folder/api/social-callback.php
+   For production, change FSA_SOCIAL_BASE_URL to https://your-live-domain.com(/subfolder),
+   and configure that same callback URL in the production provider app.
+5. Local Microsoft/LinkedIn may require HTTPS callback even when Google permits localhost HTTP.
+   Use a localhost HTTPS proxy/tunnel with an exact stable configured URL if needed.
+6. Microsoft: app registration -> Supported account types: work/school + personal Microsoft accounts,
+   Web redirect URI; LinkedIn app -> request Sign In with LinkedIn using OpenID Connect product.
+7. Enable PHP curl, PDO MySQL and HTTPS for production. PHP sessions must persist across provider round-trip.
+8. OAuth provider buttons appear on student sign-up and login. Students only.
+9. New students get a minimal student profile and generated student ID; profile completion optional.
+10. For security this version NEVER silently connects a social identity to an already existing email.
+    Existing email requires existing password login; explicit account-linking can be added separately.
+11. Keep this file and SQL migration in your project only if wanted; DO NOT commit configured secrets.
+12. Verify local and deployed flows with genuine provider credentials before production use.
+
+Note: Identity providers require real registered applications. No credentials have been supplied,
+so live OAuth sign-in cannot be tested by this package alone. Email/subject uniqueness persists.

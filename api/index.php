@@ -9,6 +9,8 @@ ini_set('log_errors', '1');
 
 require_once __DIR__ . '/lib/Database.php';
 require_once __DIR__ . '/lib/SmtpMailer.php';
+require_once __DIR__ . '/lib/WebsiteContent.php';
+require_once __DIR__ . '/lib/PhysicalCourses.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -322,6 +324,38 @@ function legacyCourseModeContent(array $row): array
     ];
 }
 
+function normalizePublicCourseModules(mixed $value): array
+{
+    $output=[];
+    foreach (array_slice(jsonArray($value), 0, 60) as $module) {
+        if (!is_array($module)) continue;
+        $title=clean($module['title'] ?? '', 190);
+        if ($title === '') continue;
+        $lessons=[];
+        foreach (array_slice(jsonArray($module['lessons'] ?? []), 0, 100) as $lesson) {
+            if (!is_array($lesson)) continue;
+            $lessonTitle=clean($lesson['title'] ?? '', 190);
+            if ($lessonTitle === '') continue;
+            $lessons[]=['title'=>$lessonTitle,'duration'=>clean($lesson['duration'] ?? '',60),'preview'=>boolValue($lesson['preview'] ?? false)];
+        }
+        $output[]=['title'=>$title,'duration'=>clean($module['duration'] ?? '',60),'lessons'=>$lessons];
+    }
+    return $output;
+}
+
+function normalizePublicCourseFaqs(mixed $value): array
+{
+    $output=[];
+    foreach (array_slice(jsonArray($value), 0, 40) as $row) {
+        if (!is_array($row)) continue;
+        $question=clean($row['q'] ?? $row['question'] ?? '', 500);
+        $answer=clean($row['a'] ?? $row['answer'] ?? '', 6000);
+        if ($question === '' || $answer === '') continue;
+        $output[]=['q'=>$question,'a'=>$answer];
+    }
+    return $output;
+}
+
 function normalizeCourseModeContent(mixed $value): array
 {
     $value = is_array($value) ? $value : [];
@@ -355,6 +389,9 @@ function normalizeCourseModeContent(mixed $value): array
         'audience'=>normalizeTextList($value['audience'] ?? [],100,500),
         'projectItems'=>$projects,
         'courseReviews'=>$reviews,
+        'publicModules'=>normalizePublicCourseModules($value['publicModules'] ?? []),
+        'publicModulesManaged'=>boolValue($value['publicModulesManaged'] ?? false),
+        'publicFaqs'=>normalizePublicCourseFaqs($value['publicFaqs'] ?? []),
     ];
 }
 
@@ -382,6 +419,9 @@ function ensureCourseContentColumns(PDO $pdo): void
         'branch_name' => "VARCHAR(120) NOT NULL DEFAULT ''",
         'pending_modules_json' => 'LONGTEXT NULL AFTER `modules_json`',
         'pending_lessons_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER `pending_modules_json`',
+        'public_approval_status' => "ENUM('approved','pending','rejected') NOT NULL DEFAULT 'approved' AFTER `pending_lessons_count`",
+        'public_approval_note' => 'TEXT NULL AFTER `public_approval_status`',
+        'public_submitted_at' => 'DATETIME NULL AFTER `public_approval_note`',
         'approval_status' => "ENUM('approved','pending','rejected') NOT NULL DEFAULT 'approved' AFTER `pending_lessons_count`",
         'approval_kind' => "ENUM('none','branch','central') NOT NULL DEFAULT 'none' AFTER `approval_status`",
         'approval_note' => "TEXT NULL AFTER `approval_kind`",
@@ -863,8 +903,8 @@ function ensureEnrollmentModeUniqueness(PDO $pdo): void
         if($name==='uq_enrollment_user_course')$hasOld=true;
         if($name==='uq_enrollment_user_course_mode')$hasNew=true;
     }
-    if($hasOld)$pdo->exec("ALTER TABLE enrollments DROP INDEX uq_enrollment_user_course");
     if(!$hasNew)$pdo->exec("ALTER TABLE enrollments ADD UNIQUE KEY uq_enrollment_user_course_mode (user_id,course_id,delivery_mode)");
+    if($hasOld)$pdo->exec("ALTER TABLE enrollments DROP INDEX uq_enrollment_user_course");
 }
 
 function ensureMediaLibrary(PDO $pdo): void
@@ -1233,9 +1273,11 @@ function alumniRow(array $row): array
 {
     return ['id'=>(int)$row['id'],'studentId'=>(int)($row['student_id']??0),'slug'=>$row['slug'],'name'=>$row['name'],'image'=>$row['image']??'','course'=>$row['course']??'','role'=>$row['role_title']??'','company'=>$row['company']??'','salary'=>$row['salary']??'','location'=>$row['location']??'','graduationYear'=>$row['graduation_year']??'','quote'=>$row['quote']??'','status'=>$row['status']??'published','sortOrder'=>(int)($row['sort_order']??0)];
 }
-function candidateRow(array $row): array
+function candidateRow(array $row, bool $includePrivateContact = true): array
 {
-    return ['id'=>(int)$row['id'],'studentId'=>(int)($row['student_id']??0),'slug'=>$row['slug'],'name'=>$row['name'],'image'=>$row['image']??'','course'=>$row['course']??'','skills'=>jsonArray($row['skills_json']??'[]'),'experience'=>$row['experience']??'','location'=>$row['location']??'','availability'=>$row['availability']??'Available','email'=>$row['email']??'','phone'=>$row['phone']??'','summary'=>$row['summary']??'','status'=>$row['status']??'published','sortOrder'=>(int)($row['sort_order']??0)];
+    $public = ['id'=>(int)$row['id'],'studentId'=>(int)($row['student_id']??0),'slug'=>$row['slug'],'name'=>$row['name'],'image'=>$row['image']??'','course'=>$row['course']??'','skills'=>jsonArray($row['skills_json']??'[]'),'experience'=>$row['experience']??'','location'=>$row['location']??'','availability'=>$row['availability']??'Available','summary'=>$row['summary']??'','status'=>$row['status']??'published','sortOrder'=>(int)($row['sort_order']??0)];
+    if ($includePrivateContact) { $public['email']=$row['email']??''; $public['phone']=$row['phone']??''; }
+    return $public;
 }
 
 function companyRow(array $row): array
@@ -1288,7 +1330,7 @@ function branchRow(array $row): array
         'detailUrl'=>'branches/view/index.html?branch=' . rawurlencode($slug),
         'lat'=>$row['latitude'] !== null ? (float)$row['latitude'] : null,'lng'=>$row['longitude'] !== null ? (float)$row['longitude'] : null,
         'gallery'=>normalizeTextList($row['gallery_json'] ?? '[]',12,2000),'status'=>$row['status'] ?? 'published','sortOrder'=>(int)($row['sort_order'] ?? 0),
-        'updatedAt'=>iso($row['updated_at'] ?? null),
+        'createdAt'=>iso($row['created_at'] ?? null),'updatedAt'=>iso($row['updated_at'] ?? null),
     ];
 }
 
@@ -1486,12 +1528,7 @@ function ensureCourseBatchCoverage(PDO $pdo): void
     $today=new DateTimeImmutable('today');
 
     foreach($courses as $index=>$course){
-        $enabled=jsonArray($course['delivery_modes_json'] ?? '[]');
-        $enabled=array_values(array_filter($enabled,fn($m)=>in_array($m,['offline','live','recorded'],true)));
-        if(!$enabled){
-            $primary=in_array($course['delivery_mode'] ?? 'offline',['offline','live','recorded'],true)?$course['delivery_mode']:'offline';
-            $enabled=[$primary];
-        }
+        $enabled=courseEnabledFormats($course);
         $contents=courseModeContentsFromRow($course);
         foreach($enabled as $mode){
             $batchMode=$mode==='offline'?'offline-classroom':($mode==='recorded'?'recorded':'live-streamed');
@@ -2133,9 +2170,14 @@ foreach ([
     'event management' => 'ensureEventFeatures',
     'event sponsor demo logos' => 'ensureDemoEventSponsorLogos',
     'single featured event' => 'normalizeFeaturedEvent',
+    'preserved public display records' => 'ensureLegacyPublicDisplayRecords',
 ] as $migrationName => $migrationFunction) {
     try {
+        $seedFunctions=['ensureCompanyFeatures','ensurePlacementPeopleFeatures','ensureBatchFeatures','ensureCourseBatchCoverage','ensureBranchFeatures','ensurePeopleFeatures','ensureEventFeatures','ensureDemoEventSponsorLogos'];
+        $seedKey='dynamic_seed_guard_v121_'.$migrationFunction;
+        if(in_array($migrationFunction,$seedFunctions,true) && !empty(getSetting($pdo,$seedKey,[])['done']))continue;
         $migrationFunction($pdo);
+        if(in_array($migrationFunction,$seedFunctions,true))saveSetting($pdo,$seedKey,['done'=>true]);
     } catch (Throwable $error) {
         $migrationWarnings[] = $migrationName;
         error_log('[FSA migration: ' . $migrationName . '] ' . $error->getMessage());
@@ -2398,7 +2440,7 @@ function roleCanCreateRole(string $actorRole, string $targetRole): bool
     $map=[
         'super_admin'=>['super_admin','admin_staff','branch_head','branch_admin','instructor','student'],
         'admin_staff'=>['branch_head'],
-        'branch_head'=>['branch_admin','student'],
+        'branch_head'=>['branch_admin','instructor','student'],
         'branch_admin'=>['instructor','student'],
         'instructor'=>[],
     ];
@@ -2446,10 +2488,10 @@ function adminAllowedActionsForRole(string $role): array
     if ($role==='super_admin') return ['*'];
     $common=['admin_profile_password'];
     $map=[
-        'admin_staff'=>['admin_dashboard','admin_branches','admin_branch_save','admin_branch_delete','admin_users','admin_user_save','admin_user_status','admin_user_delete','admin_instructors','admin_instructor_save','admin_approvals','admin_approval_review','admin_courses','admin_course_save','admin_course_content_save','admin_course_delete','admin_batches','admin_batch_save','admin_batch_delete','admin_students','admin_student_save','admin_student_delete','admin_certificates','admin_certificate_save','admin_certificate_bulk_generate','admin_certificate_delete','admin_alumni','admin_alumni_save','admin_alumni_delete','admin_candidates','admin_candidate_save','admin_candidate_delete','admin_enrollments','admin_enrollment_save','admin_enrollment_status','admin_media','admin_media_upload','admin_media_delete','admin_orders','admin_order_status','admin_inquiries','admin_inquiry_update','admin_companies','admin_events','admin_reviews'],
-        'branch_head'=>['admin_dashboard','admin_branches','admin_users','admin_user_save','admin_user_status','admin_user_delete','admin_user_code_generate','admin_instructors','admin_instructor_save','admin_approvals','admin_approval_review','admin_courses','admin_course_content_save','admin_batches','admin_batch_save','admin_batch_delete','admin_students','admin_student_save','admin_student_delete','admin_certificates','admin_certificate_save','admin_certificate_bulk_generate','admin_certificate_delete','admin_enrollments','admin_enrollment_save','admin_enrollment_status','admin_media','admin_media_upload'],
-        'branch_admin'=>['admin_dashboard','admin_branches','admin_users','admin_user_save','admin_user_status','admin_user_delete','admin_user_code_generate','admin_instructors','admin_instructor_save','admin_approvals','admin_approval_review','admin_courses','admin_course_content_save','admin_batches','admin_batch_save','admin_batch_delete','admin_students','admin_student_save','admin_student_delete','admin_certificates','admin_certificate_save','admin_certificate_bulk_generate','admin_certificate_delete','admin_enrollments','admin_enrollment_save','admin_enrollment_status','admin_media','admin_media_upload'],
-        'instructor'=>['admin_dashboard','admin_courses','admin_course_content_save','admin_media','admin_media_upload'],
+        'admin_staff'=>['admin_website_content','admin_website_content_save','admin_certificate_signing_authorities','admin_certificate_signing_authority_save','admin_certificate_signing_authority_delete','admin_company_save','admin_company_delete','admin_event_save','admin_event_delete','admin_review_save','admin_review_delete','admin_dashboard','admin_branches','admin_branch_save','admin_branch_delete','admin_users','admin_user_save','admin_user_status','admin_user_delete','admin_instructors','admin_instructor_save','admin_notifications','admin_notification_read','admin_approvals','admin_approval_review','admin_courses','admin_course_private_preview','admin_course_save','admin_course_format_disable','admin_course_type_toggle','admin_course_content_save','admin_course_delete','admin_physical_courses','admin_physical_page','admin_physical_page_save','admin_batches','admin_batch_save','admin_batch_delete','admin_students','admin_student_save','admin_student_delete','admin_certificates','admin_certificate_save','admin_certificate_bulk_generate','admin_certificate_delete','admin_alumni','admin_alumni_save','admin_alumni_delete','admin_candidates','admin_candidate_save','admin_candidate_delete','admin_enrollments','admin_enrollment_save','admin_enrollment_status','admin_media','admin_media_upload','admin_media_delete','admin_orders','admin_order_status','admin_inquiries','admin_inquiry_update','admin_companies','admin_events','admin_reviews'],
+        'branch_head'=>['admin_certificate_signing_authorities','admin_dashboard','admin_branches','admin_users','admin_user_save','admin_user_status','admin_user_delete','admin_user_code_generate','admin_instructors','admin_instructor_save','admin_notifications','admin_notification_read','admin_approvals','admin_approval_review','admin_courses','admin_course_save','admin_course_private_preview','admin_course_content_save','admin_physical_courses','admin_physical_page','admin_physical_page_save','admin_batches','admin_batch_save','admin_batch_delete','admin_students','admin_student_save','admin_student_delete','admin_certificates','admin_certificate_save','admin_certificate_bulk_generate','admin_certificate_delete','admin_enrollments','admin_enrollment_save','admin_enrollment_status','admin_media','admin_media_upload'],
+        'branch_admin'=>['admin_certificate_signing_authorities','admin_dashboard','admin_branches','admin_users','admin_user_save','admin_user_status','admin_user_delete','admin_user_code_generate','admin_instructors','admin_instructor_save','admin_notifications','admin_notification_read','admin_approvals','admin_approval_review','admin_courses','admin_course_save','admin_course_private_preview','admin_course_content_save','admin_physical_courses','admin_physical_page','admin_physical_page_save','admin_batches','admin_batch_save','admin_batch_delete','admin_students','admin_student_save','admin_student_delete','admin_certificates','admin_certificate_save','admin_certificate_bulk_generate','admin_certificate_delete','admin_enrollments','admin_enrollment_save','admin_enrollment_status','admin_media','admin_media_upload'],
+        'instructor'=>['admin_dashboard','admin_courses','admin_course_save','admin_notifications','admin_notification_read','admin_course_private_preview','admin_course_content_save','admin_media','admin_media_upload'],
     ];
     return array_values(array_unique(array_merge($common,$map[$role]??[])));
 }
@@ -2457,7 +2499,11 @@ function adminAllowedActionsForRole(string $role): array
 function enforceAdminActionAccess(PDO $pdo, string $action): void
 {
     if (!str_starts_with($action,'admin_')) return;
-    $user=requireAdmin($pdo);$allowed=adminAllowedActionsForRole(adminRole($user));
+    $user=requireAdmin($pdo);
+    if (isBranchManager($user) && cleanBranchName($user)==='' && $action!=='admin_profile_password') {
+        respond(['success'=>false,'message'=>'Your account has no assigned branch. Ask Super Admin to assign your branch.'],403);
+    }
+    $allowed=adminAllowedActionsForRole(adminRole($user));
     if (!in_array('*',$allowed,true) && !in_array($action,$allowed,true)) respond(['success'=>false,'message'=>'Your role does not have access to this administration function.'],403);
 }
 
@@ -2746,8 +2792,27 @@ function publicSiteSettings(PDO $pdo): array
     return $public;
 }
 
+
+/** Student password rate limiting: 5 failed attempts, 15-minute lock from the fifth failure. */
+function studentLoginRateLimit(PDO $pdo,array $data): void {
+    if(($data['account_type']??'student')!=='student')return;
+    $identifier=strtolower(trim((string)($data['identifier']??$data['email']??'')));
+    if($identifier==='')return;
+    $ip=(string)($_SERVER['REMOTE_ADDR']??'unknown');
+    $key=hash('sha256',$ip.'|'.$identifier);
+    $stmt=$pdo->prepare('SELECT attempt_count,locked_until FROM student_auth_limits WHERE identity_hash=? LIMIT 1');$stmt->execute([$key]);$row=$stmt->fetch(PDO::FETCH_ASSOC);
+    if($row&&!empty($row['locked_until'])&&strtotime($row['locked_until'])>time())respond(['success'=>false,'message'=>'Too many attempts. Try again after 15 minutes.'],429);
+    $lookup=$pdo->prepare('SELECT role,status,password_hash FROM users WHERE LOWER(email)=LOWER(?) OR UPPER(student_code)=UPPER(?) LIMIT 1');$lookup->execute([$identifier,$identifier]);$user=$lookup->fetch(PDO::FETCH_ASSOC);
+    $ok=$user&&$user['role']==='student'&&$user['status']==='active'&&password_verify((string)($data['password']??''),(string)$user['password_hash']);
+    if($ok){$pdo->prepare('DELETE FROM student_auth_limits WHERE identity_hash=?')->execute([$key]);return;}
+    $count=($row&&(!empty($row['locked_until'])&&strtotime($row['locked_until'])>time()-900 || empty($row['locked_until'])))?(int)$row['attempt_count']:0;
+    // Count consecutive failures within a rolling 15-minute period; after lock expiry start fresh.
+    $st=$pdo->prepare('INSERT INTO student_auth_limits (identity_hash,attempt_count,first_attempt_at,locked_until) VALUES (?,1,NOW(),NULL) ON DUPLICATE KEY UPDATE attempt_count=IF(first_attempt_at<DATE_SUB(NOW(),INTERVAL 15 MINUTE),1,attempt_count+1),first_attempt_at=IF(first_attempt_at<DATE_SUB(NOW(),INTERVAL 15 MINUTE),NOW(),first_attempt_at),locked_until=IF(attempt_count>=5,DATE_ADD(NOW(),INTERVAL 15 MINUTE),NULL)');$st->execute([$key]);
+}
+
 function loginUser(PDO $pdo, array $data, ?string $requiredRole = null): never
 {
+    if($requiredRole===null && !empty($_SESSION['student_otp_block_until']) && (int)$_SESSION['student_otp_block_until']>time()) respond(['success'=>false,'message'=>'Verification is locked for 15 minutes after 5 incorrect codes.'],429);
     $identifier = clean($data['identifier'] ?? $data['email'] ?? '', 190);
     $password = (string)($data['password'] ?? '');
     $accountType = in_array($data['account_type'] ?? '', ['student','instructor'], true) ? $data['account_type'] : null;
@@ -2774,6 +2839,16 @@ function loginUser(PDO $pdo, array $data, ?string $requiredRole = null): never
         respond(['success' => false, 'message' => $message], 403);
     }
 
+    // Optional second factor only for student password sign-in.
+    $authSettings=getSetting($pdo,'student_integrations',[]);
+    if($requiredRole===null && $userRole==='student' && !empty($authSettings['otp_email_enabled'])){
+        $code=(string)random_int(100000,999999);
+        $_SESSION['student_login_otp']=['user_id'=>(int)$user['id'],'hash'=>password_hash($code,PASSWORD_DEFAULT),'expires'=>time()+900,'attempts'=>0];
+        $sent=sendEmail($pdo,(string)$user['email'],'Your student login verification code','Your one-time login code is: '.$code.' (expires in 15 minutes).','student_login_otp');
+        if(empty($sent['success'])){unset($_SESSION['student_login_otp']);respond(['success'=>false,'message'=>'Verification email could not be sent. Contact the academy or try again.'],503);}
+        respond(['success'=>true,'otp_required'=>true,'message'=>'Enter the verification code sent to your registered email.']);
+    }
+
     session_regenerate_id(true);
     if ($requiredRole === 'admin' || in_array(($user['role'] ?? ''),['admin','super_admin','admin_staff','branch_head','branch_admin'],true)) {
         // Keep the administrator login independent from learner/instructor logins.
@@ -2791,15 +2866,26 @@ function loginUser(PDO $pdo, array $data, ?string $requiredRole = null): never
     respond(['success' => true, 'message' => 'Signed in successfully.', 'user' => publicUser($user)]);
 }
 
+
+/** Explicitly disabled formats use the sentinel ["disabled"] in the existing JSON column.
+ * Legacy NULL/[] entries still fall back to the original primary format. */
+function courseEnabledFormats(array $course): array {
+    $raw=jsonArray($course['delivery_modes_json']??'[]');
+    if(in_array('disabled',$raw,true))return [];
+    $allowed=['offline','recorded','live'];
+    $valid=array_values(array_unique(array_filter($raw,static fn($m)=>in_array($m,$allowed,true))));
+    if($valid)return $valid;
+    $default=(string)($course['delivery_mode']??'offline');
+    return [in_array($default,$allowed,true)?$default:'offline'];
+}
+
 function courseRow(array $row, bool $includePrivateLessonContent = true): array
 {
     $modules = jsonArray($row['modules_json'] ?? '[]');
     if (!$includePrivateLessonContent) $modules = publicModules($modules);
     $mode=in_array($row['delivery_mode'] ?? 'offline',['offline','live','recorded'],true)?$row['delivery_mode']:'offline';
-    $enabledRaw=jsonArray($row['delivery_modes_json'] ?? '[]');
-    $deliveryModes=array_values(array_filter($enabledRaw,fn($m)=>in_array($m,['offline','live','recorded'],true)));
-    if(!$deliveryModes)$deliveryModes=[$mode];
-    $mode=$deliveryModes[0];
+    $deliveryModes=courseEnabledFormats($row);
+    if($deliveryModes)$mode=$deliveryModes[0];
     $modeContents=courseModeContentsFromRow($row);
     $active=$modeContents[$mode] ?? normalizeCourseModeContent(legacyCourseModeContent($row));
     $pricingByMode=[];
@@ -2823,6 +2909,7 @@ function courseRow(array $row, bool $includePrivateLessonContent = true): array
         'instructor' => $active['instructor'], 'instructorRole' => $active['instructorRole'],
         'instructorUserId' => (int)($row['instructor_user_id'] ?? 0), 'visibility' => $row['visibility'] ?? 'public',
         'branchName' => $row['branch_name'] ?? '',
+        'publicApprovalStatus' => $row['public_approval_status'] ?? 'approved', 'publicApprovalNote' => $row['public_approval_note'] ?? '',
         'approvalStatus' => $row['approval_status'] ?? 'approved', 'approvalKind' => $row['approval_kind'] ?? 'none',
         'approvalNote' => $row['approval_note'] ?? '', 'pendingLessons' => (int)($row['pending_lessons_count'] ?? 0),
         'pendingModules' => jsonArray($row['pending_modules_json'] ?? '[]'),
@@ -2832,7 +2919,7 @@ function courseRow(array $row, bool $includePrivateLessonContent = true): array
         'skills' => $active['skills'], 'requirements' => $active['requirements'],
         'audience' => $active['audience'], 'modules' => $modules,
         'projectItems' => $active['projectItems'], 'courseReviews' => $active['courseReviews'],
-        'deliveryMode'=>$mode,'deliveryModes'=>$deliveryModes,'delivery_modes'=>$deliveryModes,
+        'deliveryMode'=>$mode,'deliveryModes'=>$deliveryModes?:['disabled'],'delivery_modes'=>$deliveryModes?:['disabled'],
         'contentModes'=>$modeContents,'contentByMode'=>$modeContents,'pricingByMode'=>$pricingByMode,
         'status' => $row['status'] ?? 'published', 'created_at' => iso($row['created_at'] ?? null), 'updated_at' => iso($row['updated_at'] ?? null),
     ];
@@ -3419,7 +3506,12 @@ function paidOrderCourseAccessItems(PDO $pdo, int $orderId): array
     $planStmt=$pdo->prepare("SELECT plan_code FROM order_items WHERE order_id=? AND item_type='plan'");$planStmt->execute([$orderId]);
     $planCodes=array_map('strval',$planStmt->fetchAll(PDO::FETCH_COLUMN));
     if(array_intersect($planCodes,['pro','career'])){
-        foreach($pdo->query("SELECT id FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_COLUMN) as $cid){$cid=(int)$cid;if($cid>0)$add($items,$cid,normalizedCourseMode($pdo,$cid));}
+        foreach($pdo->query("SELECT id,delivery_mode,delivery_modes_json FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_ASSOC) as $course){
+            $enabled=courseEnabledFormats($course);
+            if(!$enabled)continue;
+            $cid=(int)($course['id']??0);
+            if($cid>0)$add($items,$cid,$enabled[0]);
+        }
     }
     return array_values($items);
 }
@@ -3490,6 +3582,12 @@ $action = clean($_GET['action'] ?? $_POST['action'] ?? 'health', 80);
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $data = input();
 
+if (in_array($action,['auth_social_start','auth_social_callback'],true)) {
+    require_once __DIR__ . '/lib/SocialAuth.php';
+    socialHandle($pdo,$action);
+}
+
+
 if ($method === 'POST' && !in_array($action, ['auth_login','auth_admin_login','auth_register','auth_forgot_password','auth_reset_password','public_profile','contact_submit','admin_order_status'], true)) {
     requireCsrf();
 }
@@ -3497,6 +3595,27 @@ if ($method === 'POST' && !in_array($action, ['auth_login','auth_admin_login','a
 try {
     enforceAdminActionAccess($pdo,$action);
     switch ($action) {
+        case 'public_content':
+            respond(['success'=>true,'content'=>websiteContent($pdo)]);
+        case 'admin_website_content':
+            requireAdminRoles($pdo,['super_admin','admin_staff']);
+            $content=websiteContent($pdo);
+            respond(['success'=>true,'content'=>$content,'revision'=>websiteContentRevision($content)]);
+        case 'admin_website_content_save':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            requireAdminRoles($pdo,['super_admin','admin_staff']);
+            $incoming=$data['content']??null;
+            if(!is_array($incoming))respond(['success'=>false,'message'=>'Enter valid website content.'],422);
+            $incoming=websiteContentValidate($incoming);
+            $pdo->beginTransaction();
+            try {
+                $pdo->prepare("INSERT IGNORE INTO settings(setting_key,setting_value) VALUES('website_content','{}')")->execute();
+                $lock=$pdo->prepare("SELECT setting_value FROM settings WHERE setting_key='website_content' FOR UPDATE");$lock->execute();
+                $old=array_replace(websiteContentDefaults(),jsonArray($lock->fetchColumn()));
+                if(!hash_equals(websiteContentRevision($old),(string)($data['revision']??''))){$pdo->rollBack();respond(['success'=>false,'message'=>'Content changed in another session. Reload before saving.'],409);}
+                $next=array_replace($old,$incoming);saveSetting($pdo,'website_content',$next);$pdo->commit();
+            } catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+            respond(['success'=>true,'message'=>'Website content saved.','content'=>$next,'revision'=>websiteContentRevision($next)]);
         case 'health':
             respond([
                 'success' => true,
@@ -3510,7 +3629,7 @@ try {
             ]);
 
         case 'public_settings':
-            respond(['success' => true, 'site' => publicSiteSettings($pdo)]);
+            respond(['success' => true, 'site' => publicSiteSettings($pdo), 'content'=>websiteContent($pdo)]);
 
         case 'public_cms':
             $pageRows=$pdo->query("SELECT * FROM cms_pages WHERE status='published' ORDER BY id ASC")->fetchAll();
@@ -3556,12 +3675,12 @@ try {
             ]);
 
         case 'public_alumni':
-            $alumniRows=$pdo->query("SELECT * FROM alumni WHERE status='published' ORDER BY sort_order ASC,id ASC")->fetchAll();
+            $alumniRows=$pdo->query("SELECT * FROM alumni WHERE status='published' ORDER BY id DESC")->fetchAll();
             respond(['success'=>true,'alumni'=>array_map('alumniRow',$alumniRows)]);
 
         case 'public_candidates':
-            $candidateRows=$pdo->query("SELECT * FROM job_seekers WHERE status='published' ORDER BY sort_order ASC,id ASC")->fetchAll();
-            respond(['success'=>true,'candidates'=>array_map('candidateRow',$candidateRows)]);
+            $candidateRows=$pdo->query("SELECT * FROM job_seekers WHERE status='published' ORDER BY id DESC")->fetchAll();
+            respond(['success'=>true,'candidates'=>array_map(static fn(array $row): array => candidateRow($row, false),$candidateRows)]);
 
         case 'public_reviews':
             $reviewRows=$pdo->query("SELECT * FROM reviews WHERE status='published' ORDER BY featured DESC,sort_order ASC,id DESC")->fetchAll();
@@ -3581,7 +3700,7 @@ try {
             respond(['success'=>true,'event'=>eventRow($row)]);
 
         case 'catalog':
-            $rows = $pdo->query("SELECT * FROM courses WHERE status='published' AND visibility='public' ORDER BY featured DESC, id ASC")->fetchAll();
+            $rows = array_values(array_filter($pdo->query("SELECT * FROM courses WHERE status='published' AND visibility='public' ORDER BY featured DESC, id ASC")->fetchAll(),static fn(array $row):bool=>count(courseEnabledFormats($row))>0));
             $planRows = $pdo->query("SELECT * FROM plans WHERE status='published' ORDER BY popular DESC, id ASC")->fetchAll();
             $plans = array_map(static function(array $row): array {
                 return ['id'=>$row['id'],'name'=>$row['name'],'description'=>$row['description'],'monthly'=>(float)$row['monthly_price'],'yearly'=>(float)$row['yearly_price'],'period'=>$row['period'],'popular'=>(bool)$row['popular'],'features'=>jsonArray($row['features_json'] ?? '[]')];
@@ -3589,15 +3708,49 @@ try {
             $branchRows=$pdo->query("SELECT * FROM branches WHERE status='published' ORDER BY sort_order ASC,id ASC")->fetchAll();
             $instructorRows=$pdo->query("SELECT * FROM users WHERE role='instructor' AND status='active' AND profile_public=1 ORDER BY name ASC")->fetchAll();
             $batchRows=$pdo->query("SELECT b.*,c.title AS linked_course_name,c.slug AS linked_course_slug FROM batches b LEFT JOIN courses c ON c.id=b.course_id WHERE b.status='published' ORDER BY b.sort_order ASC,b.start_date ASC,b.id ASC")->fetchAll();
-            $companyRows=$pdo->query("SELECT * FROM companies WHERE status='published' ORDER BY featured DESC,sort_order ASC,name ASC")->fetchAll();
-            $alumniRows=$pdo->query("SELECT * FROM alumni WHERE status='published' ORDER BY sort_order ASC,id ASC")->fetchAll();
-            $candidateRows=$pdo->query("SELECT * FROM job_seekers WHERE status='published' ORDER BY sort_order ASC,id ASC")->fetchAll();
+            $companyRows=$pdo->query("SELECT * FROM companies WHERE status='published' ORDER BY id DESC")->fetchAll();
+            $alumniRows=$pdo->query("SELECT * FROM alumni WHERE status='published' ORDER BY id DESC")->fetchAll();
+            $candidateRows=$pdo->query("SELECT * FROM job_seekers WHERE status='published' ORDER BY id DESC")->fetchAll();
             $eventRows=$pdo->query("SELECT * FROM events WHERE status='published' ORDER BY featured DESC,event_date DESC,id DESC,sort_order ASC")->fetchAll();
             $reviewRows=$pdo->query("SELECT * FROM reviews WHERE status='published' ORDER BY featured DESC,sort_order ASC,id DESC")->fetchAll();
-            respond(['success' => true, 'courses' => array_map(static fn(array $row): array => courseRow($row, false), $rows), 'plans' => $plans, 'branches'=>array_map('branchRow',$branchRows), 'instructors'=>array_map('publicInstructorRow',$instructorRows), 'batches'=>array_map('batchRow',$batchRows), 'companies'=>array_map('companyRow',$companyRows), 'alumni'=>array_map('alumniRow',$alumniRows), 'candidates'=>array_map('candidateRow',$candidateRows), 'events'=>array_map('eventRow',$eventRows), 'reviews'=>array_map('reviewRow',$reviewRows), 'site' => publicSiteSettings($pdo)]);
+            $enabledByCourse=[];
+            foreach($rows as $row){
+                $modes=courseEnabledFormats($row);
+                $enabledByCourse[(int)$row['id']]=$modes;
+            }
+            // Batch listings must respect the same availability as public course cards.
+            $batchRows=array_values(array_filter($batchRows,static function(array $batch) use ($enabledByCourse):bool{
+                $courseId=(int)($batch['course_id']??0);
+                if($courseId<1)return true;
+                if(!isset($enabledByCourse[$courseId]))return false;
+                $batchMode=(string)($batch['mode']??'');
+                $mode=$batchMode==='offline-classroom'?'offline':($batchMode==='live-streamed'?'live':$batchMode);
+                return in_array($mode,$enabledByCourse[$courseId],true);
+            }));
+            respond(['success' => true, 'courses' => array_map(static fn(array $row): array => courseRow($row, false), $rows), 'plans' => $plans, 'branches'=>array_map('branchRow',$branchRows), 'instructors'=>array_map('publicInstructorRow',$instructorRows), 'batches'=>array_map('batchRow',$batchRows), 'companies'=>array_map('companyRow',$companyRows), 'alumni'=>array_map('alumniRow',$alumniRows), 'candidates'=>array_map(static fn(array $row): array => candidateRow($row, false),$candidateRows), 'events'=>array_map('eventRow',$eventRows), 'reviews'=>array_map('reviewRow',$reviewRows), 'site' => publicSiteSettings($pdo), 'content'=>websiteContent($pdo)]);
+
+        case 'auth_student_otp_verify':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $pending=$_SESSION['student_login_otp']??null;
+            if(!is_array($pending)||time()>(int)($pending['expires']??0)){unset($_SESSION['student_login_otp']);respond(['success'=>false,'message'=>'Verification session expired. Sign in again.'],401);}
+            if((int)($pending['attempts']??0)>=5){$_SESSION['student_otp_block_until']=time()+900;unset($_SESSION['student_login_otp']);respond(['success'=>false,'message'=>'Too many incorrect codes. Start again in 15 minutes.'],429);}
+            $code=trim((string)($data['code']??''));
+            if(!preg_match('/^\d{6}$/',$code)||!password_verify($code,(string)$pending['hash'])){
+                $_SESSION['student_login_otp']['attempts']=(int)$pending['attempts']+1;
+                if($_SESSION['student_login_otp']['attempts']>=5){$_SESSION['student_otp_block_until']=time()+900;unset($_SESSION['student_login_otp']);respond(['success'=>false,'message'=>'Too many incorrect codes. Sign in again after 15 minutes.'],429);}
+                respond(['success'=>false,'message'=>'Incorrect verification code.'],422);
+            }
+            unset($_SESSION['student_login_otp']);
+            $q=$pdo->prepare("SELECT * FROM users WHERE id=? AND role='student' AND status='active' LIMIT 1");$q->execute([(int)$pending['user_id']]);$student=$q->fetch(PDO::FETCH_ASSOC);
+            if(!$student)respond(['success'=>false,'message'=>'Student account is unavailable.'],403);
+            session_regenerate_id(true);$_SESSION['student_user_id']=(int)$student['id'];$_SESSION['user_id']=(int)$student['id'];
+            issueRememberToken($pdo,(int)$student['id']);
+            $pdo->prepare('UPDATE users SET last_login_at=NOW() WHERE id=?')->execute([$student['id']]);
+            respond(['success'=>true,'message'=>'Signed in successfully.','user'=>publicUser($student)]);
 
         case 'auth_login':
             if ($method !== 'POST') respond(['success' => false, 'message' => 'Method not allowed.'], 405);
+            studentLoginRateLimit($pdo,$data);
             loginUser($pdo, $data);
 
         case 'auth_admin_login':
@@ -3612,7 +3765,11 @@ try {
                 respond(['success' => false, 'message' => 'New account registration is disabled in Website Settings.'], 403);
             }
 
-            $accountType = in_array($data['account_type'] ?? 'student', ['student','instructor'], true) ? $data['account_type'] : 'student';
+            // Public registration is student-only. Instructor accounts require an authorized admin.
+            if (($data['account_type'] ?? 'student') !== 'student') {
+                respond(['success' => false, 'message' => 'Instructor accounts must be created by an academy administrator.'], 403);
+            }
+            $accountType = 'student';
             $name = clean($data['name'] ?? '', 120);
             $email = strtolower(clean($data['email'] ?? '', 190));
             $phone = clean($data['phone'] ?? '', 40);
@@ -3645,6 +3802,9 @@ try {
                 $stmt = $pdo->prepare("INSERT INTO users (name,email,phone,password_hash,role,status,headline,bio,country,student_code,branch,skills_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
                 $stmt->execute([$name,$email,$phone,password_hash($password,PASSWORD_DEFAULT),$accountType,$status,$headline,$bio,'India',$studentCode,$branch,json_encode($skills,JSON_UNESCAPED_UNICODE)]);
                 $id = (int)$pdo->lastInsertId();
+                if ($accountType === 'student') {
+                    $pdo->prepare('INSERT INTO student_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id=user_id')->execute([$id]);
+                }
                 $pdo->prepare('UPDATE users SET public_slug=? WHERE id=?')->execute([profileSlug($name,$id),$id]);
                 $stmt = $pdo->prepare('SELECT * FROM users WHERE id=? LIMIT 1');
                 $stmt->execute([$id]);
@@ -3782,7 +3942,7 @@ try {
             $bio = clean($data['bio'] ?? $user['bio'], 2000);
             $city = clean($data['city'] ?? $user['city'], 100);
             $country = clean($data['country'] ?? $user['country'], 100);
-            $branch = clean($data['branch'] ?? ($user['branch'] ?? ''), 120);
+            $branch = ($user['role'] ?? '') === 'student' ? (string)($user['branch'] ?? '') : clean($data['branch'] ?? ($user['branch'] ?? ''), 120);
             $skills = normalizeTextList($data['skills'] ?? jsonArray($user['skills_json'] ?? '[]'), 30, 80);
             $isPublic = boolValue($data['profile_public'] ?? ($user['profile_public'] ?? true)) ? 1 : 0;
             if ($name === '') respond(['success' => false, 'message' => 'Name is required.'], 422);
@@ -3792,6 +3952,48 @@ try {
             $stmt = $pdo->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([$user['id']]);
             respond(['success' => true, 'message' => 'Profile updated.', 'user' => publicUser($stmt->fetch())]);
 
+        case 'student_profile_details':
+            $user = requireStudent($pdo);
+            $pdo->prepare('INSERT INTO student_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id=user_id')->execute([$user['id']]);
+            $q=$pdo->prepare("SELECT sp.*,c.title AS course_title,b.course_name AS batch_name FROM student_profiles sp LEFT JOIN courses c ON c.id=sp.course_id LEFT JOIN batches b ON b.id=sp.batch_id WHERE sp.user_id=? LIMIT 1");
+            $q->execute([$user['id']]);$p=$q->fetch()?:[];
+            respond(['success'=>true,'profile'=>[
+                'fatherName'=>$p['father_name']??'','dob'=>$p['dob']??'','cnic'=>$p['cnic']??'',
+                'course'=>$p['course_title']??'','batch'=>$p['batch_name']??'',
+                'academicStatus'=>$p['academic_status']??'studying',
+                'feeTotal'=>(float)($p['fee_total']??0),'feePaid'=>(float)($p['fee_paid']??0),
+                'isAlumni'=>(bool)($p['is_alumni']??0),'isJobSeeker'=>(bool)($p['is_job_seeker']??0),
+                'alumniRole'=>$p['alumni_role']??'','alumniCompany'=>$p['alumni_company']??'',
+                'alumniSalary'=>$p['alumni_salary']??'','alumniLocation'=>$p['alumni_location']??'',
+                'alumniGraduationYear'=>$p['alumni_graduation_year']??'','alumniQuote'=>$p['alumni_quote']??'',
+                'jobSkills'=>jsonArray($p['job_skills_json']??'[]'),'jobExperience'=>$p['job_experience']??'',
+                'jobLocation'=>$p['job_location']??'','jobAvailability'=>$p['job_availability']??'',
+                'jobSummary'=>$p['job_summary']??''
+            ]]);
+
+        case 'student_profile_details_save':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $user=requireStudent($pdo);
+            $father=clean($data['fatherName']??'',190);
+            $dob=clean($data['dob']??'',10);
+            if($dob!==''&&(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$dob)||!strtotime($dob)))respond(['success'=>false,'message'=>'Invalid date of birth.'],422);
+            $cnic=clean($data['cnic']??'',40);
+            $pdo->prepare('INSERT INTO student_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id=user_id')->execute([$user['id']]);
+            // Never allow student input to modify administrative permissions, assignments, fees, or publication flags.
+            $q=$pdo->prepare('SELECT is_alumni,is_job_seeker FROM student_profiles WHERE user_id=?');$q->execute([$user['id']]);$flags=$q->fetch()?:[];
+            $changes=['father_name'=>$father,'dob'=>$dob?:null,'cnic'=>$cnic];
+            if(!empty($flags['is_alumni'])){
+                foreach(['alumni_role'=>['alumniRole',190],'alumni_company'=>['alumniCompany',190],'alumni_salary'=>['alumniSalary',80],'alumni_location'=>['alumniLocation',190],'alumni_graduation_year'=>['alumniGraduationYear',20],'alumni_quote'=>['alumniQuote',5000]] as $col=>$meta){$changes[$col]=clean($data[$meta[0]]??'', $meta[1]);}
+            }
+            if(!empty($flags['is_job_seeker'])){
+                foreach(['job_experience'=>['jobExperience',120],'job_location'=>['jobLocation',190],'job_availability'=>['jobAvailability',120],'job_summary'=>['jobSummary',5000]] as $col=>$meta){$changes[$col]=clean($data[$meta[0]]??'', $meta[1]);}
+                $changes['job_skills_json']=json_encode(normalizeTextList($data['jobSkills']??[],40,100),JSON_UNESCAPED_UNICODE);
+            }
+            $sets=implode(',',array_map(static fn($col)=>$col.'=?',array_keys($changes)));
+            $pdo->prepare('UPDATE student_profiles SET '.$sets.' WHERE user_id=?')->execute([...array_values($changes),$user['id']]);
+            if(!empty($flags['is_alumni'])||!empty($flags['is_job_seeker']))syncStudentPublicProfiles($pdo,(int)$user['id']);
+            respond(['success'=>true,'message'=>'Student details updated successfully.']);
+
         case 'profile_preferences':
             if ($method !== 'POST') respond(['success' => false, 'message' => 'Method not allowed.'], 405);
             $user = requireUser($pdo);
@@ -3799,6 +4001,43 @@ try {
             $notifications = boolValue($data['notifications'] ?? false) ? 1 : 0;
             $pdo->prepare('UPDATE users SET weekly_goal=?,notifications=? WHERE id=?')->execute([$goal,$notifications,$user['id']]);
             respond(['success' => true, 'message' => 'Learning preferences saved.']);
+
+        case 'profile_email_request':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $user=requireUser($pdo);
+            $email=strtolower(trim((string)($data['email']??'')));
+            if(!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($email)>190)respond(['success'=>false,'message'=>'Enter a valid email address.'],422);
+            if($email===strtolower((string)$user['email']))respond(['success'=>false,'message'=>'This is already your current email.'],422);
+            $q=$pdo->prepare('SELECT id FROM users WHERE email=? AND id<>? LIMIT 1');$q->execute([$email,$user['id']]);
+            if($q->fetch())respond(['success'=>false,'message'=>'This email is already registered.'],409);
+            $pdo->exec('CREATE TABLE IF NOT EXISTS profile_email_verifications (user_id BIGINT NOT NULL PRIMARY KEY, new_email VARCHAR(190) NOT NULL, code_hash VARCHAR(255) NOT NULL, expires_at DATETIME NOT NULL, sent_at DATETIME NOT NULL, attempts INT NOT NULL DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+            $q=$pdo->prepare('SELECT sent_at FROM profile_email_verifications WHERE user_id=?');$q->execute([$user['id']]);$prev=$q->fetch();
+            if($prev && strtotime((string)$prev['sent_at'])>time()-60)respond(['success'=>false,'message'=>'Please wait one minute before requesting another code.'],429);
+            $code=(string)random_int(100000,999999);
+            $result=sendEmail($pdo,$email,'Verify your new email','<p>Your one-time verification code is <strong>'.htmlspecialchars($code,ENT_QUOTES,'UTF-8').'</strong>.</p><p>This code expires in 10 minutes. If you did not request this, ignore this email.</p>','profile_email_verification');
+            if(empty($result['success']))respond(['success'=>false,'message'=>'Verification email could not be sent. Please contact academy support to check SMTP settings.'],503);
+            $pdo->prepare('INSERT INTO profile_email_verifications (user_id,new_email,code_hash,expires_at,sent_at,attempts) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE),NOW(),0) ON DUPLICATE KEY UPDATE new_email=VALUES(new_email),code_hash=VALUES(code_hash),expires_at=VALUES(expires_at),sent_at=VALUES(sent_at),attempts=0')->execute([$user['id'],$email,password_hash($code,PASSWORD_DEFAULT)]);
+            respond(['success'=>true,'message'=>'Verification code sent to your new email address.']);
+
+        case 'profile_email_confirm':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $user=requireUser($pdo);
+            $code=trim((string)($data['code']??''));
+            if(!preg_match('/^\d{6}$/',$code))respond(['success'=>false,'message'=>'Enter the six-digit verification code.'],422);
+            $pdo->beginTransaction();
+            $q=$pdo->prepare('SELECT * FROM profile_email_verifications WHERE user_id=? FOR UPDATE');$q->execute([$user['id']]);$v=$q->fetch();
+            if(!$v||strtotime((string)$v['expires_at'])<time()||((int)$v['attempts'])>=5){$pdo->rollBack();respond(['success'=>false,'message'=>'The code has expired or is unavailable. Request a new code.'],422);}
+            if(!password_verify($code,(string)$v['code_hash'])){
+                $pdo->prepare('UPDATE profile_email_verifications SET attempts=attempts+1 WHERE user_id=?')->execute([$user['id']]);
+                $pdo->commit();respond(['success'=>false,'message'=>'Incorrect verification code.'],422);
+            }
+            $q=$pdo->prepare('SELECT id FROM users WHERE email=? AND id<>? LIMIT 1');$q->execute([$v['new_email'],$user['id']]);
+            if($q->fetch()){$pdo->rollBack();respond(['success'=>false,'message'=>'That email is now registered by another account.'],409);}
+            $pdo->prepare('UPDATE users SET email=? WHERE id=?')->execute([$v['new_email'],$user['id']]);
+            $pdo->prepare('DELETE FROM profile_email_verifications WHERE user_id=?')->execute([$user['id']]);
+            $pdo->commit();
+            $q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$user['id']]);
+            respond(['success'=>true,'message'=>'Email address updated successfully.','user'=>publicUser($q->fetch())]);
 
         case 'profile_password':
             if ($method !== 'POST') respond(['success' => false, 'message' => 'Method not allowed.'], 405);
@@ -3824,7 +4063,7 @@ try {
             $user = requireStudent($pdo);
             normalizeLiveSessionStatuses($pdo);
             synchronizeUserPaidOrders($pdo, (int)$user['id']);
-            $enrollmentStmt = $pdo->prepare('SELECT course_id,delivery_mode,status,enrolled_at,completed_at,order_id,access_starts_at,access_expires_at,ip_lock_enabled,allowed_ip,last_access_at FROM enrollments WHERE user_id=? ORDER BY created_at DESC');
+            $enrollmentStmt = $pdo->prepare("SELECT e.course_id,e.delivery_mode,e.status,e.enrolled_at,e.completed_at,e.order_id,e.access_starts_at,e.access_expires_at,e.ip_lock_enabled,e.allowed_ip,e.last_access_at,o.status AS order_status FROM enrollments e LEFT JOIN orders o ON o.id=e.order_id WHERE e.user_id=? ORDER BY e.created_at DESC");
             $enrollmentStmt->execute([$user['id']]);
             $enrollments = $enrollmentStmt->fetchAll();
             foreach ($enrollments as &$enrollment) {
@@ -4000,7 +4239,15 @@ try {
                 ];
             }
 
-            respond(['success'=>true,'user'=>publicUser($user),'enrollments'=>$enrollments,'progress'=>$progress,'orders'=>$orders,'notes'=>$notes,'wishlist'=>array_map('intval',$wishStmt->fetchAll(PDO::FETCH_COLUMN)),'certifications'=>array_map('certificationRow',$certStmt->fetchAll()),'assigned_courses'=>array_map(static fn(array $row):array=>courseRow($row,false),$assignedStmt->fetchAll()),'live_sessions'=>$studentLiveRows,'recordings'=>$studentRecordingRows,'recorded_lectures'=>$recordedLectures,'coursework'=>$coursework]);
+            $savedBillingStmt=$pdo->prepare('SELECT customer_name,customer_email,customer_phone,country,state,address,city,postal FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 1');
+            $savedBillingStmt->execute([(int)$user['id']]);
+            $savedBilling=$savedBillingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            $checkoutProfile=$savedBilling ? [
+                'name'=>(string)$savedBilling['customer_name'], 'email'=>(string)$savedBilling['customer_email'], 'phone'=>(string)$savedBilling['customer_phone'],
+                'country'=>(string)$savedBilling['country'], 'state'=>(string)$savedBilling['state'], 'address'=>(string)$savedBilling['address'],
+                'city'=>(string)$savedBilling['city'], 'postal'=>(string)$savedBilling['postal']
+            ] : null;
+            respond(['success'=>true,'checkout_profile'=>$checkoutProfile,'user'=>publicUser($user),'enrollments'=>$enrollments,'progress'=>$progress,'orders'=>$orders,'notes'=>$notes,'wishlist'=>array_map('intval',$wishStmt->fetchAll(PDO::FETCH_COLUMN)),'certifications'=>array_map('certificationRow',$certStmt->fetchAll()),'assigned_courses'=>array_map(static fn(array $row):array=>courseRow($row,false),$assignedStmt->fetchAll()),'live_sessions'=>$studentLiveRows,'recordings'=>$studentRecordingRows,'recorded_lectures'=>$recordedLectures,'coursework'=>$coursework]);
 
         case 'zoom_embed_session':
             normalizeLiveSessionStatuses($pdo);
@@ -4128,6 +4375,144 @@ try {
             if($joinUrl==='')respond(['success'=>false,'message'=>'The Zoom student join link could not be prepared.'],422);
             respond(['success'=>true,'join_url'=>$joinUrl,'meeting_id'=>$meetingId]);
 
+        // Administrative read-only inspection of instructor-owned Recorded / Live content.
+        // Never include meeting start links, passwords, assessment answer keys or student data.
+        case 'admin_course_private_preview':
+            $admin=requireAdmin($pdo);
+            $courseId=(int)($_GET['course_id']??0);
+            $mode=(string)($_GET['mode']??'');
+            if($courseId<1||!in_array($mode,['recorded','live'],true))respond(['success'=>false,'message'=>'Select a Recorded or Live course.'],422);
+            $q=$pdo->prepare('SELECT * FROM courses WHERE id=? LIMIT 1');$q->execute([$courseId]);$course=$q->fetch();
+            if(!$course)respond(['success'=>false,'message'=>'Course not found.'],404);
+            $enabled=jsonArray($course['delivery_modes_json']??'[]');
+            if(!$enabled)$enabled=[(string)($course['delivery_mode']??'offline')];
+            if(!in_array($mode,$enabled,true))respond(['success'=>false,'message'=>'That delivery type is not enabled for this course.'],422);
+            if(!isCentralAdmin($admin)){
+                if(adminRole($admin)==='instructor'){
+                    if((int)($course['instructor_user_id']??0)!==(int)$admin['id'])respond(['success'=>false,'message'=>'This course is not assigned to your instructor account.'],403);
+                }elseif(!isBranchManager($admin)||!courseBelongsToBranch($pdo,$course,cleanBranchName($admin))){
+                    respond(['success'=>false,'message'=>'Course is outside your access scope.'],403);
+                }
+            }
+            $fetchRows=static function(string $sql)use($pdo,$courseId):array{$s=$pdo->prepare($sql);$s->execute([$courseId]);return $s->fetchAll(PDO::FETCH_ASSOC);};
+            $lectures=$mode==='recorded'?$fetchRows('SELECT id,title,description,video_url,sort_order,duration_minutes,status FROM recorded_lectures WHERE course_id=? ORDER BY sort_order,id'):[];
+            $sessions=$mode==='live'?$fetchRows('SELECT id,title,starts_at,ends_at,status FROM live_sessions WHERE course_id=? ORDER BY starts_at,id'):[];
+            $recordings=$mode==='live'?$fetchRows('SELECT id,title,description,recording_url,source,status,recorded_at FROM course_recordings WHERE course_id=? ORDER BY recorded_at,id'):[];
+            $quizzes=$fetchRows('SELECT id,title,description,due_at,status FROM course_quizzes WHERE course_id=? ORDER BY id');
+            $assignments=$fetchRows('SELECT id,title,instructions,due_at,status FROM course_assignments WHERE course_id=? ORDER BY id');
+            respond(['success'=>true,'course'=>['id'=>(int)$course['id'],'title'=>(string)$course['title'],'slug'=>(string)$course['slug']],
+                'modules'=>jsonArray($course['modules_json']??'[]'),'lectures'=>$lectures,'sessions'=>$sessions,
+                'recordings'=>$recordings,'quizzes'=>$quizzes,'assignments'=>$assignments,'readonly'=>true]);
+
+        // Physical private pages have separate sections, content and progress;
+        // they never write recorded lectures or live session data.
+        case 'admin_physical_courses':
+            $admin=requireAdmin($pdo);
+            try {
+                physicalEnsureTables($pdo, false);
+                physicalSeedOne($pdo);
+            } catch (Throwable $physicalError) {
+                error_log('[FSA Physical Course List] '.$physicalError->getMessage());
+                respond(['success'=>false,'message'=>physicalStorageUserMessage($physicalError)],500);
+            }
+            $role=adminRole($admin);
+            if(isCentralAdmin($admin))$rows=$pdo->query('SELECT * FROM courses ORDER BY id DESC')->fetchAll();
+            elseif($role==='instructor'){$q=$pdo->prepare('SELECT * FROM courses WHERE instructor_user_id=? ORDER BY id DESC');$q->execute([$admin['id']]);$rows=$q->fetchAll();}
+            else{$q=$pdo->prepare('SELECT c.* FROM courses c LEFT JOIN users i ON i.id=c.instructor_user_id WHERE LOWER(c.branch_name)=LOWER(?) ORDER BY c.id DESC');$q->execute([cleanBranchName($admin),cleanBranchName($admin)]);$rows=$q->fetchAll();}
+            $has=$pdo->query('SELECT course_id,updated_at FROM physical_course_pages')->fetchAll();$pageMap=[];
+            foreach($has as $row)$pageMap[(int)$row['course_id']]=$row['updated_at'];
+            $results=[];
+            foreach($rows as $row){if(!physicalModeEnabled($row))continue;$id=(int)$row['id'];$results[]=['id'=>$id,'title'=>$row['title'],'slug'=>$row['slug'],'status'=>$row['status'],'has_page'=>isset($pageMap[$id]),'updated_at'=>$pageMap[$id]??null];}
+            respond(['success'=>true,'courses'=>$results]);
+        case 'admin_physical_page':
+            $admin=requireAdmin($pdo);$course=physicalCourse($pdo,(int)($_GET['course_id']??0),true);physicalCanEdit($pdo,$admin,$course);
+            try {
+                physicalEnsureTables($pdo, false);
+                $sections=physicalRead($pdo,(int)$course['id']);
+            } catch (Throwable $physicalError) {
+                error_log('[FSA Physical Page Read] course_id='.(int)$course['id'].' '.$physicalError->getMessage());
+                respond(['success'=>false,'message'=>physicalStorageUserMessage($physicalError)],500);
+            }
+            respond(['success'=>true,'course'=>['id'=>(int)$course['id'],'title'=>$course['title'],'slug'=>$course['slug']],'sections'=>$sections]);
+        case 'admin_physical_page_save':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $admin=requireAdmin($pdo);$course=physicalCourse($pdo,(int)($data['course_id']??0),true);physicalCanEdit($pdo,$admin,$course);
+            $sections=physicalNormalize($data['sections']??[]);
+            if(count($sections)<1)respond(['success'=>false,'message'=>'Add at least one course section.'],422);
+            $count=array_sum(array_map(static fn(array $s):int=>count($s['blocks']),$sections));
+            // Module-first builder: permit a saved lesson scaffold before widgets are added.
+            // Assessments with widgets must still have valid options and a question.
+
+            foreach($sections as $section)foreach($section['blocks'] as $block){
+                if($block['type']==='quiz' && (count($block['choices'])<2 || in_array('',$block['choices'],true)))respond(['success'=>false,'message'=>'Each quiz requires at least two nonempty answers.'],422);
+                if($block['type']==='quiz' && $block['text']==='')respond(['success'=>false,'message'=>'Enter a question for each quiz.'],422);
+            }
+            try {
+                physicalEnsureTables($pdo, false);
+                // Compatible with both existing page_json and new sections_json schemas.
+                physicalSave($pdo,(int)$course['id'],$sections,(int)$admin['id']);
+            } catch (Throwable $physicalError) {
+                error_log('[FSA Physical Page Save] course_id='.(int)$course['id'].' '.$physicalError->getMessage());
+                respond(['success'=>false,'message'=>physicalStorageUserMessage($physicalError)],500);
+            }
+            respond(['success'=>true,'message'=>'Physical private page saved.','blocks'=>$count,'sections'=>$sections]);
+        case 'physical_student_page':
+            $student=requireStudent($pdo);$id=(int)($_GET['course_id']??0);
+            $access=enrollmentAccessDetails($pdo,(int)$student['id'],$id,true,'offline');
+            if(empty($access['allowed']))respond(['success'=>false,'message'=>$access['message']??'Physical course enrollment required.'],403);
+            $course=physicalCourse($pdo,$id,true);physicalEnsureTables($pdo);$sections=physicalRead($pdo,$id);
+            $progress=physicalStudentState($pdo,(int)$student['id'],$id,$sections);
+            $requiredTotal=0;foreach($sections as $sc)foreach($sc['blocks'] as $bl)if(!empty($bl['required']))$requiredTotal++;
+            $locked=false;
+            foreach($sections as &$section){
+                // The learner TOC needs an explicit lock flag. An empty lesson
+                // must not bypass a required activity in an earlier lesson.
+                $section['locked']=$locked;
+                foreach($section['blocks'] as &$block){
+                    if($locked){$block=['id'=>$block['id'],'type'=>'locked','title'=>'Complete the required activity to unlock this content.'];continue;}
+                    if($block['type']==='quiz'){unset($block['correct']); if(!empty($block['questions']) && is_array($block['questions'])){foreach($block['questions'] as &$q){unset($q['correct']);} unset($q);}}
+                    if(!empty($block['required']) && !in_array($block['id'],$progress['completed'],true))$locked=true;
+                }
+            }unset($block,$section);
+            respond(['success'=>true,'course'=>['id'=>$id,'title'=>$course['title'],'slug'=>$course['slug']],'sections'=>$sections,'progress'=>$progress,'required_total'=>$requiredTotal]);
+        case 'physical_student_submit':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $student=requireStudent($pdo);$courseId=(int)($data['course_id']??0);
+            $access=enrollmentAccessDetails($pdo,(int)$student['id'],$courseId,true,'offline');
+            if(empty($access['allowed']))respond(['success'=>false,'message'=>$access['message']??'Physical course enrollment required.'],403);
+            $course=physicalCourse($pdo,$courseId,true);physicalEnsureTables($pdo);
+            $sections=physicalRead($pdo,$courseId);$progress=physicalStudentState($pdo,(int)$student['id'],$courseId,$sections);
+            $targetId=clean($data['block_id']??'',64);$answer=clean($data['answer']??'',15000);
+            $target=null;$blocked=false;
+            foreach($sections as $section)foreach($section['blocks'] as $block){
+                if($block['id']===$targetId){if($blocked)respond(['success'=>false,'message'=>'Finish the earlier required activity first.'],409);$target=$block;}
+                if(!empty($block['required'])&&!in_array($block['id'],$progress['completed'],true))$blocked=true;
+            }
+            if(!$target || !in_array($target['type'],['quiz','assignment'],true))respond(['success'=>false,'message'=>'Choose a valid quiz or assignment block.'],422);
+            if($target['type']==='quiz'){
+                $questions=(is_array($target['questions']??null) && $target['questions']) ? $target['questions'] : [[ 'choices'=>$target['choices']??[], 'correct'=>$target['correct']??0 ]];
+                $answersRaw=$data['answers'] ?? null;
+                $answers=[];
+                if(is_array($answersRaw)){$answers=$answersRaw;}
+                elseif(is_string($answersRaw)&&$answersRaw!==''){ $decoded=json_decode($answersRaw,true); if(is_array($decoded))$answers=$decoded; }
+                if(!$answers){
+                    if(!preg_match('/^\d+$/D',$answer))respond(['success'=>false,'message'=>'Answer all quiz questions correctly to continue.','passed'=>false],422);
+                    $answers=[(int)$answer];
+                }
+                foreach($questions as $qi=>$question){
+                    $selected=$answers[$qi] ?? null;
+                    $correct=(int)($question['correct']??0);
+                    $count=count($question['choices']??[]);
+                    if($selected===null || !is_numeric($selected) || (int)$selected<0 || (int)$selected>=$count || (int)$selected!==$correct){
+                        respond(['success'=>false,'message'=>'One or more quiz answers are incorrect. Review the lesson and try again.','passed'=>false],422);
+                    }
+                }
+                $answer=json_encode(array_values(array_map('intval',$answers)),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            }elseif(strlen($answer)<10)respond(['success'=>false,'message'=>'Write at least ten characters before submitting the assignment.'],422);
+            $stmt=$pdo->prepare('INSERT INTO physical_course_submissions(user_id,course_id,block_id,content_hash,answer_text) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE content_hash=VALUES(content_hash),answer_text=VALUES(answer_text),submitted_at=NOW()');
+            $stmt->execute([(int)$student['id'],$courseId,$targetId,physicalBlockHash($target),$answer]);
+            respond(['success'=>true,'message'=>$target['type']==='quiz'?'Correct answers submitted — next content unlocked.':'Assignment submitted — next content unlocked.']);
+
         case 'course_player':
             if ($method !== 'POST') respond(['success'=>false,'message'=>'Method not allowed.'],405);
             $user = requireStudent($pdo);
@@ -4196,9 +4581,8 @@ try {
                 $stmt=$pdo->prepare("SELECT * FROM courses WHERE id IN ($placeholders) AND status='published' AND visibility='public'");$stmt->execute($courseIds);$courses=$stmt->fetchAll();
                 if (count($courses)!==count($courseIds)) respond(['success'=>false,'message'=>'One or more selected courses are unavailable.'],422);
                 foreach($courses as &$course){
-                    $enabled=jsonArray($course['delivery_modes_json']??'[]');
-                    $enabled=array_values(array_filter($enabled,fn($m)=>in_array($m,['offline','live','recorded'],true)));
-                    if(!$enabled)$enabled=[in_array($course['delivery_mode']??'offline',['offline','live','recorded'],true)?$course['delivery_mode']:'offline'];
+                    $enabled=courseEnabledFormats($course);
+                    if(!$enabled)respond(['success'=>false,'message'=>$course['title'].' is temporarily unavailable for new purchases.'],422);
                     $requested=$selectedModes[(int)$course['id']]??$enabled[0];
                     if(!in_array($requested,$enabled,true)) respond(['success'=>false,'message'=>$course['title'].' is not available in the selected learning mode.'],422);
                     $modeContents=courseModeContentsFromRow($course);
@@ -4242,13 +4626,27 @@ try {
                 }
             }
             $coupon=strtoupper(clean($data['coupon']??'',40));$discount=$coupon==='FSA10'?round($subtotal*.10,2):0;$total=$subtotal-$discount;
-            $name=clean($data['name']??$user['name'],120);$email=strtolower(clean($data['email']??$user['email'],190));$phone=clean($data['phone']??$user['phone'],40);
-            if ($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||$phone==='') respond(['success'=>false,'message'=>'Name, email and phone are required.'],422);
+            $reused=null;
+            if(boolValue($data['reuse_billing']??false)){
+                $billingQuery=$pdo->prepare('SELECT customer_name,customer_email,customer_phone,country,state,address,city,postal FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 1');
+                $billingQuery->execute([(int)$user['id']]);$reused=$billingQuery->fetch(PDO::FETCH_ASSOC);
+            }
+            $name=clean($reused ? ($reused['customer_name']??$user['name']) : ($data['name']??$user['name']),120);
+            $email=strtolower(clean($reused ? ($reused['customer_email']??$user['email']) : ($data['email']??$user['email']),190));
+            $phone=clean($reused ? ($reused['customer_phone']??$user['phone']) : ($data['phone']??$user['phone']),40);
+            $billingCountry=clean($reused ? ($reused['country']??'') : ($data['country']??$user['country']??''),100);
+            $billingState=clean($reused ? ($reused['state']??'') : ($data['state']??''),100);
+            $billingAddress=clean($reused ? ($reused['address']??'') : ($data['address']??''),255);
+            $billingCity=clean($reused ? ($reused['city']??'') : ($data['city']??$user['city']??''),100);
+            $billingPostal=clean($reused ? ($reused['postal']??'') : ($data['postal']??''),30);
+            if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||$phone==='')respond(['success'=>false,'message'=>'A valid name, email and phone number are required.'],422);
+            $paymentMethod=clean($data['payment_method']??'',50);
+            if(!in_array($paymentMethod,['upi','bank','branch'],true))respond(['success'=>false,'message'=>'Choose an available payment method.'],422);
             $pdo->beginTransaction();
             try {
                 do { $number=orderNumber(); $q=$pdo->prepare('SELECT 1 FROM orders WHERE order_number=?');$q->execute([$number]); } while($q->fetchColumn());
                 $stmt=$pdo->prepare("INSERT INTO orders (order_number,user_id,customer_name,customer_email,customer_phone,country,state,address,city,postal,payment_method,subtotal,discount,total,coupon_code,status,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)");
-                $stmt->execute([$number,$user['id'],$name,$email,$phone,clean($data['country']??'',100),clean($data['state']??'',100),clean($data['address']??'',255),clean($data['city']??'',100),clean($data['postal']??'',30),clean($data['payment_method']??'bank',50),$subtotal,$discount,$total,$coupon?:null,clean($data['message']??'',2000)]);
+                $stmt->execute([$number,$user['id'],$name,$email,$phone,$billingCountry,$billingState,$billingAddress,$billingCity,$billingPostal,$paymentMethod,$subtotal,$discount,$total,$coupon?:null,clean($data['message']??'',2000)]);
                 $orderId=(int)$pdo->lastInsertId();
                 $itemStmt=$pdo->prepare("INSERT INTO order_items (order_id,item_type,course_id,delivery_mode,item_name,unit_price,item_meta_json) VALUES (?,'course',?,?,?,?,?)");
                 $enrollStmt=$pdo->prepare("INSERT INTO enrollments (user_id,course_id,order_id,delivery_mode,status) VALUES (?,?,?,?,'pending') ON DUPLICATE KEY UPDATE order_id=IF(status IN ('active','completed'),order_id,VALUES(order_id)),status=IF(status IN ('active','completed'),status,'pending')");
@@ -4264,8 +4662,12 @@ try {
                     $planItemStmt=$pdo->prepare("INSERT INTO order_items (order_id,item_type,plan_code,item_name,unit_price) VALUES (?,'plan',?,?,?)");
                     $planItemStmt->execute([$orderId,$plan['id'],$plan['name'] . ' (' . ucfirst($billing) . ')',$planPrice]);
                     if (in_array($plan['id'], ['pro','career'], true)) {
-                        $allCourses=$pdo->query("SELECT id FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_COLUMN);
-                        foreach($allCourses as $allCourseId){$planMode=normalizedCourseMode($pdo,(int)$allCourseId);$enrollStmt->execute([$user['id'],(int)$allCourseId,$orderId,$planMode]);}
+                        $allCourses=$pdo->query("SELECT id,delivery_mode,delivery_modes_json FROM courses WHERE status='published' AND visibility='public'")->fetchAll(PDO::FETCH_ASSOC);
+                        foreach($allCourses as $planCourse){
+                            $enabled=courseEnabledFormats($planCourse);
+                            if(!$enabled)continue;
+                            $enrollStmt->execute([$user['id'],(int)$planCourse['id'],$orderId,$enabled[0]]);
+                        }
                     }
                 }
                 $pdo->commit();
@@ -5003,11 +5405,9 @@ try {
             $q=$pdo->query("SELECT rl.*,c.title AS course_title,u.name AS instructor_name FROM recorded_lectures rl JOIN courses c ON c.id=rl.course_id JOIN users u ON u.id=rl.instructor_id ORDER BY c.title,rl.sort_order,rl.id");respond(['success'=>true,'lectures'=>$q->fetchAll()]);
 
         case 'admin_recorded_lecture_save':
-            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$admin=requireAdmin($pdo);if(!isSuperAdmin($admin))respond(['success'=>false,'message'=>'Super Admin access is required.'],403);
-            $id=(int)($data['id']??0);$courseId=(int)($data['course_id']??0);$instructorId=(int)($data['instructor_id']??0);$title=clean($data['title']??'',190);$url=normalizeEmbedUrl($data['video_url']??'');$description=trim((string)($data['description']??''));$order=max(1,(int)($data['sort_order']??1));$duration=max(0,(int)($data['duration_minutes']??0));$status=in_array(($data['status']??''),['draft','published'],true)?$data['status']:'published';
-            if(!$courseId||!$instructorId||$title===''||$url==='')respond(['success'=>false,'message'=>'Course, instructor, title and a valid HTTPS video/embed URL are required.'],422);
-            if($id){$q=$pdo->prepare('UPDATE recorded_lectures SET course_id=?,instructor_id=?,title=?,description=?,video_url=?,sort_order=?,duration_minutes=?,status=? WHERE id=?');$q->execute([$courseId,$instructorId,$title,$description,$url,$order,$duration,$status,$id]);}else{$q=$pdo->prepare('INSERT INTO recorded_lectures(course_id,instructor_id,title,description,video_url,sort_order,duration_minutes,status) VALUES(?,?,?,?,?,?,?,?)');$q->execute([$courseId,$instructorId,$title,$description,$url,$order,$duration,$status]);}
-            respond(['success'=>true,'message'=>'Recorded lecture saved by Super Admin.']);
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            requireAdmin($pdo);
+            respond(['success'=>false,'message'=>'Recorded private lectures are editable by the assigned instructor in Instructor Workspace only.'],403);
 
         case 'instructor_recording_save':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
@@ -5185,7 +5585,7 @@ try {
                 $stmt=$pdo->prepare("SELECT COUNT(*) FROM users WHERE LOWER(branch)=LOWER(?) AND role='student'");$stmt->execute([$branch]);$students=(int)$stmt->fetchColumn();
                 $stmt=$pdo->prepare("SELECT COUNT(DISTINCT c.id) FROM courses c LEFT JOIN users iu ON iu.id=c.instructor_user_id WHERE c.status='published' AND (LOWER(c.branch_name)=LOWER(?) OR LOWER(iu.branch)=LOWER(?))");$stmt->execute([$branch,$branch]);$courses=(int)$stmt->fetchColumn();
                 $stmt=$pdo->prepare("SELECT COUNT(DISTINCT c.id) FROM courses c LEFT JOIN users iu ON iu.id=c.instructor_user_id WHERE c.status='draft' AND (LOWER(c.branch_name)=LOWER(?) OR LOWER(iu.branch)=LOWER(?))");$stmt->execute([$branch,$branch]);$draftCourses=(int)$stmt->fetchColumn();
-                $stmt=$pdo->prepare("SELECT COUNT(*) FROM enrollments e JOIN users u ON u.id=e.user_id WHERE LOWER(u.branch)=LOWER(?) AND e.status IN ('active','completed')");$stmt->execute([$branch]);$activeEnrollments=(int)$stmt->fetchColumn();
+                $stmt=$pdo->prepare("SELECT COUNT(*) FROM enrollments e JOIN users u ON u.id=e.user_id JOIN courses c ON c.id=e.course_id LEFT JOIN users iu ON iu.id=c.instructor_user_id WHERE LOWER(u.branch)=LOWER(?) AND (LOWER(c.branch_name)=LOWER(?) OR LOWER(iu.branch)=LOWER(?)) AND e.status IN ('active','completed')");$stmt->execute([$branch,$branch,$branch]);$activeEnrollments=(int)$stmt->fetchColumn();
                 $metrics=['total_users'=>$totalUsers,'active_users'=>$activeUsers,'students'=>$students,'courses'=>$courses,'draft_courses'=>$draftCourses,'pending_orders'=>0,'paid_orders'=>0,'active_enrollments'=>$activeEnrollments,'new_inquiries'=>0,'emails_sent'=>0,'smtp_enabled'=>false,'revenue'=>0];
                 $stmt=$pdo->prepare('SELECT id,name,email,role,status,created_at FROM users WHERE LOWER(branch)=LOWER(?) ORDER BY id DESC LIMIT 6');$stmt->execute([$branch]);$recentUsers=$stmt->fetchAll();
                 $recentOrders=[];$recentInquiries=[];
@@ -5389,7 +5789,7 @@ try {
             $id=max(0,(int)($data['id']??0));$name=clean($data['name']??'',120);$father=clean($data['fatherName']??'',190);$email=strtolower(clean($data['email']??'',190));$studentBranch=clean($data['branch']??'',120);if(isBranchManager($admin))$studentBranch=cleanBranchName($admin);$phone=clean($data['phone']??'',40);$cnic=clean($data['cnic']??'',40);$dob=clean($data['dob']??'',10);$image=normalizeHttpUrl($data['image']??'',2000);$courseId=max(0,(int)($data['courseId']??0));$batchId=max(0,(int)($data['batchId']??0));$requestedDelivery=in_array($data['deliveryMode']??'',['offline','live','recorded'],true)?$data['deliveryMode']:'';$total=0.0;$paid=max(0,(float)($data['feePaid']??0));$academic=in_array($data['academicStatus']??'studying',['studying','completed','on_hold','inactive'],true)?$data['academicStatus']:'studying';$isAlumni=boolValue($data['isAlumni']??false);$isJob=boolValue($data['isJobSeeker']??false);$password=(string)($data['password']??'');
             if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL))respond(['success'=>false,'message'=>'Student name and a valid email are required.'],422);
             if($dob!==''&&!preg_match('/^\d{4}-\d{2}-\d{2}$/',$dob))respond(['success'=>false,'message'=>'Date of birth is invalid.'],422);
-            if($courseId>0){$q=$pdo->prepare("SELECT * FROM courses WHERE id=? LIMIT 1");$q->execute([$courseId]);$courseRowData=$q->fetch();if(!$courseRowData)respond(['success'=>false,'message'=>'Choose a valid course.'],422);$enabled=jsonArray($courseRowData['delivery_modes_json']??'[]');$enabled=array_values(array_filter($enabled,fn($m)=>in_array($m,['offline','live','recorded'],true)));if(!$enabled)$enabled=[in_array($courseRowData['delivery_mode']??'offline',['offline','live','recorded'],true)?$courseRowData['delivery_mode']:'offline'];if($requestedDelivery===''||!in_array($requestedDelivery,$enabled,true))$requestedDelivery=$enabled[0];$modeContents=courseModeContentsFromRow($courseRowData);$total=(float)($modeContents[$requestedDelivery]['price']??$courseRowData['price']??0);}else{$courseRowData=null;$requestedDelivery='';}
+            if($courseId>0){$q=$pdo->prepare("SELECT * FROM courses WHERE id=? LIMIT 1");$q->execute([$courseId]);$courseRowData=$q->fetch();if(!$courseRowData)respond(['success'=>false,'message'=>'Choose a valid course.'],422);if(isBranchManager($admin)&&!courseBelongsToBranch($pdo,$courseRowData,cleanBranchName($admin)))respond(['success'=>false,'message'=>'You can assign only courses from your own branch.'],403);$enabled=courseEnabledFormats($courseRowData);if(!$enabled)respond(['success'=>false,'message'=>'This course is deactivated for new assignments. Existing enrollments remain valid.'],422);if($requestedDelivery===''||!in_array($requestedDelivery,$enabled,true))$requestedDelivery=$enabled[0];$modeContents=courseModeContentsFromRow($courseRowData);$total=(float)($modeContents[$requestedDelivery]['price']??$courseRowData['price']??0);}else{$courseRowData=null;$requestedDelivery='';}
             if($batchId>0){$q=$pdo->prepare('SELECT id,course_id,fee,branch_name,branch_slug,mode FROM batches WHERE id=? LIMIT 1');$q->execute([$batchId]);$batch=$q->fetch();if(!$batch)respond(['success'=>false,'message'=>'Choose a valid batch.'],422);if($courseId>0&&(int)($batch['course_id']??0)>0&&(int)$batch['course_id']!==$courseId)respond(['success'=>false,'message'=>'The selected batch belongs to another course.'],422);$batchDelivery=($batch['mode']??'')==='offline-classroom'?'offline':(($batch['mode']??'')==='recorded'?'recorded':'live');if($requestedDelivery!==''&&$batchDelivery!==$requestedDelivery)respond(['success'=>false,'message'=>'The selected batch does not match the selected course access type.'],422);$requestedDelivery=$batchDelivery;$total=(float)($batch['fee']??$total);if($studentBranch==='')$studentBranch=(string)($batch['branch_name']??'');if(isBranchManager($admin)&&!sameBranch($pdo,cleanBranchName($admin),(string)($batch['branch_name']??$batch['branch_slug']??'')))respond(['success'=>false,'message'=>'Choose a batch from your own branch.'],403);}
             if($paid>$total&&$total>0)$paid=$total;
             $tempPassword='';
@@ -5509,7 +5909,7 @@ try {
             $admin=requireAdmin($pdo);$role=adminRole($admin);
             if($role==='super_admin'){$rows=$pdo->query('SELECT * FROM users ORDER BY id DESC')->fetchAll();}
             elseif($role==='admin_staff'){$rows=$pdo->query("SELECT * FROM users WHERE role IN ('branch_head','instructor') ORDER BY FIELD(role,'branch_head','instructor'),id DESC")->fetchAll();}
-            elseif(in_array($role,['branch_head','branch_admin'],true)){$allowed=$role==='branch_head'?"'branch_admin','student'":"'instructor','student'";$stmt=$pdo->prepare("SELECT * FROM users WHERE LOWER(branch)=LOWER(?) AND role IN ($allowed) ORDER BY id DESC");$stmt->execute([cleanBranchName($admin)]);$rows=$stmt->fetchAll();}
+            elseif(in_array($role,['branch_head','branch_admin'],true)){$allowed=$role==='branch_head'?"'branch_admin','instructor','student'":"'instructor','student'";$stmt=$pdo->prepare("SELECT * FROM users WHERE LOWER(branch)=LOWER(?) AND role IN ($allowed) ORDER BY id DESC");$stmt->execute([cleanBranchName($admin)]);$rows=$stmt->fetchAll();}
             else{$rows=[];}
             respond(['success'=>true,'users'=>array_map('publicUser',$rows)]);
 
@@ -5524,6 +5924,8 @@ try {
             $status = in_array($data['status'] ?? 'active',['active','pending','blocked'],true) ? $data['status'] : 'active';
             $branch = clean($data['branch'] ?? '',120);
             $actorRole=adminRole($admin);
+            if($role==='student') respond(['success'=>false,'message'=>'Students must be created and managed through Student Management.'],422);
+            if(in_array($role,['super_admin','admin_staff'],true))$branch='';
             if(isBranchManager($admin))$branch=cleanBranchName($admin);
             if($role!=='super_admin' && in_array($role,['branch_head','branch_admin','instructor','student'],true) && $branch==='') respond(['success'=>false,'message'=>'Choose a branch for this role.'],422);
             $studentCode = strtoupper(clean($data['student_code'] ?? '',40));
@@ -5543,7 +5945,8 @@ try {
                         respond(['success'=>false,'message'=>'The selected user no longer exists. Refresh the Users page.'],404);
                     }
                     assertCanManageUser($pdo,$admin,$targetUser);
-                    if ($id === (int)$admin['id']) { $role=(string)$admin['role']; $status='active'; $branch=(string)($admin['branch']??''); }
+                    if(adminRole($targetUser)==='student'){$pdo->rollBack();respond(['success'=>false,'message'=>'Edit students through Student Management.'],422);}
+                    if ($id === (int)$admin['id']) { $role=(string)$admin['role']; $status='active'; $branch=in_array($role,['super_admin','admin_staff'],true)?'':(string)($admin['branch']??''); }
                     elseif(!roleCanCreateRole($actorRole,$role) && !($actorRole==='admin_staff' && adminRole($targetUser)==='instructor' && $role==='instructor')) { $pdo->rollBack(); respond(['success'=>false,'message'=>'Your role cannot assign this access level.'],403); }
                     $check=$pdo->prepare('SELECT id FROM users WHERE email=? AND id<>? LIMIT 1');
                     $check->execute([$email,$id]);
@@ -5627,7 +6030,7 @@ try {
             }elseif(isBranchManager($admin)){
                 $branch=cleanBranchName($admin);
                 $stmt=$pdo->prepare("SELECT * FROM users WHERE role='instructor' AND LOWER(branch)=LOWER(?) ORDER BY FIELD(status,'pending','active','blocked'),id DESC");$stmt->execute([$branch]);$instructors=$stmt->fetchAll();
-                $stmt=$pdo->prepare("SELECT r.*,s.name AS student_name,i.name AS instructor_name FROM profile_change_requests r JOIN users s ON s.id=r.student_id JOIN users i ON i.id=r.instructor_id WHERE LOWER(i.branch)=LOWER(?) ORDER BY r.id DESC");$stmt->execute([$branch]);$profiles=$stmt->fetchAll();
+                $stmt=$pdo->prepare("SELECT r.*,s.name AS student_name,i.name AS instructor_name FROM profile_change_requests r JOIN users s ON s.id=r.student_id JOIN users i ON i.id=r.instructor_id WHERE LOWER(i.branch)=LOWER(?) AND LOWER(s.branch)=LOWER(?) ORDER BY r.id DESC");$stmt->execute([$branch,$branch]);$profiles=$stmt->fetchAll();
                 $stmt=$pdo->prepare("SELECT c.*,u.name AS student_name,s.name AS submitter_name FROM certifications c JOIN users u ON u.id=c.user_id LEFT JOIN users s ON s.id=c.submitted_by WHERE LOWER(u.branch)=LOWER(?) ORDER BY c.id DESC");$stmt->execute([$branch]);$certs=$stmt->fetchAll();
                 $stmt=$pdo->prepare("SELECT c.id,c.title,c.slug,c.branch_name,c.approval_status,c.approval_kind,c.approval_note,c.pending_lessons_count,c.submitted_by,c.updated_at,u.name AS instructor_name,u.branch AS instructor_branch FROM courses c LEFT JOIN users u ON u.id=c.submitted_by WHERE c.approval_kind='branch' AND c.approval_status IN ('pending','rejected') AND (LOWER(c.branch_name)=LOWER(?) OR LOWER(u.branch)=LOWER(?)) ORDER BY FIELD(c.approval_status,'pending','rejected'),c.updated_at DESC");$stmt->execute([$branch,$branch]);$courseRequests=$stmt->fetchAll();
             }else{$instructors=[];$profiles=[];$certs=[];$courseRequests=[];}
@@ -5635,15 +6038,41 @@ try {
             $coursePayload=array_map(static fn($row)=>[
                 'id'=>(int)$row['id'],'title'=>$row['title'],'slug'=>$row['slug'],'branch'=>$row['branch_name']?:($row['instructor_branch']??''),'status'=>$row['approval_status'],'kind'=>$row['approval_kind'],'note'=>$row['approval_note']??'','pendingLessons'=>(int)$row['pending_lessons_count'],'submittedBy'=>(int)($row['submitted_by']??0),'instructorName'=>$row['instructor_name']??'Instructor','updatedAt'=>iso($row['updated_at']??null)
             ],$courseRequests);
-            respond(['success'=>true,'instructor_applications'=>array_map('publicUser',$instructors),'profile_requests'=>$profiles,'certificate_requests'=>array_map(static function($row){return array_merge(certificationRow($row),['student_name'=>$row['student_name'],'submitter_name'=>$row['submitter_name']??'Student']);},$certs),'course_content_requests'=>$coursePayload]);
+            $publicSql="SELECT c.id,c.title,c.slug,c.branch_name,c.public_approval_status,c.public_approval_note,c.public_submitted_at,c.submitted_by,u.name AS submitter_name FROM courses c JOIN users u ON u.id=c.submitted_by WHERE c.public_approval_status IN ('pending','rejected') AND u.role='instructor'";
+            if(isCentralAdmin($admin)){$publicRows=$pdo->query($publicSql.' ORDER BY c.id DESC')->fetchAll();}
+            elseif(isBranchManager($admin)){$pq=$pdo->prepare($publicSql.' AND LOWER(c.branch_name)=LOWER(?) ORDER BY c.id DESC');$pq->execute([cleanBranchName($admin)]);$publicRows=$pq->fetchAll();}
+            else $publicRows=[];
+            $enrollSQL="SELECT e.id,e.created_at,e.status,e.order_id,u.name AS student_name,c.title AS course_title,c.branch_name FROM enrollments e JOIN users u ON u.id=e.user_id JOIN courses c ON c.id=e.course_id LEFT JOIN orders o ON o.id=e.order_id WHERE e.status='pending' AND (e.order_id IS NULL OR o.status='paid')";
+            if(isCentralAdmin($admin))$enrollRows=$pdo->query($enrollSQL.' ORDER BY e.id DESC LIMIT 60')->fetchAll();
+            elseif(isBranchManager($admin)){$eq=$pdo->prepare($enrollSQL.' AND LOWER(c.branch_name)=LOWER(?) AND LOWER(u.branch)=LOWER(?) ORDER BY e.id DESC LIMIT 60');$eq->execute([cleanBranchName($admin),cleanBranchName($admin)]);$enrollRows=$eq->fetchAll();}
+            else $enrollRows=[];
+            $enrollmentPayload=array_map(static fn($r)=>['id'=>(int)$r['id'],'student'=>$r['student_name'],'course'=>$r['course_title'],'branch'=>$r['branch_name'],'status'=>'pending','createdAt'=>iso($r['created_at'])],$enrollRows);
+            $publicPayload=array_map(static fn($r)=>['id'=>(int)$r['id'],'title'=>$r['title'],'slug'=>$r['slug'],'branch'=>$r['branch_name'],'status'=>$r['public_approval_status'],'note'=>$r['public_approval_note']??'','instructorName'=>$r['submitter_name'],'submittedAt'=>iso($r['public_submitted_at']??null)],$publicRows);
+            respond(['success'=>true,'instructor_applications'=>array_map('publicUser',$instructors),'profile_requests'=>$profiles,'certificate_requests'=>array_map(static function($row){return array_merge(certificationRow($row),['student_name'=>$row['student_name'],'submitter_name'=>$row['submitter_name']??'Student']);},$certs),'course_content_requests'=>$coursePayload,'course_public_requests'=>$publicPayload,'enrollment_requests'=>$enrollmentPayload]);
 
         case 'admin_approval_review':
             if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$admin=requireAdmin($pdo);
-            $type=in_array($data['type']??'', ['instructor','profile','certificate','course_content'],true)?$data['type']:'';$id=(int)($data['id']??0);$decision=($data['decision']??'')==='approved'?'approved':(($data['decision']??'')==='rejected'?'rejected':'');$note=clean($data['note']??'',500);
+            $type=in_array($data['type']??'', ['instructor','profile','certificate','course_content','course_public','enrollment'],true)?$data['type']:'';$id=(int)($data['id']??0);$decision=($data['decision']??'')==='approved'?'approved':(($data['decision']??'')==='rejected'?'rejected':'');$note=clean($data['note']??'',500);
             if($type===''||$id<1||$decision==='')respond(['success'=>false,'message'=>'Choose a valid request and decision.'],422);
             $pdo->beginTransaction();
             try{
-                if($type==='course_content'){
+                if($type==='course_public'){
+                    if(!(isCentralAdmin($admin)||isBranchManager($admin))){$pdo->rollBack();respond(['success'=>false,'message'=>'Course publishing requires an academy or branch reviewer.'],403);}
+                    $q=$pdo->prepare("SELECT c.*,u.branch AS creator_branch,u.role AS creator_role FROM courses c JOIN users u ON u.id=c.submitted_by WHERE c.id=? FOR UPDATE");$q->execute([$id]);$course=$q->fetch();
+                    if(!$course || $course['public_approval_status']!=='pending' || $course['creator_role']!=='instructor'){$pdo->rollBack();respond(['success'=>false,'message'=>'The public course request is no longer pending.'],409);}
+                    if(isBranchManager($admin) && !sameBranch($pdo,cleanBranchName($admin),(string)$course['branch_name'])){$pdo->rollBack();respond(['success'=>false,'message'=>'This course belongs to another branch.'],403);}
+                    if($decision==='approved')$pdo->prepare("UPDATE courses SET public_approval_status='approved',status='published',public_approval_note=?,reviewed_by=?,reviewed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$note,$admin['id'],$id]);
+                    else $pdo->prepare("UPDATE courses SET public_approval_status='rejected',status='draft',public_approval_note=?,reviewed_by=?,reviewed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$note,$admin['id'],$id]);
+                }elseif($type==='enrollment'){
+                    if(!(isCentralAdmin($admin)||isBranchManager($admin))){$pdo->rollBack();respond(['success'=>false,'message'=>'Only authorized academy or branch staff may review enrollment requests.'],403);}
+                    $q=$pdo->prepare("SELECT e.*,u.branch AS student_branch,c.branch_name AS course_branch,o.status AS payment_status FROM enrollments e JOIN users u ON u.id=e.user_id JOIN courses c ON c.id=e.course_id LEFT JOIN orders o ON o.id=e.order_id WHERE e.id=? FOR UPDATE");$q->execute([$id]);$enrollment=$q->fetch();
+                    if(!$enrollment||$enrollment['status']!=='pending'){$pdo->rollBack();respond(['success'=>false,'message'=>'This enrollment is no longer pending.'],409);}
+                    if($enrollment['order_id']!==null && $enrollment['payment_status']!=='paid'){$pdo->rollBack();respond(['success'=>false,'message'=>'Confirm payment through Orders before activating a purchased course.'],403);}
+                    if($decision==='rejected' && $enrollment['order_id']!==null){$pdo->rollBack();respond(['success'=>false,'message'=>'For paid orders, process cancellation or refund through Orders rather than rejecting access here.'],422);}
+                    if(isBranchManager($admin)&&(!sameBranch($pdo,cleanBranchName($admin),(string)$enrollment['student_branch']) || !sameBranch($pdo,cleanBranchName($admin),(string)$enrollment['course_branch']))){$pdo->rollBack();respond(['success'=>false,'message'=>'This enrollment is outside your branch.'],403);}
+                    $newStatus=$decision==='approved'?'active':'cancelled';
+                    $pdo->prepare("UPDATE enrollments SET status=?,enrolled_at=IF(?='active',COALESCE(enrolled_at,NOW()),enrolled_at),updated_at=NOW() WHERE id=?")->execute([$newStatus,$newStatus,$id]);
+                }elseif($type==='course_content'){
                     $stmt=$pdo->prepare("SELECT c.*,u.branch AS instructor_branch FROM courses c LEFT JOIN users u ON u.id=c.submitted_by WHERE c.id=? FOR UPDATE");$stmt->execute([$id]);$course=$stmt->fetch();
                     if(!$course || !in_array($course['approval_status']??'', ['pending','rejected'],true)){ $pdo->rollBack();respond(['success'=>false,'message'=>'This course content request is no longer waiting for review.'],409); }
                     $kind=(string)($course['approval_kind']??'none');$role=adminRole($admin);
@@ -5691,24 +6120,136 @@ try {
             }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
             respond(['success'=>true,'message'=>$decision==='approved'?'Request approved and published.':'Request rejected.']);
 
+        case 'admin_notifications':
+            $admin=requireAdmin($pdo);$role=adminRole($admin);$branch=cleanBranchName($admin);$userId=(int)$admin['id'];
+            $alerts=[];
+            $addAlert=static function(string $key,string $title,string $description,string $view,string $createdAt,bool $actionable=false)use(&$alerts):void{
+                $alerts[]=['key'=>$key,'title'=>$title,'description'=>$description,'view'=>$view,'createdAt'=>$createdAt,'actionable'=>$actionable];
+            };
+            if(isCentralAdmin($admin)||isBranchManager($admin)){
+                $where=isCentralAdmin($admin)?'':" AND LOWER(c.branch_name)=LOWER(?)";
+                $q=$pdo->prepare("SELECT c.id,c.title,c.updated_at FROM courses c WHERE c.public_approval_status='pending'".$where." ORDER BY c.updated_at DESC LIMIT 30");$q->execute(isCentralAdmin($admin)?[]:[$branch]);
+                foreach($q->fetchAll() as $a)$addAlert('course_public:'.$a['id'],'Public course awaiting approval',(string)$a['title'],'approvals',(string)$a['updated_at'],true);
+                $q=$pdo->prepare("SELECT c.id,c.title,c.updated_at FROM courses c WHERE c.approval_status='pending'".$where." ORDER BY c.updated_at DESC LIMIT 30");$q->execute(isCentralAdmin($admin)?[]:[$branch]);
+                foreach($q->fetchAll() as $a)$addAlert('course_content:'.$a['id'],'Course content awaiting approval',(string)$a['title'],'approvals',(string)$a['updated_at'],true);
+                $q=$pdo->prepare("SELECT u.id,u.name,u.created_at FROM users u WHERE u.role='instructor' AND u.status='pending'".(isCentralAdmin($admin)?'':" AND LOWER(u.branch)=LOWER(?)")." ORDER BY u.id DESC LIMIT 20");$q->execute(isCentralAdmin($admin)?[]:[$branch]);
+                foreach($q->fetchAll() as $a)$addAlert('instructor:'.$a['id'],'Instructor approval',(string)$a['name'],'approvals',(string)$a['created_at'],true);
+                $q=$pdo->prepare("SELECT u.id,u.name,u.created_at FROM users u WHERE u.role='student' AND u.created_at>=DATE_SUB(NOW(),INTERVAL 14 DAY)".(isCentralAdmin($admin)?'':" AND LOWER(u.branch)=LOWER(?)")." ORDER BY u.id DESC LIMIT 30");$q->execute(isCentralAdmin($admin)?[]:[$branch]);
+                foreach($q->fetchAll() as $a)$addAlert('student:'.$a['id'],'New student registered',(string)$a['name'],'students',(string)$a['created_at']);
+                if(isCentralAdmin($admin)){
+                    $q=$pdo->query("SELECT id,order_number,customer_name,created_at FROM orders WHERE created_at>=DATE_SUB(NOW(),INTERVAL 14 DAY) ORDER BY id DESC LIMIT 30");
+                    foreach($q->fetchAll() as $a)$addAlert('order:'.$a['id'],'New course order',(string)$a['customer_name'].' · '.(string)$a['order_number'],'orders',(string)$a['created_at']);
+                    $q=$pdo->query("SELECT id,name,subject,created_at FROM inquiries WHERE status='new' ORDER BY id DESC LIMIT 30");
+                    foreach($q->fetchAll() as $a)$addAlert('inquiry:'.$a['id'],'New website enquiry',(string)$a['name'].' · '.(string)$a['subject'],'inquiries',(string)$a['created_at']);
+                }
+                $q=$pdo->prepare("SELECT r.id,r.created_at,s.name FROM profile_change_requests r JOIN users s ON s.id=r.student_id WHERE r.status='pending'".(isCentralAdmin($admin)?'':" AND LOWER(s.branch)=LOWER(?)")." ORDER BY r.id DESC LIMIT 20");$q->execute(isCentralAdmin($admin)?[]:[$branch]);
+                foreach($q->fetchAll() as $a)$addAlert('profile:'.$a['id'],'Student profile approval',(string)$a['name'],'approvals',(string)$a['created_at'],true);
+                $q=$pdo->prepare("SELECT c.id,c.created_at,u.name,c.title FROM certifications c JOIN users u ON u.id=c.user_id WHERE c.status='pending'".(isCentralAdmin($admin)?'':" AND LOWER(u.branch)=LOWER(?)")." ORDER BY c.id DESC LIMIT 20");$q->execute(isCentralAdmin($admin)?[]:[$branch]);
+                foreach($q->fetchAll() as $a)$addAlert('certificate:'.$a['id'],'Certificate approval',(string)$a['name'].' — '.(string)$a['title'],'approvals',(string)$a['created_at'],true);
+                $q=$pdo->prepare("SELECT e.id,e.status,e.order_id,o.status AS payment_status,c.title,u.name,e.created_at FROM enrollments e JOIN courses c ON c.id=e.course_id JOIN users u ON u.id=e.user_id LEFT JOIN orders o ON o.id=e.order_id WHERE e.created_at>=DATE_SUB(NOW(), INTERVAL 30 DAY)".(isCentralAdmin($admin)?'':" AND LOWER(c.branch_name)=LOWER(?) AND LOWER(u.branch)=LOWER(?)")." ORDER BY e.id DESC LIMIT 50");$q->execute(isCentralAdmin($admin)?[]:[$branch,$branch]);
+                foreach($q->fetchAll() as $a){$review=$a['status']==='pending'&&($a['order_id']===null||$a['payment_status']==='paid');$addAlert(($review?'enrollment_review:':'enrollment:').$a['id'],$review?'Enrollment awaiting approval':'New student enrollment',(string)$a['name'].' — '.(string)$a['title'],$review?'approvals':'enrollments',(string)$a['created_at'],$review);}
+            }elseif($role==='instructor'){
+                $q=$pdo->prepare("SELECT c.id,c.title,c.public_approval_status,c.updated_at FROM courses c WHERE c.submitted_by=? AND c.public_approval_status IN ('approved','rejected') AND c.updated_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) ORDER BY c.id DESC LIMIT 20");$q->execute([$userId]);
+                foreach($q->fetchAll() as $a)$addAlert('course_review:'.$a['id'].':'.$a['public_approval_status'],'Course '.$a['public_approval_status'],(string)$a['title'],'courses',(string)$a['updated_at']);
+                $q=$pdo->prepare("SELECT e.id,c.title,u.name,e.created_at FROM enrollments e JOIN courses c ON c.id=e.course_id JOIN users u ON u.id=e.user_id WHERE c.instructor_user_id=? AND e.created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) ORDER BY e.id DESC LIMIT 40");$q->execute([$userId]);
+                foreach($q->fetchAll() as $a)$addAlert('enrollment:'.$a['id'],'Student enrolled',(string)$a['name'].' — '.(string)$a['title'],'courses',(string)$a['created_at']);
+            }
+            $read=$pdo->prepare('SELECT notification_key FROM admin_notification_reads WHERE user_id=?');$read->execute([$userId]);$seen=array_fill_keys($read->fetchAll(PDO::FETCH_COLUMN),true);
+            usort($alerts,static fn($a,$b)=>strcmp((string)$b['createdAt'],(string)$a['createdAt']));
+            foreach($alerts as &$notice)$notice['read']=(!$notice['actionable'] && isset($seen[$notice['key']]));unset($notice);
+            $pending=count(array_filter($alerts,static fn($a)=>$a['actionable']));$unread=count(array_filter($alerts,static fn($a)=>!$a['read']));
+            respond(['success'=>true,'items'=>array_slice($alerts,0,60),'count'=>$unread,'pending'=>$pending]);
+
+        case 'admin_notification_read':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$admin=requireAdmin($pdo);
+            $key=clean($data['key']??'',100);
+            if(!preg_match('/^(enrollment:[0-9]+|student:[0-9]+|order:[0-9]+|inquiry:[0-9]+|course_review:[0-9]+:(approved|rejected))$/',$key))respond(['success'=>false,'message'=>'Only informational notifications may be marked read.'],422);
+            // Verify that the key is visible to this user before writing a read receipt.
+            $role=adminRole($admin);$id=(int)explode(':',$key)[1];
+            if(str_starts_with($key,'enrollment:')){
+                $q=$pdo->prepare('SELECT c.branch_name,c.instructor_user_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.id=?');$q->execute([$id]);$target=$q->fetch();
+                if(!$target || !(isCentralAdmin($admin)||(isBranchManager($admin)&&sameBranch($pdo,cleanBranchName($admin),(string)$target['branch_name']))||($role==='instructor'&&(int)$target['instructor_user_id']===(int)$admin['id'])))respond(['success'=>false,'message'=>'Notification unavailable.'],403);
+            }elseif(str_starts_with($key,'student:')){
+                $q=$pdo->prepare("SELECT branch FROM users WHERE id=? AND role='student'");$q->execute([$id]);$branch=$q->fetchColumn();
+                if($branch===false || !(isCentralAdmin($admin)||(isBranchManager($admin)&&sameBranch($pdo,cleanBranchName($admin),(string)$branch))))respond(['success'=>false,'message'=>'Notification unavailable.'],403);
+            }elseif(str_starts_with($key,'order:')||str_starts_with($key,'inquiry:')){
+                if(!isCentralAdmin($admin))respond(['success'=>false,'message'=>'Notification unavailable.'],403);
+                $table=str_starts_with($key,'order:')?'orders':'inquiries';$q=$pdo->prepare("SELECT id FROM {$table} WHERE id=?");$q->execute([$id]);if(!$q->fetchColumn())respond(['success'=>false,'message'=>'Notification unavailable.'],404);
+            }else{
+                $q=$pdo->prepare('SELECT submitted_by FROM courses WHERE id=?');$q->execute([$id]);if((int)$q->fetchColumn()!==(int)$admin['id'])respond(['success'=>false,'message'=>'Notification unavailable.'],403);
+            }
+            $pdo->prepare('INSERT IGNORE INTO admin_notification_reads(user_id,notification_key) VALUES (?,?)')->execute([$admin['id'],$key]);
+            respond(['success'=>true]);
+
         case 'admin_courses':
             $admin=requireAdmin($pdo);$role=adminRole($admin);
             if(isCentralAdmin($admin)){$rows=$pdo->query('SELECT * FROM courses ORDER BY id DESC')->fetchAll();}
             elseif($role==='instructor'){$stmt=$pdo->prepare('SELECT * FROM courses WHERE instructor_user_id=? ORDER BY id DESC');$stmt->execute([$admin['id']]);$rows=$stmt->fetchAll();}
-            else{$stmt=$pdo->prepare("SELECT c.* FROM courses c LEFT JOIN users i ON i.id=c.instructor_user_id WHERE LOWER(c.branch_name)=LOWER(?) OR LOWER(i.branch)=LOWER(?) ORDER BY c.id DESC");$stmt->execute([cleanBranchName($admin),cleanBranchName($admin)]);$rows=$stmt->fetchAll();}
+            else{$stmt=$pdo->prepare("SELECT c.* FROM courses c LEFT JOIN users i ON i.id=c.instructor_user_id WHERE LOWER(c.branch_name)=LOWER(?) OR LOWER(i.branch)=LOWER(?) ORDER BY c.id DESC");$stmt->execute([cleanBranchName($admin)]);$rows=$stmt->fetchAll();}
             respond(['success'=>true,'courses'=>array_map('courseRow',$rows)]);
 
+        case 'admin_course_type_toggle':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $admin=requireAdminRoles($pdo,['super_admin','admin_staff']);
+            $courseId=(int)($data['course_id']??0);
+            $mode=clean($data['mode']??'',25);
+            if($courseId<1 || !in_array($mode,['offline','recorded','live'],true))respond(['success'=>false,'message'=>'Choose a valid course and format.'],422);
+            if(!array_key_exists('enabled',$data))respond(['success'=>false,'message'=>'Supply the new format state.'],422);
+            $enable=boolValue($data['enabled']);
+            $pdo->beginTransaction();
+            try {
+                $query=$pdo->prepare('SELECT id,delivery_mode,delivery_modes_json FROM courses WHERE id=? FOR UPDATE');
+                $query->execute([$courseId]);$row=$query->fetch(PDO::FETCH_ASSOC);
+                if(!$row){$pdo->rollBack();respond(['success'=>false,'message'=>'Course not found.'],404);}
+                $modes=courseEnabledFormats($row);
+                $modes=array_values(array_filter($modes,static fn($value)=>$value!==$mode));
+                if($enable)$modes[]=$mode;
+                $modes=array_values(array_unique($modes));
+                $encoded=json_encode($modes?:['disabled'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
+                // Keep the existing primary mode when all formats are off, so it can be restored.
+                $primary=$modes[0]??$row['delivery_mode'];
+                $pdo->prepare('UPDATE courses SET delivery_mode=?,delivery_modes_json=?,updated_at=NOW() WHERE id=?')->execute([$primary,$encoded,$courseId]);
+                $pdo->commit();
+                respond(['success'=>true,'course_id'=>$courseId,'deliveryModes'=>$modes,'deactivated'=>count($modes)===0,'message'=>$enable?'Course format activated.':'Format deactivated. Existing course data and enrollments are preserved.']);
+            }catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw $error;}
+
+        case 'admin_course_format_disable':
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $admin=requireAdminRoles($pdo,['super_admin','admin_staff']);
+            $courseId=(int)($data['course_id']??0);
+            $mode=(string)($data['mode']??'');
+            if($courseId<1 || !in_array($mode,['offline','recorded','live'],true))respond(['success'=>false,'message'=>'Choose a valid course and delivery format.'],422);
+            $pdo->beginTransaction();
+            try{
+                $stmt=$pdo->prepare('SELECT id,delivery_mode,delivery_modes_json FROM courses WHERE id=? FOR UPDATE');
+                $stmt->execute([$courseId]);$course=$stmt->fetch(PDO::FETCH_ASSOC);
+                if(!$course){$pdo->rollBack();respond(['success'=>false,'message'=>'Course not found.'],404);}
+                $modes=courseEnabledFormats($course);
+                if(!in_array($mode,$modes,true)){$pdo->rollBack();respond(['success'=>true,'message'=>'That format is already disabled.']);}
+                $updated=array_values(array_filter($modes,static fn($m)=>$m!==$mode));
+                // Do not delete existing mode content, enrollments, lessons, orders or payment records.
+                $update=$pdo->prepare('UPDATE courses SET delivery_mode=?,delivery_modes_json=?,updated_at=NOW() WHERE id=?');
+                $update->execute([$updated[0]??$course['delivery_mode'],json_encode($updated?:['disabled'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),$courseId]);
+                $pdo->commit();
+                respond(['success'=>true,'message'=>'Format disabled for new purchases. Existing course data and enrollments are preserved.','deliveryModes'=>$updated]);
+            }catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw $error;}
+
         case 'admin_course_save':
-            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$admin=requireAdminRoles($pdo,['super_admin','admin_staff']);
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);$admin=requireAdminRoles($pdo,['super_admin','admin_staff','branch_head','branch_admin','instructor']);
+            $creatorRole=adminRole($admin); $branchScoped=isBranchManager($admin); $instructorCreator=$creatorRole==='instructor';
+            if(($branchScoped||$instructorCreator) && cleanBranchName($admin)==='')respond(['success'=>false,'message'=>'Your account must be assigned to a branch before creating courses.'],403);
             try { ensureCourseContentColumns($pdo); } catch (Throwable $migrationError) {
                 respond(['success'=>false,'message'=>'Course fields could not be prepared. Confirm that the database user can alter tables.'],500);
             }
             $id=(int)($data['id']??0);$title=clean($data['title']??'',190);$slug=strtolower(clean($data['slug']??'',190));$slug=preg_replace('/[^a-z0-9]+/','-',$slug?:$title);$slug=trim((string)$slug,'-');$category=clean($data['category']??'',120);$status=in_array($data['status']??'published',['draft','published'],true)?$data['status']:'published';$assignedInstructorId=max(0,(int)($data['assignedInstructorId']??$data['instructor_user_id']??0));$branchName=clean($data['branchName']??$data['branch_name']??'',120);
+            $visibility=in_array($data['visibility']??'public',['public','private'],true)?$data['visibility']:'public';
+            if($branchScoped||$instructorCreator){$branchName=cleanBranchName($admin);}
+            if($instructorCreator){$assignedInstructorId=(int)$admin['id'];$visibility='public';$status='draft';}
             $deliveryMode=in_array($data['deliveryMode']??'offline',['offline','live','recorded'],true)?$data['deliveryMode']:'offline';
             $enabledInput=is_array($data['deliveryModes']??null)?$data['deliveryModes']:[$deliveryMode];
             $deliveryModes=array_values(array_unique(array_filter($enabledInput,fn($m)=>in_array($m,['offline','live','recorded'],true))));
-            if(!$deliveryModes)$deliveryModes=[$deliveryMode];
-            $deliveryMode=$deliveryModes[0];
+            if(!$deliveryModes && $id<=0)$deliveryModes=[$deliveryMode];
+            $deliveryMode=$deliveryModes[0]??$deliveryMode;
             if($title===''||$slug===''||$category==='')respond(['success'=>false,'message'=>'Title, slug and category are required.'],422);
 
             $incomingModes=is_array($data['contentModes']??null)?$data['contentModes']:[];
@@ -5731,27 +6272,33 @@ try {
             }
             if(!$incomingModes){$modeContents[$deliveryMode]=normalizeCourseModeContent($data);}
             $active=$modeContents[$deliveryMode];
-            if($assignedInstructorId>0){$iq=$pdo->prepare("SELECT id,name,headline,branch FROM users WHERE id=? AND role='instructor' AND status='active' LIMIT 1");$iq->execute([$assignedInstructorId]);$assigned=$iq->fetch();if(!$assigned)respond(['success'=>false,'message'=>'Choose an active instructor account.'],422);$branchName=$branchName?:clean((string)($assigned['branch']??''),120);foreach($deliveryModes as $dm){$modeContents[$dm]['instructor']=(string)$assigned['name'];$modeContents[$dm]['instructorRole']=(string)($assigned['headline']??'Instructor');}$active=$modeContents[$deliveryMode];}
+            if($assignedInstructorId>0){$iq=$pdo->prepare("SELECT id,name,headline,branch FROM users WHERE id=? AND role='instructor' AND status='active' LIMIT 1");$iq->execute([$assignedInstructorId]);$assigned=$iq->fetch();if(!$assigned)respond(['success'=>false,'message'=>'Choose an active instructor account.'],422);if(($branchScoped||$instructorCreator) && !sameBranch($pdo,cleanBranchName($admin),(string)($assigned['branch']??'')))respond(['success'=>false,'message'=>'Assigned instructor must belong to your branch.'],403);$branchName=$branchName?:clean((string)($assigned['branch']??''),120);foreach($deliveryModes as $dm){$modeContents[$dm]['instructor']=(string)$assigned['name'];$modeContents[$dm]['instructorRole']=(string)($assigned['headline']??'Instructor');}$active=$modeContents[$deliveryMode];}
             $encodedModes=json_encode($modeContents,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-            $encodedDeliveryModes=json_encode($deliveryModes,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            $encodedDeliveryModes=json_encode($deliveryModes?:['disabled'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 
             try {
                 $pdo->beginTransaction();
                 if ($id > 0) {
-                    $exists=$pdo->prepare('SELECT id,lessons_count FROM courses WHERE id=? LIMIT 1');
+                    $exists=$pdo->prepare('SELECT * FROM courses WHERE id=? LIMIT 1');
                     $exists->execute([$id]);
                     $existing=$exists->fetch();
                     if(!$existing) {
                         $pdo->rollBack();
                         respond(['success'=>false,'message'=>'The selected course no longer exists. Refresh the Courses page.'],404);
                     }
+                    if($branchScoped && !sameBranch($pdo,cleanBranchName($admin),(string)($existing['branch_name']??''))){$pdo->rollBack();respond(['success'=>false,'message'=>'This course belongs to another branch.'],403);}
+                    if($instructorCreator && ((int)($existing['instructor_user_id']??0)!==(int)$admin['id'] || ($existing['public_approval_status']??'approved')==='approved')){$pdo->rollBack();respond(['success'=>false,'message'=>'Instructors can resubmit their own unapproved course drafts. Published courses require an administrator to edit.'],403);}
+                    if(($existing['public_approval_status']??'approved')==='pending')$status='draft';
+                    if($instructorCreator && (string)($existing['visibility']??'public')!=='public'){$pdo->rollBack();respond(['success'=>false,'message'=>'Instructors cannot edit private courses.'],403);}
                     $fields=[
                         $slug,$title,$category,$active['badge'],boolValue($data['featured']??false)?1:0,$active['image'],$active['short'],$active['description'],$active['price'],$active['originalPrice'],$active['duration'],$active['hours'],(int)$existing['lessons_count'],$active['projects'],$active['rating'],$active['reviews'],$active['students'],$active['level'],$active['language'],$active['updated'],$active['instructor'],$active['instructorRole'],json_encode($active['skills'],JSON_UNESCAPED_UNICODE),json_encode($active['requirements'],JSON_UNESCAPED_UNICODE),json_encode($active['audience'],JSON_UNESCAPED_UNICODE),json_encode($active['projectItems'],JSON_UNESCAPED_UNICODE),json_encode($active['courseReviews'],JSON_UNESCAPED_UNICODE),$deliveryMode,$encodedDeliveryModes,$encodedModes,$assignedInstructorId?:null,$branchName,$status,$id
                     ];
                     $sql='UPDATE courses SET slug=?,title=?,category=?,badge=?,featured=?,image=?,short_description=?,description=?,price=?,original_price=?,duration=?,hours=?,lessons_count=?,projects=?,rating=?,reviews_count=?,students_count=?,level=?,language=?,updated_label=?,instructor=?,instructor_role=?,skills_json=?,requirements_json=?,audience_json=?,projects_json=?,course_reviews_json=?,delivery_mode=?,delivery_modes_json=?,mode_contents_json=?,instructor_user_id=?,branch_name=?,status=? WHERE id=?';
                     $pdo->prepare($sql)->execute($fields);
+                    if($instructorCreator){$pdo->prepare("UPDATE courses SET status='draft',visibility='public',public_approval_status='pending',public_approval_note='',public_submitted_at=NOW(),submitted_by=?,updated_at=NOW() WHERE id=?")->execute([$admin['id'],$id]);}
+                    else {$pdo->prepare('UPDATE courses SET visibility=? WHERE id=?')->execute([$visibility,$id]);}
                     $pdo->commit();
-                    respond(['success'=>true,'message'=>'Course saved with '.count($deliveryModes).' delivery type'.(count($deliveryModes)===1?'':'s').'.']);
+                    respond(['success'=>true,'message'=>$instructorCreator?'Course update sent to your branch Approvals queue.':'Course saved with '.count($deliveryModes).' delivery type'.(count($deliveryModes)===1?'':'s').'.']);
                 }
                 $fields=[
                     $slug,$title,$category,$active['badge'],boolValue($data['featured']??false)?1:0,$active['image'],$active['short'],$active['description'],$active['price'],$active['originalPrice'],$active['duration'],$active['hours'],0,$active['projects'],$active['rating'],$active['reviews'],$active['students'],$active['level'],$active['language'],$active['updated'],$active['instructor'],$active['instructorRole'],$assignedInstructorId?:null,$branchName,json_encode($active['skills'],JSON_UNESCAPED_UNICODE),json_encode($active['requirements'],JSON_UNESCAPED_UNICODE),json_encode($active['audience'],JSON_UNESCAPED_UNICODE),'[]',json_encode($active['projectItems'],JSON_UNESCAPED_UNICODE),json_encode($active['courseReviews'],JSON_UNESCAPED_UNICODE),$deliveryMode,$encodedDeliveryModes,$encodedModes,$status
@@ -5759,8 +6306,10 @@ try {
                 $sql='INSERT INTO courses (slug,title,category,badge,featured,image,short_description,description,price,original_price,duration,hours,lessons_count,projects,rating,reviews_count,students_count,level,language,updated_label,instructor,instructor_role,instructor_user_id,branch_name,skills_json,requirements_json,audience_json,modules_json,projects_json,course_reviews_json,delivery_mode,delivery_modes_json,mode_contents_json,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
                 $pdo->prepare($sql)->execute($fields);
                 $newId=(int)$pdo->lastInsertId();
+                if($instructorCreator){$pdo->prepare("UPDATE courses SET status='draft',visibility='public',public_approval_status='pending',public_approval_note='',public_submitted_at=NOW(),submitted_by=? WHERE id=?")->execute([$admin['id'],$newId]);}
+                else {$pdo->prepare('UPDATE courses SET visibility=? WHERE id=?')->execute([$visibility,$newId]);}
                 $pdo->commit();
-                respond(['success'=>true,'message'=>'Course created with '.count($deliveryModes).' delivery type'.(count($deliveryModes)===1?'':'s').'. Use Private Lessons to add protected learning content.','course_id'=>$newId],201);
+                respond(['success'=>true,'message'=>$instructorCreator?'Public course submitted for approval. It remains hidden until approved.':'Course created with '.count($deliveryModes).' delivery type'.(count($deliveryModes)===1?'':'s').'. Use Private Lessons to add protected learning content.','course_id'=>$newId],201);
             } catch(PDOException $e) {
                 if($pdo->inTransaction())$pdo->rollBack();
                 if((string)$e->getCode()==='23000')respond(['success'=>false,'message'=>'Another course already uses this slug.'],409);
@@ -5777,6 +6326,10 @@ try {
             $exists=$pdo->prepare('SELECT * FROM courses WHERE id=? LIMIT 1');$exists->execute([$courseId]);$course=$exists->fetch();
             if(!$course)respond(['success'=>false,'message'=>'The selected course no longer exists.'],404);
             $role=adminRole($admin);
+            if($role!=='instructor')respond(['success'=>false,'message'=>'Recorded and Live private content is instructor-managed. Admin can only preview it. Physical private pages use the Physical Courses editor.'],403);
+            $modes=jsonArray($course['delivery_modes_json']??'[]');
+            if(!$modes)$modes=[(string)($course['delivery_mode']??'offline')];
+            if(!in_array('recorded',$modes,true)&&!in_array('live',$modes,true))respond(['success'=>false,'message'=>'Physical private pages can only be edited by academy Admin.'],403);
             if($role==='instructor' && (int)($course['instructor_user_id']??0)!==(int)$admin['id'])respond(['success'=>false,'message'=>'This course is not assigned to your instructor account.'],403);
             if($role==='instructor' && courseNeedsCentralApproval($course) && !(bool)($admin['can_record_lectures']??false))respond(['success'=>false,'message'=>'Your instructor account does not have permission to create recorded LMS lectures. Ask Super Admin / Admin Staff to enable Recorded LMS permission in Users.'],403);
             if(isBranchManager($admin)){
@@ -5898,6 +6451,40 @@ try {
             }
             $pdo->prepare("UPDATE enrollments SET status=?,enrolled_at=IF(? IN ('active','completed'),COALESCE(enrolled_at,NOW()),enrolled_at),completed_at=IF(?='completed',NOW(),IF(?='active',NULL,completed_at)) WHERE id=?")->execute([$status,$status,$status,$status,$id]);respond(['success'=>true,'message'=>'Enrollment status updated.']);
 
+
+        case 'student_integrations_public':
+            $c=getSetting($pdo,'student_integrations',[]);
+            $providers=[];
+            foreach(['google','microsoft','linkedin'] as $p){$v=$c['providers'][$p]??[];$providers[$p]=!empty($v['enabled'])&&!empty($v['client_id'])&&!empty($v['secret_encrypted']);}
+            respond(['success'=>true,'providers'=>$providers,'otp_email_enabled'=>!empty($c['otp_email_enabled']), 'recaptcha'=>['mode'=>in_array($c['recaptcha_mode']??'off',['v2','v3'],true)?$c['recaptcha_mode']:'off','site_key'=>(string)($c['recaptcha_site_key']??'')]]);
+
+        case 'admin_student_integrations':
+            requireAdminRoles($pdo,['super_admin']);
+            if($method==='GET'){
+                $c=getSetting($pdo,'student_integrations',[]);
+                foreach(['google','microsoft','linkedin'] as $p){$c['providers'][$p]['has_secret']=!empty($c['providers'][$p]['secret_encrypted']);unset($c['providers'][$p]['secret_encrypted']);}
+                $c['recaptcha_has_secret']=!empty($c['recaptcha_secret_encrypted']);unset($c['recaptcha_secret_encrypted']);
+                respond(['success'=>true,'settings'=>$c]);
+            }
+            if($method!=='POST')respond(['success'=>false,'message'=>'Method not allowed.'],405);
+            $c=getSetting($pdo,'student_integrations',[]);
+            foreach(['google','microsoft','linkedin'] as $p){
+                $v=is_array($data['providers'][$p]??null)?$data['providers'][$p]:[];
+                $old=$c['providers'][$p]??[];
+                $old['client_id']=clean($v['client_id']??$old['client_id']??'',400);
+                if((string)($v['secret']??'')!=='')$old['secret_encrypted']=encryptSecret((string)$v['secret'],appKey());
+                $old['enabled']=boolValue($v['enabled']??false);
+                if($old['enabled']&&($old['client_id']===''||empty($old['secret_encrypted'])))respond(['success'=>false,'message'=>ucfirst($p).' needs a client ID and client secret before enabling.'],422);
+                $c['providers'][$p]=$old;
+            }
+            $c['otp_email_enabled']=boolValue($data['otp_email_enabled']??false);
+            $c['otp_sms_enabled']=false; // no SMS gateway implementation; cannot enable an insecure placeholder
+            $c['recaptcha_mode']=in_array($data['recaptcha_mode']??'', ['off','v2','v3'],true)?$data['recaptcha_mode']:'off';
+            $c['recaptcha_site_key']=clean($data['recaptcha_site_key']??'',300);
+            if((string)($data['recaptcha_secret']??'')!=='')$c['recaptcha_secret_encrypted']=encryptSecret((string)$data['recaptcha_secret'],appKey());
+            if($c['recaptcha_mode']!=='off'&&($c['recaptcha_site_key']===''||empty($c['recaptcha_secret_encrypted'])))respond(['success'=>false,'message'=>'reCAPTCHA site key and secret are required before enabling.'],422);
+            saveSetting($pdo,'student_integrations',$c);
+            respond(['success'=>true,'message'=>'Student authentication integrations saved.']);
 
         case 'admin_settings':
             $admin=requireAdmin($pdo);

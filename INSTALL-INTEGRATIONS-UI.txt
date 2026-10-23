@@ -1,0 +1,13 @@
+INTEGRATIONS SETTINGS — UI REPLACEMENT
+
+Replace these existing project files:
+admin/js/admin.js
+admin/css/admin.css
+
+Requires the previous LMS Student Integrations Admin package to have been installed.
+
+Changes: on/off switches for Google, Microsoft, LinkedIn, and Email OTP; security options grouped as clean list rows.
+
+SMS OTP is intentionally disabled: the current server has no SMS gateway or OTP delivery/verification integration. Merely enabling a checkbox would not send SMS or secure accounts. Connect a provider and implement backend verification before activating it.
+
+reCAPTCHA settings are configuration-only in the current project; the backend does not enforce challenges yet.

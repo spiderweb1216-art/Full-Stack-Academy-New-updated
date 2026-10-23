@@ -1,0 +1,84 @@
+--- a/js/app.js
++++ b/js/app.js
+@@ -883,7 +883,10 @@
+     setChrome('public');
+     const events = academyEvents();
+     const featured = events.find(event => event.featured) || events[0];
+-    if (!featured) return renderNotFound();
++    if (!featured) {
++      app.innerHTML = `${pageHero({eyebrow:'Full Stack Academy Events',title:'Academy events',text:'Explore current academy events, workshops and community activities.',center:true})}<section class="page-section section-surface"><div class="container"><div class="empty-state"><h3>No published events available</h3><p>New events will appear here when they are published by the academy.</p><a class="button button-primary" href="#/contact">Contact the academy</a></div></div></section>`;
++      return;
++    }
+     const params = new URLSearchParams(query);
+     const q = String(params.get('q') || '').trim().toLowerCase();
+     const category = params.get('category') || 'all';
+@@ -1473,11 +1476,24 @@
+     return `<article class="fsa-batch-card reveal reveal-delay-${Math.min(index%4,3)}"><div class="fsa-batch-top"><span class="fsa-batch-date"><strong>${escapeHtml(date[0])}</strong><small>${escapeHtml(date[1]||'')}</small></span><span class="mode-pill ${modeClass}">${escapeHtml(row.mode)}</span></div><h3>${escapeHtml(row.course)}</h3><div class="fsa-batch-details"><span>${icon('clock')}<b>${escapeHtml(row.time)}</b></span><span>${icon(placeIcon)}<b>${escapeHtml(row.branch)}</b></span><span>${icon(row.seats?'users':'check')}<b>${seatText}</b></span></div><a class="fsa-batch-link" href="#/course/${encodeURIComponent(row.slug)}">View course ${icon('arrow')}</a></article>`;
+   }
+ 
++  function publicBatchBranches() {
++    const names = new Map();
++    for (const b of Array.isArray(D.branches) ? D.branches : []) {
++      const label = String(b.shortName || b.name || '').replace(/^FSA\s*[—-]\s*/i,'').trim();
++      if (label) names.set(label.toLowerCase(),label);
++    }
++    for (const b of batchRows()) {
++      const label=String(b.branch||'').trim();
++      if (label && !/^(online|remote|start anytime)$/i.test(label)) names.set(label.toLowerCase(),label);
++    }
++    return [['all','All Locations'],['online','Online'], ...[...names].sort((a,b)=>a[1].localeCompare(b[1])).map(([key,label])=>[key,label])];
++  }
++
+   function batchFilterSelect(type,value,compact=false) {
+     const filters={
+       shift:{label:'Time',hint:'Choose schedule',iconName:'clock',options:[['all','All Times'],['morning','Morning'],['afternoon','Afternoon'],['evening','Evening'],['anytime','Start Anytime']]},
+       mode:{label:'Mode',hint:'Choose learning mode',iconName:'layers',options:[['all','All Modes'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']]},
+-      branch:{label:'Branch',hint:'Choose location',iconName:'map',options:[['all','All Locations'],['online','Online'],['ameerpet','Ameerpet'],['gachibowli','Gachibowli'],['tolichowki','Tolichowki'],['charminar','Charminar']]}
++      branch:{label:'Branch',hint:'Choose location',iconName:'map',options:publicBatchBranches()}
+     };
+     const filter=filters[type];
+     return `<label class="fsa-batch-dropdown ${compact?'compact':''}"><span class="fsa-batch-dropdown-icon">${icon(filter.iconName)}</span><span class="fsa-batch-dropdown-copy"><small>${filter.label}</small><strong>${filter.hint}</strong></span><select data-batch-filter-select="${type}" aria-label="${filter.label} filter">${filter.options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
+@@ -1502,7 +1518,7 @@
+     const q=String(state.batchQuery||'').trim().toLowerCase();
+     const rows=batchRows(course).filter(row=>{
+       const shiftOk=state.batchShift==='all'||row.shift.toLowerCase()===state.batchShift||(row.shift==='Anytime'&&state.batchShift==='anytime');
+-      const branchOk=state.batchBranch==='all'||row.branch.toLowerCase()===state.batchBranch;
++      const branchOk=state.batchBranch==='all'||String(row.branch||'').trim().toLowerCase()===state.batchBranch;
+       const modeKey=row.mode.toLowerCase().replace(/\s+/g,'-');
+       const modeOk=state.batchMode==='all'||modeKey===state.batchMode;
+       const queryOk=!q||`${row.course} ${row.mode} ${row.branch} ${row.shift} ${row.time}`.toLowerCase().includes(q);
+@@ -1629,7 +1645,7 @@
+   function renderBatches() {
+     setChrome('public');
+     const rows=batchRows();
+-    app.innerHTML=`<section class="fsa-batches-page-hero"><div class="container fsa-batches-page-grid"><div class="fsa-batches-page-copy reveal"><span class="eyebrow">Admissions & Learning Access</span><h1>Find the right <em>batch or learning mode.</em></h1><p>Compare scheduled Live Streamed classes, branch-based Offline Classroom batches and Recorded courses that can start anytime. The same three-mode structure is now used across the course catalogue.</p><div class="fsa-batches-hero-modes"><span><i>${icon('radio')}</i>Live Streamed</span><span><i>${icon('video')}</i>Recorded</span><span><i>${icon('classroom')}</i>Offline Classroom</span></div></div><aside class="fsa-batches-page-panel reveal reveal-delay-2"><small>How it works</small><h3>Filter your learning options</h3><ul><li>${icon('search')} Search by course or technology</li><li>${icon('clock')} Choose morning, afternoon, evening or anytime</li><li>${icon('map')} Filter online or a Hyderabad branch</li><li>${icon('layers')} Select your preferred learning mode</li></ul><button class="button button-primary button-block" data-action="open-call-popup" style="margin-top:17px">Need Help? Get A Call</button></aside></div></section><section class="fsa-batches-directory"><div class="container"><div class="fsa-batches-directory-head"><div><span class="eyebrow">All Learning Options</span><h2>Upcoming batches & recorded access</h2><p>Every filter row scrolls independently and hides its scrollbar.</p></div><label class="fsa-batches-search">${icon('search')}<input id="batchesSearchInput" type="search" value="${escapeHtml(state.batchQuery||'')}" placeholder="Search course, branch or mode..."></label></div><div class="fsa-batches-filter-stack"><div class="fsa-batches-filter-row"><strong>Time</strong><div class="fsa-batches-filter-scroll">${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Start Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Mode</strong><div class="fsa-batches-filter-scroll">${[['all','All Modes'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Branch</strong><div class="fsa-batches-filter-scroll">${[['all','All Locations'],['online','Online'],['ameerpet','Ameerpet'],['gachibowli','Gachibowli'],['tolichowki','Tolichowki'],['charminar','Charminar']].map(([v,l])=>`<button class="${state.batchBranch===v?'active':''}" data-action="batch-branch" data-value="${v}">${l}</button>`).join('')}</div></div></div><div class="fsa-batches-results-line"><span id="batchResultCount"><strong>${rows.length}</strong> options found</span><button class="clear-button" data-action="batch-reset">Reset filters</button></div><div class="fsa-batches-page-grid-list" id="fsaBatchGrid">${rows.map(batchCard).join('')}</div></div></section><section class="section-sm section-surface"><div class="container"><div class="cta-panel"><span class="eyebrow">Course Guidance</span><h2>Not sure which format fits your schedule?</h2><p>Share your course interest and preferred learning mode. The academy team can help you choose the best available option.</p><div class="cta-actions"><button class="button button-primary" data-action="open-call-popup">Get A Call</button><a class="button button-secondary" href="#/courses">Browse Courses</a></div></div></div></section>`;
++    app.innerHTML=`<section class="fsa-batches-page-hero"><div class="container fsa-batches-page-grid"><div class="fsa-batches-page-copy reveal"><span class="eyebrow">Admissions & Learning Access</span><h1>Find the right <em>batch or learning mode.</em></h1><p>Compare scheduled Live Streamed classes, branch-based Offline Classroom batches and Recorded courses that can start anytime. The same three-mode structure is now used across the course catalogue.</p><div class="fsa-batches-hero-modes"><span><i>${icon('radio')}</i>Live Streamed</span><span><i>${icon('video')}</i>Recorded</span><span><i>${icon('classroom')}</i>Offline Classroom</span></div></div><aside class="fsa-batches-page-panel reveal reveal-delay-2"><small>How it works</small><h3>Filter your learning options</h3><ul><li>${icon('search')} Search by course or technology</li><li>${icon('clock')} Choose morning, afternoon, evening or anytime</li><li>${icon('map')} Filter online or a Hyderabad branch</li><li>${icon('layers')} Select your preferred learning mode</li></ul><button class="button button-primary button-block" data-action="open-call-popup" style="margin-top:17px">Need Help? Get A Call</button></aside></div></section><section class="fsa-batches-directory"><div class="container"><div class="fsa-batches-directory-head"><div><span class="eyebrow">All Learning Options</span><h2>Upcoming batches & recorded access</h2><p>Every filter row scrolls independently and hides its scrollbar.</p></div><label class="fsa-batches-search">${icon('search')}<input id="batchesSearchInput" type="search" value="${escapeHtml(state.batchQuery||'')}" placeholder="Search course, branch or mode..."></label></div><div class="fsa-batches-filter-stack"><div class="fsa-batches-filter-row"><strong>Time</strong><div class="fsa-batches-filter-scroll">${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Start Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Mode</strong><div class="fsa-batches-filter-scroll">${[['all','All Modes'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Branch</strong><div class="fsa-batches-filter-scroll">${publicBatchBranches().map(([v,l])=>`<button class="${state.batchBranch===v?'active':''}" data-action="batch-branch" data-value="${v}">${l}</button>`).join('')}</div></div></div><div class="fsa-batches-results-line"><span id="batchResultCount"><strong>${rows.length}</strong> options found</span><button class="clear-button" data-action="batch-reset">Reset filters</button></div><div class="fsa-batches-page-grid-list" id="fsaBatchGrid">${rows.map(batchCard).join('')}</div></div></section><section class="section-sm section-surface"><div class="container"><div class="cta-panel"><span class="eyebrow">Course Guidance</span><h2>Not sure which format fits your schedule?</h2><p>Share your course interest and preferred learning mode. The academy team can help you choose the best available option.</p><div class="cta-actions"><button class="button button-primary" data-action="open-call-popup">Get A Call</button><a class="button button-secondary" href="#/courses">Browse Courses</a></div></div></div></section>`;
+     requestAnimationFrame(()=>updateBatchResults());
+   }
+ 
+@@ -6617,7 +6633,8 @@
+ 
+   function renderHelp() {
+     setChrome('public');
+-    const items = [...(D.faqs||[]),...(D.content?.helpFaqExtras||[])];
++    const managedFaqs = D.content?.helpFaqExtras;
++    const items = Array.isArray(managedFaqs) && managedFaqs.length ? managedFaqs : (D.faqs||[]);
+     app.innerHTML = `${pageHero({eyebrow:'Help Centre',title:'How can we help?',text:'Find quick answers about courses, plans, enrollment and learner accounts.',center:true})}<section class="page-section"><div class="container">${faqList(items)}<div class="mission-grid" style="margin-top:60px"><div class="form-section"><span class="eyebrow">Send a Message</span><h2>Contact academy support</h2><form id="contactForm" novalidate><div class="form-grid"><div class="form-group"><label>Full name</label><input class="form-control" name="name" required value="${escapeHtml(state.user.name === 'Academy Learner' ? '' : state.user.name)}"></div><div class="form-group"><label>Email address</label><input class="form-control" name="email" type="email" required value="${escapeHtml(state.user.email)}"></div><div class="form-group"><label>Phone number</label><input class="form-control" name="phone" value="${escapeHtml(state.user.phone)}"></div><div class="form-group"><label>Subject</label><input class="form-control" name="subject" required placeholder="Course, account or enrollment support"></div><div class="form-group full"><label>Message</label><textarea class="form-control" name="message" required placeholder="Tell us how we can help"></textarea></div></div><button class="button button-primary" type="submit">Send Message</button></form></div><div class="cta-panel"><h2>Speak with the academy team</h2><p>Call or email Full Stack Academy for course guidance, branch information and enrollment assistance.</p><div class="cta-actions"><a class="button button-primary" href="#/contact">Open Contact Page</a><a class="button button-secondary" href="#/courses">Browse Courses</a></div></div></div></div></section>`;
+   }
+   function renderLegal(type) {
+@@ -6643,7 +6660,14 @@
+       ['timing','Processing','Approved refund timing can depend on the original payment method and banking or payment-provider processing timelines.'],
+       ['contact','Contact','Refund questions can be sent to info@fullstackacademy.in or discussed with the academy team at +91 9015 236 236.']
+     ];
+-    app.innerHTML=`${pageHero({eyebrow:'Academy Policy',title,text:intro,center:true})}<section class="page-section section-surface"><div class="container legal-premium-shell"><aside class="legal-premium-nav"><span>On this page</span>${sections.map(([id,h])=>`<a href="#${id}"><i class="premium-link-icon">${icon(id==='security'?'shield':id==='contact'?'mail':'file')}</i>${escapeHtml(h)}</a>`).join('')}</aside><article class="legal-premium-content"><div class="legal-updated">${icon('calendar')} Last updated: September 2026</div>${sections.map(([id,h,body])=>`<section id="${id}"><h2>${escapeHtml(h)}</h2><p>${escapeHtml(body)}</p></section>`).join('')}</article></div></section>`;
++    const configured=D.content?.legalPages?.[type];
++    const policySections=Array.isArray(configured?.sections) && configured.sections.length
++      ? configured.sections.filter(s=>s && String(s.title||'').trim()).map((s,i)=>[
++          'policy-'+i, String(s.title), String(s.body||'')
++        ]) : sections;
++    const policyIntro=typeof configured?.intro==='string' ? configured.intro : intro;
++    const policyUpdated=typeof configured?.updated==='string' ? configured.updated : 'September 2026';
++    app.innerHTML=`${pageHero({eyebrow:'Academy Policy',title,text:escapeHtml(policyIntro),center:true})}<section class="page-section section-surface"><div class="container legal-premium-shell"><aside class="legal-premium-nav"><span>On this page</span>${policySections.map(([id,h])=>`<a href="#${id}"><i class="premium-link-icon">${icon(id==='security'?'shield':id==='contact'?'mail':'file')}</i>${escapeHtml(h)}</a>`).join('')}</aside><article class="legal-premium-content"><div class="legal-updated">${icon('calendar')} Last updated: ${escapeHtml(policyUpdated)}</div>${policySections.map(([id,h,body])=>`<section id="${id}"><h2>${escapeHtml(h)}</h2><p>${escapeHtml(body)}</p></section>`).join('')}</article></div></section>`;
+   }
+ 
+   function renderNotFound() {

@@ -1,4 +1,4 @@
-window.FSA_BUILD='v113-checkout-mode-session-fix';
+window.FSA_BUILD='v134-returning-learner';
 /* FSA Branches V21 — branch mega-menu markup/CSS refresh; existing routing logic preserved. */
 (() => {
   'use strict';
@@ -126,7 +126,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       if (!email || !String(payload.password || '').trim()) throw new Error('Email and password are required.');
       if (String(payload.password || '').length < 8) throw new Error('Password must be at least 8 characters.');
       if (accounts.some(a => demoNormalize(a.email) === email)) throw new Error('An account with this email already exists.');
-      const role = payload.account_type === 'instructor' ? 'instructor' : 'student';
+      if (payload.account_type && payload.account_type !== 'student') throw new Error('Instructor accounts must be created by an academy administrator.');
+      const role = 'student';
       const account = {
         id: Date.now(), role, account_type: role, status: 'active',
         name: String(payload.name || 'Academy Member').trim(), email,
@@ -197,6 +198,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       demoJsonWrite(DEMO_ACCOUNTS_KEY, accounts);
       return { success: true, user: demoSafeUser(account), message: 'Profile updated in this browser.' };
     }
+    if(action==='profile_email_request'||action==='profile_email_confirm')throw new Error('Verified email changes require the PHP backend with SMTP enabled.');
     if (action === 'profile_password') {
       const account = demoCurrentAccount();
       if (!account) throw new Error('Please sign in first.');
@@ -290,6 +292,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     loggedIn: false,
     enrollments: [],
     studentEnrollmentRows: [],
+    allEnrollmentRows: [],
+    checkoutProfile: null,
     pendingEnrollments: [],
     progress: {},
     orders: [],
@@ -321,6 +325,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     if (!state.loggedIn) {
       state.enrollments = [];
       state.studentEnrollmentRows = [];
+      state.allEnrollmentRows = [];
+      state.checkoutProfile = null;
       state.pendingEnrollments = [];
       state.progress = {};
       state.orders = [];
@@ -334,6 +340,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     const result = await apiRequest('student_data');
     state.user = { ...state.user, ...(result.user || {}) };
     const enrollmentRows = result.enrollments || [];
+    state.allEnrollmentRows = enrollmentRows;
+    state.checkoutProfile = result.checkout_profile || null;
     state.studentEnrollmentRows = enrollmentRows.filter(item => ['active','completed'].includes(item.status) && item.access_allowed !== false);
     state.enrollments = [...new Set(state.studentEnrollmentRows.map(item => Number(item.course_id)).filter(Boolean))];
     state.pendingEnrollments = enrollmentRows.filter(item => item.status === 'pending').map(item => Number(item.course_id));
@@ -347,6 +355,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     state.studentLiveSessions = Array.isArray(result.live_sessions) ? result.live_sessions : [];
     state.studentRecordings = Array.isArray(result.recordings) ? result.recordings : [];
     state.studentRecordedLectures = Array.isArray(result.recorded_lectures) ? result.recorded_lectures : [];
+    if(state.user.role==='student'){try{const extra=await apiRequest('student_profile_details');state.studentAdminProfile=extra.profile||{};}catch(error){console.warn('Student profile details unavailable',error);}}
     // PHP/MySQL is the source of truth for profile, enrollments, progress, orders, live classes and wishlist.
   }
 
@@ -495,16 +504,14 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     { name:'Imtiaz Shaik', role:'FSA learner', avatar:'assets/images/fsa-home/student-3.png', rating:5, text:'The academy focuses on the gap between what students learn and what the software industry expects.' }
   ];
 
-  function catalogCourses() {
-    const live = Array.isArray(D.courses) ? D.courses : [];
-    const slugs = new Set(live.map(course => course.slug));
-    return [...live, ...FSA_EXTRA_COURSES.filter(course => !slugs.has(course.slug))];
-  }
+  function catalogCourses() { return Array.isArray(D.courses) ? D.courses : []; }
 
   function courseDelivery(course) {
-    const raw = Array.isArray(course?.delivery_modes) ? course.delivery_modes : String(course?.delivery_modes || '').split(/[|,]/).filter(Boolean);
+    const source=Array.isArray(course?.deliveryModes)&&course.deliveryModes.length?course.deliveryModes:course?.delivery_modes;
+    const raw = Array.isArray(source) ? source : String(source || '').split(/[|,]/).filter(Boolean);
     const modes = new Set(raw.map(x => String(x).trim().toLowerCase().replace(/[_\s]+/g,'-')));
     const configured = modes.size > 0;
+    if(modes.has('disabled')) return {classroom:false,live:false,recorded:false,online:false,branches:[]};
     const classroom = configured ? (modes.has('classroom') || modes.has('offline-classroom') || modes.has('offline')) : course?.offline_classroom !== false;
     const live = configured ? (modes.has('live') || modes.has('live-streamed') || modes.has('live-online') || modes.has('online-live')) : course?.live_streamed !== false;
     const recorded = configured ? (modes.has('recorded') || modes.has('self-paced') || modes.has('on-demand')) : course?.recorded !== false;
@@ -513,67 +520,67 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       live,
       recorded,
       online: live,
-      branches: ['Ameerpet','Gachibowli','Tolichowki','Charminar']
+      branches: (Array.isArray(D.branches)?D.branches:[]).map(branch=>branch.shortName||String(branch.name||'').replace(/^FSA\s*[—-]\s*/,'')).filter(Boolean)
     };
   }
+
+
+
+  function courseContentForMode(course,uiMode){
+    if(!course)return course;
+    const key=uiMode==='classroom'?'offline':uiMode==='recorded'?'recorded':'live';
+    const modes=(course.contentModes&&typeof course.contentModes==='object')?course.contentModes:
+      ((course.contentByMode&&typeof course.contentByMode==='object')?course.contentByMode:{});
+    const hasBackendModes=Object.keys(modes).length>0;
+    // Backend courses must never borrow public content from another delivery type.
+    // Every mode gets its own normalized values; shared identity fields remain shared.
+    const empty={badge:'',image:'',short:'',contentHeading:'',description:'',price:0,originalPrice:0,duration:'',hours:0,projects:0,rating:0,reviews:0,students:0,level:'',language:'',updated:'',instructor:'',instructorRole:'',skills:[],requirements:[],audience:[],projectItems:[],courseReviews:[],publicModules:[],publicModulesManaged:false,publicFaqs:[]};
+    const content=hasBackendModes?{...empty,...(modes[key]&&typeof modes[key]==='object'?modes[key]:{})}:course;
+    return {...course,...content,deliveryMode:key,selectedDeliveryMode:key,contentModes:modes,contentByMode:modes};
+  }
+
 
   function deliveryPills(delivery) {
     return `${delivery.live?'<span class="mode-pill live">Live Streamed</span>':''}${delivery.recorded?'<span class="mode-pill recorded">Recorded</span>':''}${delivery.classroom?'<span class="mode-pill classroom">Offline Classroom</span>':''}`;
   }
 
   function courseModules(course) {
-    if (Array.isArray(course.modules) && course.modules.length) return course.modules;
-    const skills = Array.isArray(course.skills) && course.skills.length ? course.skills : ['Foundations','Core Concepts','Practical Skills','Career Project'];
-    return [
-      { title:`${skills[0] || 'Course'} Foundations`, duration:'8h', lessons:[{title:'Orientation and career roadmap',duration:'30 min',preview:true},{title:`Introduction to ${skills[0] || course.title}`,duration:'55 min',preview:true},{title:'Guided practice lab',duration:'70 min'}] },
-      { title:`Core ${skills[1] || 'Technology'} Skills`, duration:'14h', lessons:[{title:`Working with ${skills[1] || 'core tools'}`,duration:'65 min'},{title:'Instructor-led lab',duration:'80 min'},{title:'Applied exercises',duration:'72 min'}] },
-      { title:`Applied ${skills[2] || 'Project'} Work`, duration:'16h', lessons:[{title:'Real-world workflow',duration:'60 min'},{title:'Project sprint',duration:'95 min'},{title:'Review and improvement',duration:'45 min'}] },
-      { title:'Capstone & Career Preparation', duration:'10h', lessons:[{title:'Capstone planning',duration:'40 min'},{title:'Portfolio and interview readiness',duration:'55 min'},{title:'Final presentation',duration:'60 min'}] }
-    ];
+    // For persisted per-format courses, public modules are the only public curriculum source.
+    // Never use protected classroom or instructor lesson metadata as a public fallback.
+    if (course?.contentModes && Object.keys(course.contentModes).length) return Array.isArray(course.publicModules)?course.publicModules:[];
+    if (course?.publicModulesManaged) return Array.isArray(course.publicModules)?course.publicModules:[];
+    return Array.isArray(course?.modules)?course.modules:[];
   }
 
-  function courseFaqs(course) {
-    const d = courseDelivery(course);
-    return [
-      { q:`Which learning modes are available for ${course.title}?`, a:`The course page supports the modes currently enabled for this course: ${[d.live?'Live Streamed':'',d.recorded?'Recorded':'',d.classroom?'Offline Classroom':''].filter(Boolean).join(', ')}. Availability can be controlled per course when you connect delivery-mode fields to the backend.` },
-      { q:'What is Live Streamed learning?', a:'Live Streamed courses are instructor-led online classes delivered on a fixed batch schedule. Learners attend remotely in real time.' },
-      { q:'What is the Recorded option?', a:'Recorded courses are available through the private learner area for flexible, self-paced study with lessons, resources, projects, progress and certificates.' },
-      { q:'What is Offline Classroom learning?', a:'Offline Classroom courses are instructor-led in-person batches at Full Stack Academy branches in Hyderabad, subject to the branch schedule and seat availability.' },
-      { q:'Are projects included?', a:`Yes. The course page highlights ${Number(course.projects || 1)} practical project${Number(course.projects || 1) === 1 ? '' : 's'} plus guided exercises.` },
-      { q:'How do upcoming batches work?', a:'Live Streamed and Offline Classroom options use scheduled batches. Recorded courses are shown as Start Anytime because they do not depend on a fixed class schedule.' },
-      { q:'Do I receive a certificate?', a:'The learner area supports a completion-certificate workflow. Your backend can define attendance, assessment and completion requirements before the certificate is unlocked.' }
-    ];
+  // Public FAQ answers are authored separately for every delivery version in the admin.
+  // There is deliberately no global hard-coded fallback or invented course information.
+  function courseFaqs(course={}) {
+    return (Array.isArray(course?.publicFaqs)?course.publicFaqs:[]).filter(row=>row&&String(row.q||'').trim()&&String(row.a||'').trim());
   }
 
-  function courseReviews(course, limit=6) {
-    const own = Array.isArray(course.courseReviews) ? course.courseReviews.map((r,i)=>({name:r.name||FSA_REVIEW_POOL[i%FSA_REVIEW_POOL.length].name, role:r.role||`${course.title} learner`, avatar:r.avatar||FSA_REVIEW_POOL[i%FSA_REVIEW_POOL.length].avatar, rating:Number(r.rating||5), text:r.text||r.comment||FSA_REVIEW_POOL[i%FSA_REVIEW_POOL.length].text})) : [];
-    const pool = FSA_REVIEW_POOL.map((r,i)=>({...r, role:`${course.title} learner`, text:i===0?`The ${course.title} learning path was structured well and the practical exercises helped me understand how to apply the concepts.`:r.text}));
-    return [...own, ...pool].slice(0,limit);
+  function courseReviews(course,limit=6) {
+    const own=Array.isArray(course?.courseReviews)?course.courseReviews:[];
+    return own.filter(r=>r&&r.name).slice(0,limit).map(r=>({...r,rating:Number(r.rating||0)}));
   }
+  function globalWrittenReviews(limit=0) {
+    const rows=(D.reviews||[]).filter(r=>r.type==='written').map(r=>({...r,comment:r.text,role:r.role||r.course}));
+    return limit>0?rows.slice(0,limit):rows;
+  }
+
 
   function batchRows(course=null) {
-    const branches=['Ameerpet','Gachibowli','Tolichowki','Charminar'];
-    const starts=['07 Sep','10 Sep','14 Sep','17 Sep','21 Sep','24 Sep','28 Sep'];
-    const liveSlots=[['Morning','08:00 AM – 09:30 AM'],['Afternoon','01:00 PM – 02:30 PM'],['Evening','07:30 PM – 09:00 PM']];
-    const classSlots=[['Morning','10:00 AM – 11:30 AM'],['Afternoon','03:00 PM – 04:30 PM'],['Evening','05:30 PM – 07:00 PM']];
-    const base = course ? [course] : catalogCourses();
-    const rows=[];
-    base.forEach((item,index)=>{
-      const delivery=courseDelivery(item);
-      if(delivery.live){
-        const slot=liveSlots[index%liveSlots.length];
-        rows.push({id:`${item.id}-live`,course:item.title,slug:item.slug,shift:slot[0],time:slot[1],branch:'Online',mode:'Live Streamed',start:starts[index%starts.length],seats:[8,12,6,10,9][index%5]});
-      }
-      if(delivery.classroom){
-        const slot=classSlots[index%classSlots.length];
-        rows.push({id:`${item.id}-class`,course:item.title,slug:item.slug,shift:slot[0],time:slot[1],branch:branches[index%branches.length],mode:'Offline Classroom',start:starts[(index+2)%starts.length],seats:[7,10,5,11,8][index%5]});
-      }
-      if(delivery.recorded){
-        rows.push({id:`${item.id}-recorded`,course:item.title,slug:item.slug,shift:'Anytime',time:'Self-paced access',branch:'Online',mode:'Recorded',start:'Start Anytime',seats:null});
-      }
+    const rows=Array.isArray(D.batches)?D.batches:[];
+    if(!course)return rows;
+    const courseId=Number(course.id||0);
+    const slug=String(course.slug||'');
+    return rows.filter(row=>{
+      const rowCourseId=Number(row.courseId||0);
+      // Prefer the database foreign-key relation. Slug is only a legacy fallback
+      // for older rows that pre-date course_id backfilling.
+      return courseId>0 ? (rowCourseId===courseId || (rowCourseId===0 && String(row.slug||'')===slug)) : String(row.slug||'')===slug;
     });
-    return rows;
   }
+
 
   function courseTabs(course) {
     const skills=Array.isArray(course.skills)?course.skills.filter(Boolean):[];
@@ -724,7 +731,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     const hasOriginal=Number(course.originalPrice||0)>Number(course.price||0)&&Number(course.originalPrice||0)>0;
     return `<article class="course-card reveal reveal-delay-${Math.min(delay,3)}" data-course-id="${course.id}">
       <div class="course-image">${imageMarkup(course.image, `${course.title} course`, initials(course.title))}<span class="course-card-mode-badges">${deliveryPills(delivery)}</span><button class="wishlist-button ${active?'active':''}" data-action="toggle-wishlist" data-id="${course.id}" aria-label="${active?'Remove from':'Add to'} wishlist">${icon('heart','',active)}</button></div>
-      <div class="course-card-body">${String(course.category||'').trim()?`<span class="course-category">${escapeHtml(course.category)}</span>`:''}<h3><a href="#/course/${encodeURIComponent(course.slug)}">${escapeHtml(course.title)}</a></h3>${String(course.short||'').trim()?`<p class="course-card-description">${textHtml(course.short)}</p>`:''}${meta.length?`<div class="course-meta">${meta.join('')}</div>`:''}<div class="course-card-footer"><span class="course-price"><strong>${money(course.price)}</strong>${hasOriginal?`<del>${money(course.originalPrice)}</del>`:''}</span><span class="course-actions-inline"><a class="button button-secondary button-sm" href="#/course/${encodeURIComponent(course.slug)}" aria-label="View ${escapeHtml(course.title)}">${icon('eye')}</a><button class="button button-primary button-sm" data-action="add-cart" data-id="${course.id}">Add</button></span></div></div>
+      <div class="course-card-body">${String(course.category||'').trim()?`<span class="course-category">${escapeHtml(course.category)}</span>`:''}<h3><a href="#/course/${encodeURIComponent(course.slug)}">${escapeHtml(course.title)}</a></h3>${String(course.short||'').trim()?`<p class="course-card-description">${textHtml(course.short)}</p>`:''}${meta.length?`<div class="course-meta">${meta.join('')}</div>`:''}<div class="course-card-footer"><span class="course-price"><strong>${money(course.price)}</strong>${hasOriginal?`<del>${money(course.originalPrice)}</del>`:''}</span><span class="course-actions-inline"><a class="button button-secondary button-sm" href="#/course/${encodeURIComponent(course.slug)}" aria-label="View ${escapeHtml(course.title)}">${icon('eye')}</a>${state.loggedIn&&(state.allEnrollmentRows||[]).some(row=>Number(row.course_id)===Number(course.id)&&['active','completed','pending'].includes(row.status))?`<a class="button button-primary button-sm" href="#/course/${encodeURIComponent(course.slug)}">View Course</a>`:`<button class="button button-primary button-sm" data-action="add-cart" data-id="${course.id}">Add</button>`}</span></div></div>
     </article>`;
   }
 
@@ -759,9 +766,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     return `<section class="page-hero"><div class="container ${image ? 'page-hero-grid' : ''}"><div class="page-heading ${center ? 'center' : ''}"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1><p>${text}</p></div>${image ? `<div class="page-hero-image reveal">${imageMarkup(image,imageAlt,'FSA')}</div>` : ''}</div></section>`;
   }
 
-  function academyEvents() {
-    return Array.isArray(window.FSA_EVENTS) ? window.FSA_EVENTS : [];
-  }
+  function academyEvents() { return Array.isArray(D.events) ? D.events : []; }
 
   function eventBySlug(slug) {
     return academyEvents().find(event => event.slug === slug);
@@ -881,7 +886,10 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     setChrome('public');
     const events = academyEvents();
     const featured = events.find(event => event.featured) || events[0];
-    if (!featured) return renderNotFound();
+    if (!featured) {
+      app.innerHTML = `${pageHero({eyebrow:'Full Stack Academy Events',title:'Academy events',text:'Explore current academy events, workshops and community activities.',center:true})}<section class="page-section section-surface"><div class="container"><div class="empty-state"><h3>No published events available</h3><p>New events will appear here when they are published by the academy.</p><a class="button button-primary" href="#/contact">Contact the academy</a></div></div></section>`;
+      return;
+    }
     const params = new URLSearchParams(query);
     const q = String(params.get('q') || '').trim().toLowerCase();
     const category = params.get('category') || 'all';
@@ -1037,9 +1045,9 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   };
 
   function homeBranchCard(branch, delay = 0) {
-    const maps = BRANCH_ROUTE_META[branch.id]?.page || `#/branches?branch=${encodeURIComponent(branch.id)}`;
-    const localImage = HOME_BRANCH_IMAGES[branch.id] || branch.image;
-    const copy = HOME_BRANCH_COPY[branch.id] || 'Learn with Full Stack Academy in Hyderabad.';
+    const maps = branchDetailUrl(branch);
+    const localImage = branch.image || ''; 
+    const copy = branch.description || '';
     const branchNo = String(delay + 1).padStart(2, '0');
     return `<article class="fsa-branch-showcase reveal reveal-delay-${Math.min(delay,3)}">
       <a class="fsa-branch-showcase-media" href="${maps}" aria-label="View ${escapeHtml(branch.name)} branch details">
@@ -1242,53 +1250,12 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
 
   function renderHome() {
     setChrome('public');
-    const studentPortraits = [
-      'assets/images/fsa-home/student-1.png',
-      'assets/images/fsa-home/student-2.png',
-      'assets/images/fsa-home/student-3.png',
-      'assets/images/fsa-home/student-4.png',
-      'assets/images/fsa-home/student-5.png',
-      'assets/images/fsa-home/student-6.png'
-    ];
-    const placements = [
-      { name:'Mohammed Sameer', role:'Software Developer (Intern)', company:'Invertio Solutions', image:'assets/images/fsa-home/student-1.png' },
-      { name:'Mohammed Yousuf', role:'Backend Developer (Intern)', company:'Invertio Solutions', image:'assets/images/fsa-home/student-2.png' },
-      { name:'Shaik Parveez', role:'Frontend Developer (Intern)', company:'Invertio Solutions', image:'assets/images/fsa-home/student-3.png' },
-      { name:'Mohammed Ahsaanuddin', role:'DevOps Engineer', company:'Nakshatra Systems', image:'assets/images/fsa-home/student-4.png' },
-      { name:'Ankit Kumar Pathak', role:'DevOps Engineer', company:'Radiant Digital Solutions', image:'assets/images/fsa-home/student-5.png' },
-      { name:'Syed Fayaz Ali', role:'Technical Engineer', company:'Mitsubishi Heavy Industries', image:'assets/images/fsa-home/student-6.png' },
-      { name:'Shaik Inzamam ul Haq', role:'DevOps Intern', company:'Shop Online New York' },
-      { name:'Mohammed Saifuddin', role:'DevOps Engineer', company:'Techdome Solution' },
-      { name:'Mubashir Hussain', role:'ProdOps Engineer', company:'LoyaltyMethods' },
-      { name:'Md Jaffar Hussain', role:'Software Associate', company:'Access Meditech' },
-      { name:'Shaik Meer Mohammed', role:'Junior Support Engineer', company:'LoyaltyMethods' },
-      { name:'MD Sabeel', role:'Process Associate Engineer', company:'Exploring Infinities' },
-      { name:'Syed Mahasib Ali', role:'IT Engineer', company:'Saudi Arabia Railways' },
-      { name:'Imran Baig', role:'Associate Cloud Consultant', company:'INFOLOB' },
-      { name:'Ansari Saqib Sajid', role:'Technical Support Engineer', company:'Informage' },
-      { name:'Mohammad Saiful Haq', role:'DevOps Engineer', company:'Verison' },
-      { name:'Shaik Akheel Ahmed', role:'Software Developer', company:'Devbox' },
-      { name:'Mohammed Junaid', role:'DevOps Engineer', company:'EverestDX' },
-      { name:'Mohammed Ehtesham Ali', role:'Cloud Support Associate', company:'Amazon' },
-      { name:'Mohd Muneer Uddin', role:'Cloud Support Associate', company:'Amazon' }
-    ].map((student,index) => ({ ...student, image: student.image || studentPortraits[index % studentPortraits.length] }));
-    const placementPages = Array.from({ length: Math.ceil(placements.length / 10) }, (_,i) => placements.slice(i * 10, (i + 1) * 10));
-    const hiringCompanies = ['pickmysolar','skuad','Intelligent Machines Lab','Capgemini','Accenture','Cognizant','TCS','Rackspace','Infosys','Wipro','HCLTech','Tech Mahindra','Genpact','Coforge','Zazz','SingleView'];
-    const companyRows = [0,4,8,12].map(offset => hiringCompanies.map((_,i) => hiringCompanies[(i + offset) % hiringCompanies.length]));
-    const onlineCourses = (Array.isArray(D.courses) ? D.courses : []).slice(0,8);
-    const heroSlides = [
-      { image:'assets/images/fsa-home/slider-offer.webp', alt:'Full Stack Academy Independence Day course offer', href:'#/courses' },
-      { image:'assets/images/fsa-home/slider-bba-wide.webp', alt:'Full Stack Academy Osmania University affiliated BBA program', href:'#/super40-bba' }
-    ];
-    const liveTestimonials = [
-      { name:'Roshan Ara Khanam', course:'Online MERN Course', rating:5, avatar:studentPortraits[0], comment:'I have attended an online MERN course from Full Stack Academy. It was a great learning experience with Mr. Mujib Sir, an industry expert. The explanation and method of teaching were excellent. I have learned new skills and techniques in programming.' },
-      { name:'Burhan Ashraf', course:'FSA Alumni', rating:5, avatar:studentPortraits[1], comment:'One of the best academies for everyone who wants to learn and develop their skills in the IT world. The atmosphere here is amazing, and the encouragement you get from the staff and everyone is incredible. I secured an IT job by learning here at Full Stack Academy.' },
-      { name:'Jaseem Ansari', course:'FSA Student', rating:5, avatar:studentPortraits[2], comment:'Full Stack Academy is doing its best in training students in the latest technologies. It is one of the best institutes. You must enroll here to build a career in the IT world. The faculty is well-qualified, and the atmosphere for learning is excellent.' },
-      { name:'Imtiaz Shaik', course:'FSA Community', rating:5, avatar:studentPortraits[3], comment:'I have been following Full Stack Academy since Day 1, and they have been doing great, especially in filling the gap between IT industry expectations, requirements, and the skills of freshers. They have helped many freshers secure placements in top IT companies.' },
-      { name:'Areeba Atif', course:'FSA Student', rating:5, avatar:studentPortraits[4], comment:'Full Stack Academy is the best place to learn about almost everything—from soft skills like personality development to technical skills like coding. The environment and the staff here encourage and motivate us to learn more.' },
-      { name:'Mirza Faizan Baig', course:'Online Learner', rating:5, avatar:studentPortraits[5], comment:'A very good opportunity for students living abroad to learn new things easily. Every student must upgrade themselves in these high-demanding sectors.' }
-    ];
-
+    const placements=(D.alumni||[]).map(r=>({name:r.name,role:r.role,company:r.company,image:r.image}));
+    const placementPages=Array.from({length:Math.ceil(placements.length/10)},(_,i)=>placements.slice(i*10,(i+1)*10));
+    const hiringCompanies=(D.companies||[]).filter(r=>r&&r.name);
+    const companyRows=hiringCompanies.length?[0,4,8,12].map(offset=>hiringCompanies.map((_,i)=>hiringCompanies[(i+offset)%hiringCompanies.length])):[];
+    const onlineCourses=(D.courses||[]).slice(0,8);
+    const heroSlides=(D.content?.heroSlides||[]).filter(r=>r&&r.image);
     app.innerHTML = `
       <div class="fsa-homepage">
         <section class="fsa-home-slider-section">
@@ -1302,7 +1269,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
               <div class="fsa-main-slider-dots" aria-label="Slider navigation">
                 ${heroSlides.map((_,i)=>`<button type="button" class="${i===0?'active':''}" data-hero-dot="${i}" aria-label="Go to slide ${i+1}" ${i===0?'aria-current="true"':''}></button>`).join('')}
               </div>
-              <a class="button button-primary fsa-slider-details" data-hero-details href="${heroSlides[0].href}">See Details ${icon('arrow')}</a>
+              <a class="button button-primary fsa-slider-details" data-hero-details href="${heroSlides[0]?.href||'#/courses'}">See Details ${icon('arrow')}</a>
             </div>
           </div>
         </section>
@@ -1389,7 +1356,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
           <div class="container">
             <div class="fsa-home-heading"><span>Industry Network</span><h2>Companies That Hired Our <em>Students</em></h2></div>
             <div class="fsa-company-marquees" aria-label="Companies that hired Full Stack Academy students">
-              ${companyRows.map((row,rowIndex)=>`<div class="fsa-company-marquee-row ${rowIndex % 2 ? 'is-reverse' : ''}"><div class="fsa-company-marquee-track"><div class="fsa-company-marquee-group">${row.map(x=>`<div class="fsa-company-logo"><span class="fsa-company-logo-mark"><img src="assets/images/fsa-home/company-logo.svg" alt="" loading="lazy"></span><span class="fsa-company-logo-name">${escapeHtml(x)}</span></div>`).join('')}</div><div class="fsa-company-marquee-group" aria-hidden="true">${row.map(x=>`<div class="fsa-company-logo"><span class="fsa-company-logo-mark"><img src="assets/images/fsa-home/company-logo.svg" alt="" loading="lazy"></span><span class="fsa-company-logo-name">${escapeHtml(x)}</span></div>`).join('')}</div></div></div>`).join('')}
+              ${companyRows.map((row,rowIndex)=>`<div class="fsa-company-marquee-row ${rowIndex % 2 ? 'is-reverse' : ''}"><div class="fsa-company-marquee-track"><div class="fsa-company-marquee-group">${row.map(x=>`<div class="fsa-company-logo"><span class="fsa-company-logo-mark">${x.logo?`<img src="${escapeHtml(x.logo)}" alt="${escapeHtml(x.name)}" loading="lazy">`:escapeHtml(initials(x.name))}</span><span class="fsa-company-logo-name">${escapeHtml(x.name)}</span></div>`).join('')}</div><div class="fsa-company-marquee-group" aria-hidden="true">${row.map(x=>`<div class="fsa-company-logo"><span class="fsa-company-logo-mark">${x.logo?`<img src="${escapeHtml(x.logo)}" alt="${escapeHtml(x.name)}" loading="lazy">`:escapeHtml(initials(x.name))}</span><span class="fsa-company-logo-name">${escapeHtml(x.name)}</span></div>`).join('')}</div></div></div>`).join('')}
             </div>
           </div>
         </section>
@@ -1443,21 +1410,68 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     return all.length ? `<div class="active-filters">${all.map(v=>`<span class="filter-pill">${escapeHtml(v)}<button data-action="remove-filter" data-value="${escapeHtml(v)}">×</button></span>`).join('')}</div>` : '';
   }
 
-  function catalogCourseCard(course, index=0) {
+  const COURSE_CATALOG_FORMATS=[
+    {ui:'classroom',api:'offline',label:'Physical / Offline',icon:'classroom',tone:'classroom'},
+    {ui:'recorded',api:'recorded',label:'Recorded',icon:'video',tone:'recorded'},
+    {ui:'live',api:'live',label:'Live Streamed',icon:'radio',tone:'live'}
+  ];
+  function formatForCourseCard(course){
+    const explicit=COURSE_CATALOG_FORMATS.find(format=>format.ui===course?._catalogMode);
+    if(explicit)return explicit;
     const delivery=courseDelivery(course);
-    const hasOriginal=Number(course.originalPrice||0)>Number(course.price||0)&&Number(course.originalPrice||0)>0;
-    const modeSummary=[delivery.live?'Live Streamed':'',delivery.recorded?'Recorded':'',delivery.classroom?'Offline Classroom':''].filter(Boolean).join(' · ');
-    return `<article class="fsa-catalog-course reveal reveal-delay-${Math.min(index%4,3)}" data-mode="${delivery.live?'live ':''}${delivery.recorded?'recorded ':''}${delivery.classroom?'classroom':''}" data-title="${escapeHtml(`${course.title} ${course.category} ${(course.skills||[]).join(' ')}`.toLowerCase())}"><a class="fsa-catalog-media" href="#/course/${encodeURIComponent(course.slug)}">${imageMarkup(course.image,`${course.title} course`,initials(course.title))}<span class="fsa-catalog-certified">${escapeHtml(course.badge||'Certified')}</span><span class="fsa-catalog-media-arrow">${icon('arrow')}</span></a><div class="fsa-catalog-body"><div class="fsa-catalog-mode-row">${deliveryPills(delivery)}</div><h3><a href="#/course/${encodeURIComponent(course.slug)}">${escapeHtml(course.title)}</a></h3><p>${textHtml(course.short||course.description||'Industry-focused technology training with practical projects and mentor support.')}</p><div class="fsa-catalog-meta"><span>${icon('clock')} ${escapeHtml(course.duration||'Flexible')}</span><span>${icon('project')} ${Number(course.projects||1)} project${Number(course.projects||1)===1?'':'s'}</span><span>${icon('star','',true)} ${escapeHtml(course.rating||'4.7')}/5</span></div><div class="fsa-catalog-location">${icon(delivery.classroom?'map':delivery.live?'radio':'video')}<span><strong>${escapeHtml(modeSummary)}</strong><small>${delivery.classroom?'Branches: Ameerpet · Gachibowli · Tolichowki · Charminar':'Flexible learning access available'}</small></span></div><div class="fsa-catalog-footer"><span class="fsa-catalog-price"><strong>${money(course.price)}</strong>${hasOriginal?`<del>${money(course.originalPrice)}</del>`:''}</span><a class="button button-outline button-sm" href="#/course/${encodeURIComponent(course.slug)}">View Course ${icon('arrow')}</a></div></div></article>`;
+    return COURSE_CATALOG_FORMATS.find(format=>delivery[format.ui])||COURSE_CATALOG_FORMATS[0];
   }
-
-  function filteredCatalogCourses() {
+  // One database course produces exactly one public catalogue card.
+  // Only formats enabled in MySQL are offered as separate selectable links.
+  function catalogCourseCard(course,index=0){
+    const enabled=COURSE_CATALOG_FORMATS.filter(format=>courseDelivery(course)[format.ui]);
+    if(!enabled.length)return '';
+    const selected=enabled.find(format=>format.ui===state.courseMode)||enabled[0];
+    const item=courseContentForMode(course,selected.ui);
+    const title=String(course.title||'Course');
+    const link=`#/course/${encodeURIComponent(course.slug)}?mode=${encodeURIComponent(selected.ui)}`;
+    const image=item.image||course.image||'';
+    const summary=String(item.short||item.description||course.short||'').trim();
+    const amount=Number(item.price||0),original=Number(item.originalPrice||0);
+    const originalMarkup=original>amount?`<del>${money(original)}</del>`:'';
+    const formatOptions=enabled.map(format=>{
+      const label=String(D.content?.coursesPage?.formatLabels?.[format.ui]||format.label);
+      const target=`#/course/${encodeURIComponent(course.slug)}?mode=${encodeURIComponent(format.ui)}`;
+      return `<a class="mode-pill ${format.tone} fsa-catalog-offering" href="${target}" title="View ${escapeHtml(label)} course" aria-label="${escapeHtml(title)}: ${escapeHtml(label)}"><span class="fsa-catalog-badge-icon" aria-hidden="true">${icon(format.icon)}</span><span class="fsa-catalog-badge-label">${escapeHtml(label)}</span></a>`;
+    }).join('');
+    const cardState=purchaseState(course.id,selected.api);
+    const badge=cardState.kind==='owned'?'Enrolled':cardState.kind==='pending'?'Approval pending':cardState.kind==='restricted'?'Manage access':'';
+    return `<article class="fsa-catalog-course fsa-format-course reveal reveal-delay-${Math.min(index%4,3)}" data-mode="${enabled.map(f=>f.ui).join(' ')}" data-title="${escapeHtml(`${title} ${course.category||''}`.toLowerCase())}">
+      <a class="fsa-catalog-media" href="${link}">${imageMarkup(image,title,initials(title))}${item.badge?`<span class="fsa-catalog-certified">${escapeHtml(item.badge)}</span>`:''}<span class="fsa-catalog-media-arrow">${icon('arrow')}</span></a>
+      <div class="fsa-catalog-body"><div class="fsa-catalog-mode-row fsa-catalog-offerings" aria-label="Available learning formats">${formatOptions}${badge?`<span class="fsa-format-ownership">${escapeHtml(badge)}</span>`:''}</div>
+        <h3><a href="${link}">${escapeHtml(title)}</a></h3>
+        ${summary?`<p>${textHtml(summary)}</p>`:''}
+        <div class="fsa-catalog-meta">${item.duration?`<span>${icon('clock')} ${escapeHtml(item.duration)}</span>`:''}${Number(item.projects)>0?`<span>${icon('project')} ${Number(item.projects)} project${Number(item.projects)===1?'':'s'}</span>`:''}${Number(item.rating)>0?`<span>${icon('star','',true)} ${escapeHtml(item.rating)}/5</span>`:''}</div>
+        <div class="fsa-catalog-location">${icon('layers')}<span><strong>${enabled.length} available learning format${enabled.length===1?'':'s'}</strong><small>Choose Physical, Live or Recorded above to view its own details and price.</small></span></div>
+        <div class="fsa-catalog-footer"><span class="fsa-catalog-price"><strong>${money(amount)}</strong>${originalMarkup}${enabled.length>1?'<small class="fsa-catalog-price-note"> Starting format shown</small>':''}</span><a class="button button-outline button-sm" href="${link}">View Course ${icon('arrow')}</a></div>
+      </div>
+    </article>`;
+  }
+  function filteredCatalogCourses(){
     const query=String(state.courseFilters.query||'').trim().toLowerCase();
-    return catalogCourses().filter(course=>{
-      const d=courseDelivery(course);
-      const modeOk=state.courseMode==='all'||(state.courseMode==='live'&&d.live)||(state.courseMode==='recorded'&&d.recorded)||(state.courseMode==='classroom'&&d.classroom);
-      const haystack=`${course.title} ${course.category} ${course.short||''} ${(course.skills||[]).join(' ')}`.toLowerCase();
-      return modeOk && (!query || haystack.includes(query));
+    return [...catalogCourses()].sort((a,b)=>{
+      const stamp=r=>{const t=Date.parse(r.created_at||r.createdAt||r.created||'');return Number.isFinite(t)?t:0;};
+      return stamp(b)-stamp(a)||(Number(b.id)||0)-(Number(a.id)||0);
+    }).filter(course=>{
+      const enabled=COURSE_CATALOG_FORMATS.filter(format=>courseDelivery(course)[format.ui] && (state.courseMode==='all'||state.courseMode===format.ui));
+      if(!enabled.length)return false;
+      if(!query)return true;
+      const searchable=[course.title,course.category,course.short,course.description,course.skills?.join(' '),
+        ...enabled.flatMap(format=>{const item=courseContentForMode(course,format.ui);return [format.label,item.short,item.description,(item.skills||[]).join(' ')];})].join(' ').toLowerCase();
+      return query.split(/\s+/).every(word=>searchable.includes(word));
     });
+  }
+  function courseCatalogueCountLabel(list){
+    return `${list.length} course${list.length===1?'':'s'}`;
+  }
+  function courseCatalogueMarkup(list){
+    return list.length?list.map((course,index)=>catalogCourseCard(course,index)).join(''):
+      `<div class="fsa-catalog-empty"><span>${icon('search')}</span><h3>No course found</h3><p>Try another keyword or learning mode.</p><button class="button button-primary" data-action="course-mode" data-mode="all">Show all courses</button></div>`;
   }
 
   function updateCoursesResults() {
@@ -1465,8 +1479,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     const grid=document.getElementById('fsaCourseCatalogGrid');
     const count=document.getElementById('courseResultCount');
     if(!grid||!count)return;
-    count.textContent=`${list.length} current course${list.length===1?'':'s'}`;
-    grid.innerHTML=list.length?list.map((course,index)=>catalogCourseCard(course,index)).join(''):`<div class="fsa-catalog-empty"><span>${icon('search')}</span><h3>No course found</h3><p>Try another keyword or learning mode.</p><button class="button button-primary" data-action="course-mode" data-mode="all">Show all courses</button></div>`;
+    count.textContent=courseCatalogueCountLabel(list);
+    grid.innerHTML=courseCatalogueMarkup(list);
     initReveal();
   }
 
@@ -1478,11 +1492,24 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     return `<article class="fsa-batch-card reveal reveal-delay-${Math.min(index%4,3)}"><div class="fsa-batch-top"><span class="fsa-batch-date"><strong>${escapeHtml(date[0])}</strong><small>${escapeHtml(date[1]||'')}</small></span><span class="mode-pill ${modeClass}">${escapeHtml(row.mode)}</span></div><h3>${escapeHtml(row.course)}</h3><div class="fsa-batch-details"><span>${icon('clock')}<b>${escapeHtml(row.time)}</b></span><span>${icon(placeIcon)}<b>${escapeHtml(row.branch)}</b></span><span>${icon(row.seats?'users':'check')}<b>${seatText}</b></span></div><a class="fsa-batch-link" href="#/course/${encodeURIComponent(row.slug)}">View course ${icon('arrow')}</a></article>`;
   }
 
+  function publicBatchBranches() {
+    const names = new Map();
+    for (const b of Array.isArray(D.branches) ? D.branches : []) {
+      const label = String(b.shortName || b.name || '').replace(/^FSA\s*[—-]\s*/i,'').trim();
+      if (label) names.set(label.toLowerCase(),label);
+    }
+    for (const b of batchRows()) {
+      const label=String(b.branch||'').trim();
+      if (label && !/^(online|remote|start anytime)$/i.test(label)) names.set(label.toLowerCase(),label);
+    }
+    return [['all','All Locations'],['online','Online'], ...[...names].sort((a,b)=>a[1].localeCompare(b[1])).map(([key,label])=>[key,label])];
+  }
+
   function batchFilterSelect(type,value,compact=false) {
     const filters={
       shift:{label:'Time',hint:'Choose schedule',iconName:'clock',options:[['all','All Times'],['morning','Morning'],['afternoon','Afternoon'],['evening','Evening'],['anytime','Start Anytime']]},
       mode:{label:'Mode',hint:'Choose learning mode',iconName:'layers',options:[['all','All Modes'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']]},
-      branch:{label:'Branch',hint:'Choose location',iconName:'map',options:[['all','All Locations'],['online','Online'],['ameerpet','Ameerpet'],['gachibowli','Gachibowli'],['tolichowki','Tolichowki'],['charminar','Charminar']]}
+      branch:{label:'Branch',hint:'Choose location',iconName:'map',options:publicBatchBranches()}
     };
     const filter=filters[type];
     return `<label class="fsa-batch-dropdown ${compact?'compact':''}"><span class="fsa-batch-dropdown-icon">${icon(filter.iconName)}</span><span class="fsa-batch-dropdown-copy"><small>${filter.label}</small><strong>${filter.hint}</strong></span><select data-batch-filter-select="${type}" aria-label="${filter.label} filter">${filter.options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
@@ -1507,7 +1534,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     const q=String(state.batchQuery||'').trim().toLowerCase();
     const rows=batchRows(course).filter(row=>{
       const shiftOk=state.batchShift==='all'||row.shift.toLowerCase()===state.batchShift||(row.shift==='Anytime'&&state.batchShift==='anytime');
-      const branchOk=state.batchBranch==='all'||row.branch.toLowerCase()===state.batchBranch;
+      const branchOk=state.batchBranch==='all'||String(row.branch||'').trim().toLowerCase()===state.batchBranch;
       const modeKey=row.mode.toLowerCase().replace(/\s+/g,'-');
       const modeOk=state.batchMode==='all'||modeKey===state.batchMode;
       const queryOk=!q||`${row.course} ${row.mode} ${row.branch} ${row.shift} ${row.time}`.toLowerCase().includes(q);
@@ -1532,16 +1559,17 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   }
 
   function renderCourses() {
+    if(!document.getElementById('fsaSingleCardCourseStyle')){ const css=document.createElement('style');css.id='fsaSingleCardCourseStyle';css.textContent='/* One course card, compact clickable backend-enabled formats. */\n.fsa-catalog-offerings{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}\n.fsa-catalog-offerings .fsa-catalog-offering{display:inline-flex;gap:5px;align-items:center;white-space:nowrap;text-decoration:none;cursor:pointer;line-height:1.2;padding:6px 9px;height:auto;min-height:27px;}\n.fsa-catalog-offering .fsa-catalog-badge-icon,.fsa-catalog-offering .fsa-catalog-badge-icon svg{width:13px;height:13px;flex:none;}\n.fsa-catalog-offering .fsa-catalog-badge-label{white-space:nowrap;}\n.fsa-catalog-offering:hover,.fsa-catalog-offering:focus-visible{filter:brightness(.94);outline-offset:2px;}\n.fsa-catalog-price-note{display:block;font-size:10px;color:#85777b;font-weight:400;}\n@media(max-width:640px){.fsa-catalog-offerings{gap:5px}.fsa-catalog-offerings .fsa-catalog-offering{padding:5px 7px;font-size:10px;}}\n';document.head.appendChild(css);}
     setChrome('public');
     const queryParams=new URLSearchParams(state.currentPath.split('?')[1]||'');
     if(queryParams.get('q'))state.courseFilters.query=queryParams.get('q');
     const requestedMode=queryParams.get('mode');
     if(['all','live','recorded','classroom'].includes(requestedMode))state.courseMode=requestedMode;
     const list=filteredCatalogCourses();
-    const reviews=FSA_REVIEW_POOL;
+    const reviews=globalWrittenReviews();
     app.innerHTML=`<section class="fsa-courses-hero"><div class="container fsa-courses-hero-grid"><div class="fsa-courses-hero-copy reveal"><span class="eyebrow">Technology Courses</span><h1>Choose the learning format that <em>fits you.</em></h1><p>Full Stack Academy courses now use three clear delivery types across the website: Live Streamed, Recorded and Offline Classroom.</p><div class="fsa-course-hero-actions"><a class="button button-primary" href="#course-catalog">Explore Courses ${icon('arrow')}</a><a class="button button-secondary" href="#/batches">View All Batches</a></div><div class="fsa-course-hero-points"><span>${icon('radio')} Live Streamed</span><span>${icon('video')} Recorded</span><span>${icon('classroom')} Offline Classroom</span></div></div><div class="fsa-courses-hero-art reveal reveal-scale"><div class="fsa-courses-hero-main">${imageMarkup(D.academyImages?.learning||catalogCourses()[0]?.image,'Students learning technology at Full Stack Academy','FSA')}</div><div class="fsa-course-hero-badge"><span>${icon('layers')}</span><div><small>3 LEARNING FORMATS</small><strong>One catalogue. Clear delivery choices.</strong></div></div></div></div></section>
       <section class="fsa-mode-strip"><div class="container"><div class="fsa-mode-strip-head"><span class="eyebrow">Choose Your Learning Mode</span><p>Filter the catalogue by the way you want to learn.</p></div>${courseModePanel()}</div></section>
-      <section class="fsa-courses-section" id="course-catalog"><div class="container"><div class="fsa-course-section-head"><div><span class="eyebrow">Current Admissions</span><h2>Our Industry-Leading <em>Courses</em></h2><p>Search the catalogue, then swipe or scroll the mode filter independently without moving the page.</p></div><div class="fsa-course-search-box">${icon('search')}<input id="courseSearchInput" type="search" value="${escapeHtml(state.courseFilters.query)}" placeholder="Search course, skill or technology..."></div></div><div class="fsa-course-filterbar"><div class="fsa-course-mode-tabs"><button class="${state.courseMode==='all'?'active':''}" data-action="course-mode" data-mode="all">All Courses</button><button class="${state.courseMode==='live'?'active':''}" data-action="course-mode" data-mode="live">Live Streamed</button><button class="${state.courseMode==='recorded'?'active':''}" data-action="course-mode" data-mode="recorded">Recorded</button><button class="${state.courseMode==='classroom'?'active':''}" data-action="course-mode" data-mode="classroom">Offline Classroom</button></div><span id="courseResultCount">${list.length} current courses</span></div><div class="fsa-course-catalog-grid" id="fsaCourseCatalogGrid">${list.map(catalogCourseCard).join('')}</div></div></section>
+      <section class="fsa-courses-section" id="course-catalog"><div class="container"><div class="fsa-course-section-head"><div><span class="eyebrow">Current Admissions</span><h2>Our Industry-Leading <em>Courses</em></h2><p>Search the catalogue, then swipe or scroll the mode filter independently without moving the page.</p></div><div class="fsa-course-search-box">${icon('search')}<input id="courseSearchInput" type="search" value="${escapeHtml(state.courseFilters.query)}" placeholder="Search course, skill or technology..."></div></div><div class="fsa-course-filterbar"><div class="fsa-course-mode-tabs"><button class="${state.courseMode==='all'?'active':''}" data-action="course-mode" data-mode="all">All Courses</button><button class="${state.courseMode==='live'?'active':''}" data-action="course-mode" data-mode="live">Live Streamed</button><button class="${state.courseMode==='recorded'?'active':''}" data-action="course-mode" data-mode="recorded">Recorded</button><button class="${state.courseMode==='classroom'?'active':''}" data-action="course-mode" data-mode="classroom">Offline Classroom</button></div><span id="courseResultCount">${courseCatalogueCountLabel(list)}</span></div><div class="fsa-course-catalog-grid" id="fsaCourseCatalogGrid">${courseCatalogueMarkup(list)}</div></div></section>
       <section class="fsa-batches-section" id="upcoming-batches"><div class="container"><div class="fsa-batches-title"><span class="eyebrow">Admissions Schedule</span><h2>Upcoming <em>Learning Options</em></h2><p>Live Streamed and Offline Classroom options follow scheduled batches. Recorded courses can start anytime.</p></div><div class="fsa-batch-dropdown-grid compact">${batchFilterSelect('shift',state.batchShift,true)}${batchFilterSelect('mode',state.batchMode,true)}${batchFilterSelect('branch',state.batchBranch,true)}</div><div class="fsa-batch-grid" id="fsaBatchGrid">${batchRows().slice(0,12).map(batchCard).join('')}</div><div class="fsa-batch-bottom"><span class="fsa-batch-count" id="batchResultCount"></span><a class="button button-secondary button-sm" href="#/batches">Open Full Batches Page ${icon('arrow')}</a></div></div></section>
       <section class="fsa-course-reviews-section"><div class="container"><div class="fsa-carousel-heading-row"><div class="fsa-course-section-head compact"><div><span class="eyebrow">Student Experience</span><h2>What our <em>students say.</em></h2><p>Feedback from learners across Full Stack Academy programs.</p></div></div><div class="fsa-carousel-nav"><button class="fsa-carousel-button" data-action="course-review-prev" aria-label="Previous reviews">${icon('arrowLeft')}</button><span class="fsa-review-counter"><b data-review-current>01</b> / <span data-review-total>${String(reviews.length).padStart(2,'0')}</span></span><button class="fsa-carousel-button" data-action="course-review-next" aria-label="Next reviews">${icon('arrow')}</button></div></div><div class="fsa-course-review-viewport"><div class="fsa-course-review-track" data-course-review-track>${reviews.map(r=>reviewCard(r)).join('')}</div></div></div></section>
       <section class="fsa-course-help-section"><div class="container"><div class="fsa-course-help-panel reveal"><div><span class="eyebrow light">Need Help Choosing?</span><h2>Tell us your goal and preferred learning mode.</h2><p>Our team can help you compare Live Streamed, Recorded and Offline Classroom options and select the right batch.</p></div><div class="fsa-course-help-actions"><button class="button button-light" data-action="open-call-popup">Get A Call</button><a class="button button-ghost-light" href="#/batches">See Batches</a></div></div></div></section>
@@ -1551,25 +1579,69 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
 
   function courseDetailReviewSection(course) {
     const reviews=courseReviews(course);
-    return `<section class="fsa-course-detail-reviews"><div class="container"><div class="fsa-carousel-heading-row"><div><span class="eyebrow">Course Reviews</span><h2>Students learning <em>${escapeHtml(course.title)}.</em></h2></div><div class="fsa-carousel-nav"><button class="fsa-carousel-button" data-action="course-review-prev" aria-label="Previous reviews">${icon('arrowLeft')}</button><span class="fsa-review-counter"><b data-review-current>01</b> / <span data-review-total>${String(reviews.length).padStart(2,'0')}</span></span><button class="fsa-carousel-button" data-action="course-review-next" aria-label="Next reviews">${icon('arrow')}</button></div></div><div class="fsa-course-review-viewport"><div class="fsa-course-review-track" data-course-review-track>${reviews.map(r=>reviewCard(r,course.title)).join('')}</div></div></div></section>`;
+    if(!reviews.length)return '';
+    return `<section class="fsa-course-detail-reviews"><div class="container"><div class="fsa-carousel-heading-row"><div><span class="eyebrow">Course Reviews</span><h2>Student reviews for <em>${escapeHtml(course.title)}.</em></h2></div>${reviews.length>1?`<div class="fsa-carousel-nav"><button class="fsa-carousel-button" data-action="course-review-prev" aria-label="Previous reviews">${icon('arrowLeft')}</button><span class="fsa-review-counter"><b data-review-current>01</b> / <span data-review-total>${String(reviews.length).padStart(2,'0')}</span></span><button class="fsa-carousel-button" data-action="course-review-next" aria-label="Next reviews">${icon('arrow')}</button></div>`:''}</div><div class="fsa-course-review-viewport"><div class="fsa-course-review-track" data-course-review-track>${reviews.map(r=>reviewCard(r,course.title)).join('')}</div></div></div></section>`;
   }
 
-  function renderCourseDetail(slug) {
-    const course=courseBySlug(slug);
+  function renderCourseDetail(slug,requestedMode="") {
+    let course=courseBySlug(slug);
     if(!course)return renderNotFound();
     setChrome('public');
     const delivery=courseDelivery(course);
-    state.batchShift='all';state.batchBranch='all';state.batchMode='all';state.detailDeliveryMode=delivery.live?'live':delivery.recorded?'recorded':'classroom';
-    const modules=courseModules(course),faqs=courseFaqs(course),related=catalogCourses().filter(c=>c.id!==course.id).sort((a,b)=>Number(b.category===course.category)-Number(a.category===course.category)).slice(0,3),skills=Array.isArray(course.skills)?course.skills.slice(0,10):[];
-    const modeButtons=`${delivery.live?`<button class="${state.detailDeliveryMode==='live'?'active':''}" data-action="detail-mode" data-mode="live" aria-label="Live Streamed" title="Live Streamed">${icon('radio')}</button>`:''}${delivery.recorded?`<button class="${state.detailDeliveryMode==='recorded'?'active':''}" data-action="detail-mode" data-mode="recorded" aria-label="Recorded" title="Recorded">${icon('video')}</button>`:''}${delivery.classroom?`<button class="${state.detailDeliveryMode==='classroom'?'active':''}" data-action="detail-mode" data-mode="classroom" aria-label="Offline Classroom" title="Offline Classroom">${icon('classroom')}</button>`:''}`;
-    const modeCopy=state.detailDeliveryMode==='live'?`<span>${icon('radio')}</span><div><strong>Live Streamed</strong><p>Join a scheduled instructor-led online batch in real time.</p></div>`:state.detailDeliveryMode==='recorded'?`<span>${icon('video')}</span><div><strong>Recorded</strong><p>Start flexibly and learn at your own pace inside the private learner area.</p></div>`:`<span>${icon('classroom')}</span><div><strong>Offline Classroom</strong><p>Choose a Hyderabad branch and attend an instructor-led in-person batch.</p></div>`;
-    app.innerHTML=`<section class="fsa-course-detail-hero"><div class="container">${breadcrumbs([{label:'Home',href:'#/'},{label:'Courses',href:'#/courses'},{label:course.title}])}<div class="fsa-course-detail-grid"><div class="fsa-course-detail-copy reveal"><div class="fsa-catalog-mode-row">${deliveryPills(delivery)}</div><h1>${escapeHtml(course.title)}</h1><p>${textHtml(course.short||course.description||'Career-focused training with projects and mentor support.')}</p><div class="fsa-course-detail-stats"><span>${icon('clock')}<b>${escapeHtml(course.duration||'Flexible')}</b><small>Duration</small></span><span>${icon('project')}<b>${Number(course.projects||1)} Projects</b><small>Hands-on</small></span><span>${icon('star','',true)}<b>${escapeHtml(course.rating||'4.7')}/5</b><small>Learner rating</small></span><span>${icon('users')}<b>${Number(course.students||300).toLocaleString(siteSettings.locale||'en-IN')}+</b><small>Learners</small></span></div><div class="fsa-course-detail-actions"><a class="button button-primary" href="#course-batches">Check Batches ${icon('arrow')}</a><button class="button button-secondary" data-action="open-call-popup">Get A Call</button></div></div><div class="fsa-course-detail-visual reveal reveal-scale">${imageMarkup(course.image,course.title,initials(course.title))}<div class="fsa-course-detail-visual-badge"><span>${icon('award')}</span><div><small>FSA CERTIFICATE TRACK</small><strong>Project-based learning</strong></div></div></div></div></div></section>
-      <section class="fsa-course-summary-band"><div class="container fsa-course-summary-grid"><article><span>${icon('radio')}</span><div><small>Live Streamed</small><strong>${delivery.live?'Scheduled online batches':'Not enabled'}</strong></div></article><article><span>${icon('video')}</span><div><small>Recorded</small><strong>${delivery.recorded?'Start anytime':'Not enabled'}</strong></div></article><article><span>${icon('classroom')}</span><div><small>Offline Classroom</small><strong>${delivery.classroom?'4 Hyderabad branches':'Not enabled'}</strong></div></article><article><span>${icon('award')}</span><div><small>Completion</small><strong>Projects + certificate</strong></div></article></div></section>
-      <section class="fsa-detail-main-section"><div class="container fsa-detail-main-layout"><div class="fsa-detail-content"><section class="fsa-detail-block"><span class="eyebrow">Course Overview</span><h2>${escapeHtml(course.contentHeading||`Build practical ${course.title} skills.`)}</h2><p>${textHtml(course.description||course.short||'A structured course designed around practical learning, mentor guidance and project work.')}</p>${skills.length?`<div class="fsa-skill-grid">${skills.map(skill=>`<span>${icon('check')} ${escapeHtml(skill)}</span>`).join('')}</div>`:''}</section><section class="fsa-detail-block"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Curriculum</span><h2>What you will <em>learn.</em></h2></div><span>${modules.length} modules · ${Number(course.hours||60)}+ hours</span></div><div class="fsa-detail-curriculum">${modules.map((module,mi)=>`<article class="fsa-detail-module ${mi===0?'open':''}"><button data-action="toggle-module"><span><small>MODULE ${String(mi+1).padStart(2,'0')}</small><strong>${escapeHtml(module.title)}</strong></span><span>${escapeHtml(module.duration||'')} ${icon('chevronDown')}</span></button><div><ul>${(module.lessons||[]).map(lesson=>`<li><span>${lesson.preview?icon('play'):icon('lock')}</span><b>${escapeHtml(lesson.title)}</b><small>${escapeHtml(lesson.duration||'')}</small>${lesson.preview?'<em>Preview</em>':''}</li>`).join('')}</ul></div></article>`).join('')}</div></section><section class="fsa-detail-block" id="course-batches"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Learning Schedule</span><h2>${escapeHtml(course.title)} <em>options.</em></h2></div><span id="batchResultCount"></span></div><div class="fsa-batch-filters detail"><div><small>Time</small>${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div><small>Mode</small>${[['all','All'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batch-grid detail" id="fsaBatchGrid">${batchRows(course).map(batchCard).join('')}</div></section><section class="fsa-detail-block"><span class="eyebrow">Recorded Course Access</span><h2>Your recorded option becomes a <em>private learner workspace.</em></h2><p>After enrollment, Recorded courses appear in your learner dashboard with lessons, notes, downloadable resources, project work, progress and certificates.</p><div class="fsa-detail-private-grid"><div class="fsa-private-preview">${['Course roadmap','Recorded lesson library','Downloadable notes and lab files','Project submission workspace','Progress & completion certificate'].map((item,i)=>`<div class="fsa-private-row"><span>${i===0?icon('book'):i===1?icon('video'):i===2?icon('download'):i===3?icon('project'):icon('award')}</span><div><strong>${item}</strong><small>${i===1?'Recorded learning':i===2?'Learner resources':i===3?'Private activity':'Course area'}</small></div><b>${i===0?'<em class="preview-open">Preview</em>':icon('lock')}</b></div>`).join('')}</div><div class="fsa-private-copy"><span class="fsa-mode-icon">${icon('video')}</span><h3>Recorded learner access</h3><p>Enroll in a Recorded course and open it anytime from My Courses in your student dashboard.</p><a class="button button-primary button-block" href="#/courses?mode=recorded">Browse Recorded Courses</a><a class="button button-secondary button-block" href="#/login">Student Sign In</a></div></div></section></div><aside class="fsa-detail-enroll-card reveal"><div class="fsa-detail-enroll-head"><small>Choose learning mode</small><div class="fsa-detail-mode-switch">${modeButtons}</div></div><div class="fsa-detail-mode-copy" id="detailModeCopy">${modeCopy}</div><div class="fsa-detail-price"><small>Course fee from</small><strong>${money(course.price)}</strong>${Number(course.originalPrice||0)>Number(course.price||0)?`<del>${money(course.originalPrice)}</del>`:''}</div><div class="fsa-detail-enroll-list">${['Practical projects','Completion certificate','Career-focused guidance','Mode-specific learning access'].map(item=>`<span>${icon('check')} ${item}</span>`).join('')}</div><button class="button button-primary button-block" data-action="add-cart" data-id="${course.id}">Add Course</button><button class="button button-secondary button-block" data-action="open-call-popup">Ask About This Course</button><small class="fsa-detail-note">Delivery-mode availability can be connected to your backend per course.</small></aside></div></section>
-      ${courseDetailReviewSection(course)}
-      <section class="fsa-courses-faq-section detail"><div class="container fsa-faq-layout"><div><span class="eyebrow">Course FAQ</span><h2>${escapeHtml(course.title)} <em>questions.</em></h2><p>Course-specific answers for Live Streamed, Recorded and Offline Classroom learning.</p></div>${faqMarkup(faqs)}</div></section>
-      <section class="fsa-related-section"><div class="container"><div class="fsa-course-section-head"><div><span class="eyebrow">Continue Exploring</span><h2>Related <em>courses.</em></h2></div><a class="button button-outline" href="#/courses">View All Courses ${icon('arrow')}</a></div><div class="fsa-course-catalog-grid related">${related.map(catalogCourseCard).join('')}</div></div></section>`;
-    requestAnimationFrame(()=>updateBatchResults(course));
+    const requested=requestedMode || '';
+    const available={live:delivery.live,recorded:delivery.recorded,classroom:delivery.classroom};
+    state.detailDeliveryMode=available[requested]?requested:(course.deliveryMode==='offline'&&delivery.classroom?'classroom':course.deliveryMode==='recorded'&&delivery.recorded?'recorded':course.deliveryMode==='live'&&delivery.live?'live':delivery.live?'live':delivery.recorded?'recorded':'classroom');
+    state.batchShift='all';state.batchBranch='all';state.batchMode='all';
+    course=courseContentForMode(course,state.detailDeliveryMode);
+    const modules=courseModules(course).filter(m=>m&&m.title);
+    // Per-course FAQ, review, and project sections are no longer shown in public course pages.
+    const skills=Array.isArray(course.skills)?course.skills.filter(Boolean):[];
+    const requirements=Array.isArray(course.requirements)?course.requirements.filter(Boolean):[];
+    const audience=Array.isArray(course.audience)?course.audience.filter(Boolean):[];
+    const summary=[
+      course.duration?{icon:'clock',label:'Duration',value:course.duration}:null,
+      Number(course.hours)>0?{icon:'book',label:'Learning hours',value:String(Number(course.hours))}:null,
+      course.level?{icon:'award',label:'Level',value:course.level}:null,
+      course.language?{icon:'users',label:'Language',value:course.language}:null
+    ].filter(Boolean);
+    const related=catalogCourses().filter(c=>c.id!==course.id).sort((a,b)=>Number(b.category===course.category)-Number(a.category===course.category)).slice(0,3);
+    const batches=batchRows(course);
+    const modeButtons=`${delivery.live?`<button class="${state.detailDeliveryMode==='live'?'active':''}" data-action="detail-mode" data-mode="live" aria-label="Live Streamed" title="Live Streamed">${icon('radio')}</button>`:''}${delivery.recorded?`<button class="${state.detailDeliveryMode==='recorded'?'active':''}" data-action="detail-mode" data-mode="recorded" aria-label="Recorded" title="Recorded">${icon('video')}</button>`:''}${delivery.classroom?`<button class="${state.detailDeliveryMode==='classroom'?'active':''}" data-action="detail-mode" data-mode="classroom" aria-label="Physical / Offline" title="Physical / Offline">${icon('classroom')}</button>`:''}`;
+    const detailMode=state.detailDeliveryMode==='classroom'?'offline':state.detailDeliveryMode;
+    const detailStatus=purchaseState(course.id,detailMode);
+    const modeName=state.detailDeliveryMode==='classroom'?'Physical / Offline':state.detailDeliveryMode==='recorded'?'Recorded':'Live';
+    const modeIcon=state.detailDeliveryMode==='classroom'?'classroom':state.detailDeliveryMode==='recorded'?'video':'radio';
+    const modeCopy=`<span>${icon(modeIcon)}</span><div><strong>${modeName}</strong>${course.short?`<p>${textHtml(course.short)}</p>`:''}</div>`;
+    const curriculumSection=modules.length?`<section class="fsa-detail-block"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Curriculum</span><h2>What you will <em>learn.</em></h2></div><span>${modules.length} module${modules.length===1?'':'s'}</span></div><div class="fsa-detail-curriculum">${modules.map((m,mi)=>`<article class="fsa-detail-module ${mi===0?'open':''}"><button data-action="toggle-module"><span><small>MODULE ${String(mi+1).padStart(2,'0')}</small><strong>${escapeHtml(m.title)}</strong></span><span>${escapeHtml(m.duration||'')} ${icon('chevronDown')}</span></button><div><ul>${(m.lessons||[]).filter(l=>l.title).map(l=>`<li><span>${icon('book')}</span><b>${escapeHtml(l.title)}</b><small>${escapeHtml(l.duration||'')}</small></li>`).join('')}</ul></div></article>`).join('')}</div></section>`:'';
+    const overviewParts=[];
+    if(course.description)overviewParts.push(`<p>${textHtml(course.description)}</p>`);
+    if(skills.length)overviewParts.push(`<div class="fsa-skill-grid">${skills.map(skill=>`<span>${icon('check')} ${escapeHtml(skill)}</span>`).join('')}</div>`);
+    if(requirements.length||audience.length)overviewParts.push(`<div class="mission-grid" style="margin-top:22px">${requirements.length?`<div class="form-section"><h3>Requirements</h3><ul class="simple-list">${requirements.map(r=>`<li>${icon('check')} ${escapeHtml(r)}</li>`).join('')}</ul></div>`:''}${audience.length?`<div class="form-section"><h3>Who this course is for</h3><ul class="simple-list">${audience.map(a=>`<li>${icon('check')} ${escapeHtml(a)}</li>`).join('')}</ul></div>`:''}</div>`);
+    const overviewSection=(course.contentHeading||overviewParts.length)?`<section class="fsa-detail-block"><span class="eyebrow">Course Overview</span>${course.contentHeading?`<h2>${escapeHtml(course.contentHeading)}</h2>`:''}${overviewParts.join('')}</section>`:'';
+    const batchSection=batches.length?`<section class="fsa-detail-block" id="course-batches"><div class="fsa-detail-heading-inline"><div><span class="eyebrow">Learning schedule</span><h2>Available <em>batches.</em></h2></div><span id="batchResultCount"></span></div><div class="fsa-batch-filters detail"><div><small>Time</small>${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div><small>Mode</small>${[['all','All'],['live-streamed','Live'],['recorded','Recorded'],['offline-classroom','Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batch-grid detail" id="fsaBatchGrid">${batches.map(batchCard).join('')}</div></section>`:'';
+    const sideDetails=[course.instructor?`<span>${icon('users')} ${escapeHtml(course.instructor)}</span>`:'',...skills.slice(0,3).map(s=>`<span>${icon('check')} ${escapeHtml(s)}</span>`)].filter(Boolean);
+    const contactCard=`<aside class="fsa-detail-enroll-card reveal">${detailStatus.kind!=='available'?`<div class="fsa-enrollment-state">${detailStatus.kind==='owned'?'✓ You are enrolled in this learning format':detailStatus.kind==='pending'?'⏳ Enrollment request pending':'Your enrollment is on your account'}</div>`:''}<div class="fsa-detail-enroll-head"><small>Choose learning mode</small><div class="fsa-detail-mode-switch">${modeButtons}</div></div><div class="fsa-detail-mode-copy" id="detailModeCopy">${modeCopy}</div><div class="fsa-detail-price"><small>Course fee</small><strong>${money(course.price||0)}</strong>${Number(course.originalPrice||0)>Number(course.price||0)?`<del>${money(course.originalPrice)}</del>`:''}</div>${sideDetails.length?`<div class="fsa-detail-enroll-list">${sideDetails.join('')}</div>`:''}${purchaseActionMarkup(course,state.detailDeliveryMode==='classroom'?'offline':state.detailDeliveryMode)}<button class="button button-secondary button-block" data-action="open-call-popup">Ask About This Course</button></aside>`;
+    app.innerHTML=`<style id="fsa-course-detail-polish">
+.fsa-course-detail-hero{background:linear-gradient(130deg,#fff 0%,#fff 65%,#fcf1f3 100%);padding:28px 0 48px}
+.fsa-course-detail-hero .breadcrumbs{margin-bottom:25px}
+.fsa-course-detail-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,4vw,60px);align-items:center}
+.fsa-course-detail-copy{min-width:0}
+.fsa-course-detail-copy h1{font-size:clamp(32px,3.25vw,52px);line-height:1.16;letter-spacing:-.035em;margin:15px 0 18px;overflow-wrap:break-word}
+.fsa-course-detail-copy>p{font-size:clamp(14px,1.1vw,17px);line-height:1.75;max-width:680px;margin-bottom:24px}
+.fsa-course-detail-visual{aspect-ratio:16/10;border-radius:18px;box-shadow:0 16px 35px rgba(53,30,38,.1)}
+.fsa-course-detail-visual img{object-fit:contain;background:#fbf7f8}
+.fsa-course-detail-actions{display:flex;align-items:stretch;flex-wrap:wrap;gap:12px}
+.fsa-course-detail-actions>.button{width:auto;min-width:190px;min-height:46px;padding:12px 22px;display:inline-flex;align-items:center;justify-content:center;gap:9px;line-height:1.2;white-space:nowrap;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;box-sizing:border-box;text-align:center}
+.fsa-course-detail-actions>.button svg{width:16px;height:16px;flex-shrink:0}
+.fsa-course-detail-actions>.button:disabled{opacity:.55;cursor:not-allowed}
+#course-batches{scroll-margin-top:120px}
+@media(max-width:950px){.fsa-course-detail-grid{grid-template-columns:1fr;gap:28px}.fsa-course-detail-visual{max-width:750px;width:100%}}
+@media(max-width:600px){.fsa-course-detail-copy h1{font-size:clamp(29px,8vw,39px)}.fsa-course-detail-actions{display:grid;grid-template-columns:1fr}.fsa-course-detail-actions>.button{width:100%;min-width:0}.fsa-course-detail-visual{aspect-ratio:16/10}}
+</style><section class="fsa-course-detail-hero"><div class="container">${breadcrumbs([{label:'Home',href:'#/'},{label:'Courses',href:'#/courses'},{label:course.title}])}<div class="fsa-course-detail-grid"><div class="fsa-course-detail-copy reveal"><div class="fsa-catalog-mode-row">${deliveryPills(delivery)}</div><h1>${escapeHtml(course.title)}</h1>${(course.short||course.description)?`<p>${textHtml(course.short||course.description)}</p>`:''}<div class="fsa-course-detail-actions"><button type="button" class="button button-primary" data-action="course-scroll-batches" ${batches.length?'':'disabled aria-disabled="true" title="No scheduled batches currently available"'}>${icon('calendar')} ${batches.length?'View Available Batches':'No Batches Available'}</button><button type="button" class="button button-secondary" data-action="open-call-popup">${icon('phone')} Get A Call</button></div></div><div class="fsa-course-detail-visual reveal reveal-scale">${imageMarkup(course.image,course.title,initials(course.title))}</div></div></div></section>
+      ${summary.length?`<section class="fsa-course-summary-band"><div class="container fsa-course-summary-grid">${summary.map(x=>`<article><span>${icon(x.icon)}</span><div><small>${escapeHtml(x.label)}</small><strong>${escapeHtml(x.value)}</strong></div></article>`).join('')}</div></section>`:''}
+      <section class="fsa-detail-main-section"><div class="container fsa-detail-main-layout"><div class="fsa-detail-content">${overviewSection}${curriculumSection}${batchSection}</div>${contactCard}</div></section>
+      ${related.length?`<section class="fsa-related-section"><div class="container"><div class="fsa-course-section-head"><div><span class="eyebrow">Continue Exploring</span><h2>Related <em>courses.</em></h2></div><a class="button button-outline" href="#/courses">View All Courses ${icon('arrow')}</a></div><div class="fsa-course-catalog-grid related">${related.map(catalogCourseCard).join('')}</div></div></section>`:''}`;
+    if(batches.length)requestAnimationFrame(()=>updateBatchResults(course));
   }
 
   function courseTabContent(course, tab) {
@@ -1603,7 +1675,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   function renderBatches() {
     setChrome('public');
     const rows=batchRows();
-    app.innerHTML=`<section class="fsa-batches-page-hero"><div class="container fsa-batches-page-grid"><div class="fsa-batches-page-copy reveal"><span class="eyebrow">Admissions & Learning Access</span><h1>Find the right <em>batch or learning mode.</em></h1><p>Compare scheduled Live Streamed classes, branch-based Offline Classroom batches and Recorded courses that can start anytime. The same three-mode structure is now used across the course catalogue.</p><div class="fsa-batches-hero-modes"><span><i>${icon('radio')}</i>Live Streamed</span><span><i>${icon('video')}</i>Recorded</span><span><i>${icon('classroom')}</i>Offline Classroom</span></div></div><aside class="fsa-batches-page-panel reveal reveal-delay-2"><small>How it works</small><h3>Filter your learning options</h3><ul><li>${icon('search')} Search by course or technology</li><li>${icon('clock')} Choose morning, afternoon, evening or anytime</li><li>${icon('map')} Filter online or a Hyderabad branch</li><li>${icon('layers')} Select your preferred learning mode</li></ul><button class="button button-primary button-block" data-action="open-call-popup" style="margin-top:17px">Need Help? Get A Call</button></aside></div></section><section class="fsa-batches-directory"><div class="container"><div class="fsa-batches-directory-head"><div><span class="eyebrow">All Learning Options</span><h2>Upcoming batches & recorded access</h2><p>Every filter row scrolls independently and hides its scrollbar.</p></div><label class="fsa-batches-search">${icon('search')}<input id="batchesSearchInput" type="search" value="${escapeHtml(state.batchQuery||'')}" placeholder="Search course, branch or mode..."></label></div><div class="fsa-batches-filter-stack"><div class="fsa-batches-filter-row"><strong>Time</strong><div class="fsa-batches-filter-scroll">${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Start Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Mode</strong><div class="fsa-batches-filter-scroll">${[['all','All Modes'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Branch</strong><div class="fsa-batches-filter-scroll">${[['all','All Locations'],['online','Online'],['ameerpet','Ameerpet'],['gachibowli','Gachibowli'],['tolichowki','Tolichowki'],['charminar','Charminar']].map(([v,l])=>`<button class="${state.batchBranch===v?'active':''}" data-action="batch-branch" data-value="${v}">${l}</button>`).join('')}</div></div></div><div class="fsa-batches-results-line"><span id="batchResultCount"><strong>${rows.length}</strong> options found</span><button class="clear-button" data-action="batch-reset">Reset filters</button></div><div class="fsa-batches-page-grid-list" id="fsaBatchGrid">${rows.map(batchCard).join('')}</div></div></section><section class="section-sm section-surface"><div class="container"><div class="cta-panel"><span class="eyebrow">Course Guidance</span><h2>Not sure which format fits your schedule?</h2><p>Share your course interest and preferred learning mode. The academy team can help you choose the best available option.</p><div class="cta-actions"><button class="button button-primary" data-action="open-call-popup">Get A Call</button><a class="button button-secondary" href="#/courses">Browse Courses</a></div></div></div></section>`;
+    app.innerHTML=`<section class="fsa-batches-page-hero"><div class="container fsa-batches-page-grid"><div class="fsa-batches-page-copy reveal"><span class="eyebrow">Admissions & Learning Access</span><h1>Find the right <em>batch or learning mode.</em></h1><p>Compare scheduled Live Streamed classes, branch-based Offline Classroom batches and Recorded courses that can start anytime. The same three-mode structure is now used across the course catalogue.</p><div class="fsa-batches-hero-modes"><span><i>${icon('radio')}</i>Live Streamed</span><span><i>${icon('video')}</i>Recorded</span><span><i>${icon('classroom')}</i>Offline Classroom</span></div></div><aside class="fsa-batches-page-panel reveal reveal-delay-2"><small>How it works</small><h3>Filter your learning options</h3><ul><li>${icon('search')} Search by course or technology</li><li>${icon('clock')} Choose morning, afternoon, evening or anytime</li><li>${icon('map')} Filter online or a Hyderabad branch</li><li>${icon('layers')} Select your preferred learning mode</li></ul><button class="button button-primary button-block" data-action="open-call-popup" style="margin-top:17px">Need Help? Get A Call</button></aside></div></section><section class="fsa-batches-directory"><div class="container"><div class="fsa-batches-directory-head"><div><span class="eyebrow">All Learning Options</span><h2>Upcoming batches & recorded access</h2><p>Every filter row scrolls independently and hides its scrollbar.</p></div><label class="fsa-batches-search">${icon('search')}<input id="batchesSearchInput" type="search" value="${escapeHtml(state.batchQuery||'')}" placeholder="Search course, branch or mode..."></label></div><div class="fsa-batches-filter-stack"><div class="fsa-batches-filter-row"><strong>Time</strong><div class="fsa-batches-filter-scroll">${['all','morning','afternoon','evening','anytime'].map(v=>`<button class="${state.batchShift===v?'active':''}" data-action="batch-shift" data-value="${v}">${v==='all'?'All':v==='anytime'?'Start Anytime':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Mode</strong><div class="fsa-batches-filter-scroll">${[['all','All Modes'],['live-streamed','Live Streamed'],['recorded','Recorded'],['offline-classroom','Offline Classroom']].map(([v,l])=>`<button class="${state.batchMode===v?'active':''}" data-action="batch-mode" data-value="${v}">${l}</button>`).join('')}</div></div><div class="fsa-batches-filter-row"><strong>Branch</strong><div class="fsa-batches-filter-scroll">${publicBatchBranches().map(([v,l])=>`<button class="${state.batchBranch===v?'active':''}" data-action="batch-branch" data-value="${v}">${l}</button>`).join('')}</div></div></div><div class="fsa-batches-results-line"><span id="batchResultCount"><strong>${rows.length}</strong> options found</span><button class="clear-button" data-action="batch-reset">Reset filters</button></div><div class="fsa-batches-page-grid-list" id="fsaBatchGrid">${rows.map(batchCard).join('')}</div></div></section><section class="section-sm section-surface"><div class="container"><div class="cta-panel"><span class="eyebrow">Course Guidance</span><h2>Not sure which format fits your schedule?</h2><p>Share your course interest and preferred learning mode. The academy team can help you choose the best available option.</p><div class="cta-actions"><button class="button button-primary" data-action="open-call-popup">Get A Call</button><a class="button button-secondary" href="#/courses">Browse Courses</a></div></div></div></section>`;
     requestAnimationFrame(()=>updateBatchResults());
   }
 
@@ -1669,7 +1741,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   }
 
   function branchDirectoryRow(branch, index = 0) {
-    const localImage = HOME_BRANCH_IMAGES[branch.id] || branch.image;
+    const localImage = branch.image || ''; 
     const maps = branchMapsUrl(branch);
     const livePage = BRANCH_ROUTE_META[branch.id]?.page || maps;
     return `<article class="branch-directory-row reveal reveal-delay-${Math.min(index,3)}" id="branch-${escapeHtml(branch.id)}">
@@ -1703,7 +1775,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   function renderBranches(preferredBranchId = '') {
     setChrome('public');
     destroyBranchMap();
-    const firstBranchId = D.branches[0]?.id || 'charminar';
+    if(!D.branches.length){app.innerHTML='<section class="page-section"><div class="container"></div></section>';return;}
+    const firstBranchId = D.branches[0]?.id;
     const requestedId = D.branches.some(branch => branch.id === preferredBranchId) ? preferredBranchId : firstBranchId;
     branchMapState.selectedId = requestedId;
     const selected = D.branches.find(branch => branch.id === requestedId) || D.branches[0];
@@ -1990,6 +2063,42 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     };
   }
   function purchaseModeLabel(mode){ return mode==='recorded'?'Recorded':mode==='live'?'Live Streamed':'Offline / Physical'; }
+
+  // The current signed-in learner's database enrollment is authoritative.
+  // All statuses are per course AND learning mode; expired access is not a new purchase.
+  function purchaseState(courseId,mode){
+    if(!state.loggedIn||state.user?.role!=='student')return {kind:'available'};
+    const normalized=normalizePurchaseMode(mode);
+    const matches=(state.allEnrollmentRows||[]).filter(row=>Number(row.course_id)===Number(courseId)&&normalizePurchaseMode(row.delivery_mode)===normalized);
+    const owned=matches.find(row=>['active','completed'].includes(String(row.status||'')));
+    if(owned)return {kind:owned.access_allowed===false?'restricted':'owned',row:owned};
+    const pending=matches.find(row=>String(row.status)==='pending'&&(!row.order_id||['pending','paid'].includes(String(row.order_status||'pending'))));
+    if(pending)return {kind:'pending',row:pending};
+    return {kind:'available'};
+  }
+  function courseOpenLink(course,mode){
+    const id=Number(course?.id||course||0),slug=String(course?.slug||courseById(id)?.slug||'');
+    return mode==='recorded'?studentRecordedCourseEntry(id):mode==='live'?'#/live-classes':(slug?'#/learn/'+encodeURIComponent(slug):'#/my-courses');
+  }
+  function purchaseActionMarkup(course,mode,classes='button button-primary button-block'){
+    const status=purchaseState(course.id,mode);
+    if(status.kind==='owned')return `<a class="${classes}" href="${courseOpenLink(course,mode)}">${icon('book')} Open My Course ${icon('arrow')}</a>`;
+    if(status.kind==='pending')return `<a class="${classes} fsa-owned-course-cta" href="#/purchase-history">${icon('clock')} Enrollment Requested — View Order</a>`;
+    if(status.kind==='restricted')return `<a class="${classes} fsa-owned-course-cta" href="#/my-courses">${icon('lock')} Manage My Access</a>`;
+    return `<button class="${classes}" data-action="add-cart" data-id="${course.id}" data-mode="${mode}">Add Course ${icon('arrow')}</button>`;
+  }
+  function prunePurchasedCart(showMessage=false){
+    let changed=false;
+    state.cart=[...new Set(state.cart.map(Number))].filter(id=>{
+      const course=courseById(id);if(!course)return false;
+      const mode=coursePurchaseMode(course);
+      if(purchaseState(id,mode).kind==='available')return true;
+      delete state.cartModes[id];changed=true;return false;
+    });
+    if(changed){write(LS.cart,state.cart);write(LS.cartModes,state.cartModes);if(showMessage)toast('Courses already owned or awaiting approval were removed from the cart.');}
+    return changed;
+  }
+
   function cartTotals() {
     const courseItems = state.cart.map(courseById).filter(Boolean).map(courseForCart).filter(Boolean);
     const subtotal = courseItems.reduce((sum,c)=>sum+Number(c.price||0),0);
@@ -1998,16 +2107,33 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   }
 
   function renderCart() {
+    prunePurchasedCart();
     setChrome('public');
     const t = cartTotals();
     app.innerHTML = `${pageHero({eyebrow:'Your Cart',title:'Review your course selection.',text:'Check your selected courses before submitting your enrollment request.',center:true})}<section class="page-section"><div class="container cart-page-grid"><div>${t.courseItems.length ? `<div class="cart-list">${t.courseItems.map(c=>`<article class="cart-item"><div class="cart-item-image">${imageMarkup(c.image,c.title,initials(c.title))}</div><div><span class="course-category">${c.category}</span><h3>${c.title}</h3><p>${purchaseModeLabel(c.cartMode)} · ${c.duration} · ${c.projects} projects · ${c.instructor}</p><div class="item-actions"><button class="link-button" data-action="move-wishlist" data-id="${c.id}">Move to wishlist</button><button class="link-button" data-action="remove-cart" data-id="${c.id}">Remove</button></div></div><div class="cart-item-price"><strong>${money(c.price)}</strong><del>${money(c.originalPrice)}</del></div></article>`).join('')}</div>` : `<div class="empty-state"><span class="empty-icon">${icon('cart')}</span><h3>Your cart is empty</h3><p>Explore courses and add the learning path you want to join.</p><a class="button button-primary" href="#/courses">Explore Courses</a></div>`}</div><aside class="summary-card"><h3>Enrollment summary</h3><div class="coupon-row"><input class="form-control" id="couponInput" value="${state.coupon||''}" placeholder="Promotional code"><button class="button button-secondary button-sm" data-action="apply-coupon">Apply</button></div><div class="form-help">Enter a valid academy promotional code.</div><div class="summary-lines"><div class="summary-line"><span>Subtotal</span><strong>${money(t.subtotal)}</strong></div><div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line"><span>Final fee</span><strong>Confirmed by academy</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><a class="button button-primary button-block ${t.subtotal===0?'disabled':''}" href="${t.courseItems.length?'#/checkout':'#/courses'}">Continue to Enrollment ${icon('arrow')}</a><div class="demo-notice" style="margin-top:14px">${icon('shield')} Your enrollment details are sent securely to the academy administration team.</div></aside></div></section>`;
   }
   function renderCheckout() {
-    if (!state.loggedIn) { toast('Sign in or create an account before checkout.','error'); routeTo('/login'); return; }
+    if(!state.loggedIn){sessionStorage.setItem('fsa_after_auth_path','/checkout');toast('Create a student account or sign in to continue checkout.','error');routeTo('/register');return;}
+    prunePurchasedCart(true);
     setChrome('public');
-    const t = cartTotals();
-    if (!t.courseItems.length) { renderCart(); toast('Add a course before continuing.','error'); return; }
-    app.innerHTML = `${pageHero({eyebrow:'Course Enrollment',title:'Submit your enrollment details.',text:'Share your contact and payment preference. The academy team will confirm fees, schedule and next steps.',center:true})}<section class="page-section"><div class="container checkout-grid"><form id="checkoutForm" novalidate><section class="form-section"><h2>Contact information</h2><div class="form-grid"><div class="form-group"><label for="checkoutName">Full name</label><input class="form-control" id="checkoutName" name="name" required value="${escapeHtml(state.user.name === 'Academy Learner' ? '' : state.user.name)}"></div><div class="form-group"><label for="checkoutEmail">Email address</label><input class="form-control" id="checkoutEmail" name="email" type="email" required value="${escapeHtml(state.user.email)}"></div><div class="form-group full"><label for="checkoutPhone">Phone number</label><input class="form-control" id="checkoutPhone" name="phone" required value="${escapeHtml(state.user.phone)}"></div></div></section><section class="form-section"><h2>Location information</h2><div class="form-grid"><div class="form-group"><label>Country</label><select class="form-control" name="country" required><option value="India">India</option><option value="Pakistan">Pakistan</option><option value="United Arab Emirates">United Arab Emirates</option><option value="Other">Other</option></select></div><div class="form-group"><label>State</label><input class="form-control" name="state" value="Telangana" required></div><div class="form-group full"><label>Address</label><input class="form-control" name="address" placeholder="Your address" required></div><div class="form-group"><label>City</label><input class="form-control" name="city" value="${escapeHtml(state.user.city)}" required></div><div class="form-group"><label>Postal code</label><input class="form-control" name="postal" inputmode="numeric" required></div></div></section><section class="form-section"><h2>Preferred payment method</h2><div class="payment-options"><label class="payment-option"><input type="radio" name="payment" value="upi" checked><span class="payment-icon">${icon('phone')}</span><span><strong>UPI</strong><small>Receive payment instructions after confirmation</small></span></label><label class="payment-option"><input type="radio" name="payment" value="bank"><span class="payment-icon">${icon('briefcase')}</span><span><strong>Bank transfer</strong><small>Academy account details will be shared securely</small></span></label><label class="payment-option"><input type="radio" name="payment" value="branch"><span class="payment-icon">${icon('map')}</span><span><strong>Pay at branch</strong><small>Complete payment at your preferred academy location</small></span></label></div><div class="form-group" style="margin-top:15px"><label>Additional message</label><textarea class="form-control" name="message" placeholder="Preferred batch timing, branch or any questions"></textarea></div></section><button class="button button-primary button-lg button-block" type="submit">Place Course Order ${icon('check')}</button></form><aside class="summary-card"><h3>Your selection</h3><div class="summary-lines">${t.courseItems.map(c=>`<div class="summary-line"><span>${c.title}<small style="display:block;color:var(--muted);margin-top:3px">${purchaseModeLabel(c.cartMode)}</small></span><strong>${money(c.price)}</strong></div>`).join('')}<div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><div class="demo-notice">${icon('shield')} Your order will remain pending until the academy confirms payment. Paid orders automatically activate course access.</div></aside></div></section>`;
+    const t=cartTotals();
+    if(!t.courseItems.length){renderCart();toast('You already own these courses or have an outstanding order.','error');return;}
+    const previous=state.checkoutProfile;
+    const returning=!!(state.user && state.user.name && state.user.email && state.user.phone);
+    const displayName=previous?.name||state.user.name||'';
+    const displayEmail=previous?.email||state.user.email||'';
+    const displayPhone=previous?.phone||state.user.phone||'';
+    const country=previous?.country||state.user.country||'India';
+    const province=previous?.state||'Telangana';
+    const city=previous?.city||state.user.city||'';
+    const address=previous?.address||'';
+    const postal=previous?.postal||'';
+    const billingFields=`<div class="form-grid"><div class="form-group"><label>Full name<input class="form-control" name="name" autocomplete="name" required value="${escapeHtml(displayName==='Academy Learner'?'':displayName)}"></label></div><div class="form-group"><label>Email address<input class="form-control" name="email" type="email" autocomplete="email" required value="${escapeHtml(displayEmail)}"></label></div><div class="form-group full"><label>Phone number<input class="form-control" name="phone" autocomplete="tel" required value="${escapeHtml(displayPhone)}"></label></div><div class="form-group"><label>Country<select class="form-control" name="country" required>${['India','Pakistan','United Arab Emirates','Other'].map(x=>`<option value="${x}" ${country===x?'selected':''}>${x}</option>`).join('')}</select></label></div><div class="form-group"><label>State / province<input class="form-control" name="state" required value="${escapeHtml(province)}"></label></div><div class="form-group full"><label>Address<input class="form-control" name="address" required value="${escapeHtml(address)}"></label></div><div class="form-group"><label>City<input class="form-control" name="city" required value="${escapeHtml(city)}"></label></div><div class="form-group"><label>Postal code<input class="form-control" name="postal" required value="${escapeHtml(postal)}"></label></div></div>`;
+    app.innerHTML=`${pageHero({eyebrow:'Secure course enrollment',title:returning?'Welcome back — confirm payment.':'Complete your first course order.',text:returning?'Your student account details are ready. Choose a payment method; adding the rest of your profile is optional.':'Add your billing details once, then choose your payment method.',center:true})}<section class="page-section"><div class="container checkout-grid"><form id="checkoutForm" data-returning="${returning?'yes':'no'}" novalidate>
+      ${returning?`<section class="form-section fsa-return-checkout"><span class="eyebrow">Returning learner</span><h2>Your account is ready</h2><p class="fsa-checkout-profile-summary"><strong>${escapeHtml(displayName)}</strong><span>${escapeHtml(displayEmail)} · ${escapeHtml(displayPhone)}</span>${[address,city,province,country].filter(Boolean).length?`<small>${escapeHtml([address,city,province,country].filter(Boolean).join(', '))}</small>`:''}</p><button class="button button-secondary button-sm" type="button" data-action="checkout-edit-billing" aria-controls="checkoutBillingEditor" aria-expanded="false">Edit saved details</button><div id="checkoutBillingEditor" class="fsa-checkout-billing-editor" hidden>${billingFields.replace(/<(input|select)\b/g,'$& disabled')}</div></section>`:`<section class="form-section"><h2>Your contact and billing details</h2><p>These details are saved with the order and can be reused at your next checkout.</p>${billingFields}</section>`}
+      <section class="form-section"><span class="eyebrow">Final step</span><h2>Choose a payment request method</h2><div class="payment-options"><label class="payment-option"><input type="radio" name="payment" value="upi" checked><span class="payment-icon">${icon('phone')}</span><span><strong>UPI</strong><small>Academy will share payment instructions</small></span></label><label class="payment-option"><input type="radio" name="payment" value="bank"><span class="payment-icon">${icon('briefcase')}</span><span><strong>Bank transfer</strong><small>Pay using academy bank details after order confirmation</small></span></label><label class="payment-option"><input type="radio" name="payment" value="branch"><span class="payment-icon">${icon('map')}</span><span><strong>Pay at branch</strong><small>Complete payment at your chosen branch</small></span></label></div><div class="form-group" style="margin-top:15px"><label>Note to the academy (optional)<textarea class="form-control" name="message" placeholder="Batch or payment questions"></textarea></label></div></section>
+      <button class="button button-primary button-lg button-block" type="submit">Submit Payment Request ${icon('check')}</button><p class="fsa-checkout-explainer">No payment is charged on this page. Your enrollment activates after the academy confirms payment.</p></form>
+      <aside class="summary-card"><h3>Order summary</h3><div class="summary-lines">${t.courseItems.map(c=>`<div class="summary-line"><span>${escapeHtml(c.title)}<small style="display:block;color:var(--muted);margin-top:3px">${purchaseModeLabel(c.cartMode)}</small></span><strong>${money(c.price)}</strong></div>`).join('')}<div class="summary-line"><span>Discount</span><strong>−${money(t.discount)}</strong></div><div class="summary-line total"><span>Estimated total</span><strong>${money(t.total)}</strong></div></div><div class="demo-notice">${icon('shield')} This is a payment request, not an instant card charge. Track its status in Purchase History.</div></aside></div></section>`;
   }
   function renderCheckoutSuccess() {
     setChrome('public');
@@ -2020,17 +2146,17 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
 
   function renderLogin() {
     setChrome('auth');
-    app.innerHTML = `<section class="auth-page">${authVisual()}<div class="auth-form-wrap"><article class="auth-card"><span class="eyebrow">Welcome Back</span><h1>Choose your profile</h1><p>Students and instructors sign in to their own dedicated dashboard.</p><form class="auth-form" id="loginForm" novalidate><div class="profile-type-picker"><label><input type="radio" name="account_type" value="student" checked><span><i class="profile-type-icon">${icon('book')}</i><b><strong>Student Profile</strong><small>Learn, track courses and publish achievements</small></b></span></label><label><input type="radio" name="account_type" value="instructor"><span><i class="profile-type-icon">${icon('users')}</i><b><strong>Instructor Profile</strong><small>Manage assigned students after admin approval</small></b></span></label></div><div class="form-group"><label>Email or academy ID</label><input class="form-control" name="identifier" required autocomplete="username" value="${escapeHtml(state.user.email||state.user.student_code||'')}" placeholder="Email or FSA-26-XXXXXX"></div><div class="form-group"><label>Password</label><div class="password-wrap"><input class="form-control" name="password" type="password" required minlength="8" autocomplete="current-password"><button class="password-toggle" type="button" data-action="toggle-password">${icon('eye')}</button></div></div><div class="checkbox-line"><label><input type="checkbox" name="remember" checked> Keep me signed in</label><a href="#/forgot-password">Forgot password?</a></div><button class="button button-primary button-block" type="submit">Open Dashboard</button></form><p class="auth-switch">Need an account? <a href="#/register">Create student or instructor profile</a></p><p class="auth-switch"><a href="${ADMIN_URL}">Administrator login</a></p></article></div></section>`;
+    app.innerHTML = `<section class="auth-page">${authVisual()}<div class="auth-form-wrap"><article class="auth-card"><span class="eyebrow">Welcome Back</span><h1>Choose your profile</h1><p>Students and instructors sign in to their own dedicated dashboard.</p><form class="auth-form" id="loginForm" novalidate><div class="profile-type-picker"><label><input type="radio" name="account_type" value="student" checked><span><i class="profile-type-icon">${icon('book')}</i><b><strong>Student Profile</strong><small>Learn, track courses and publish achievements</small></b></span></label><label><input type="radio" name="account_type" value="instructor"><span><i class="profile-type-icon">${icon('users')}</i><b><strong>Instructor Profile</strong><small>Manage assigned students after admin approval</small></b></span></label></div><div class="form-group"><label>Email or academy ID</label><input class="form-control" name="identifier" required autocomplete="username" value="${escapeHtml(state.user.email||state.user.student_code||'')}" placeholder="Email or FSA-26-XXXXXX"></div><div class="form-group"><label>Password</label><div class="password-wrap"><input class="form-control" name="password" type="password" required minlength="8" autocomplete="current-password"><button class="password-toggle" type="button" data-action="toggle-password">${icon('eye')}</button></div></div><div class="checkbox-line"><label><input type="checkbox" name="remember" checked> Keep me signed in</label><a href="#/forgot-password">Forgot password?</a></div><button class="button button-primary button-block" type="submit">Open Dashboard</button></form><p class="auth-switch">Need an account? <a href="#/register">Create student profile</a></p><p class="auth-switch"><a href="${ADMIN_URL}">Administrator login</a></p></article></div></section>`;
   }
   function renderRegister() {
     setChrome('auth');
     const registrationOpen = siteSettings.registration_enabled !== false;
     if (!registrationOpen) {
       const contact = contactDetails();
-      app.innerHTML = `<section class="auth-page">${authVisual()}<div class="auth-form-wrap"><article class="auth-card"><span class="eyebrow">Registration Paused</span><h1>New account registration is currently closed.</h1><p>The academy has temporarily disabled student and instructor signup. Contact the support team for assistance.</p><div class="cta-actions"><a class="button button-primary" href="mailto:${escapeHtml(contact.email)}">Email Support</a><a class="button button-secondary" href="#/login">Return to Sign In</a></div></article></div></section>`;
+      app.innerHTML = `<section class="auth-page">${authVisual()}<div class="auth-form-wrap"><article class="auth-card"><span class="eyebrow">Registration Paused</span><h1>New account registration is currently closed.</h1><p>The academy has temporarily disabled student signup. Contact the support team for assistance.</p><div class="cta-actions"><a class="button button-primary" href="mailto:${escapeHtml(contact.email)}">Email Support</a><a class="button button-secondary" href="#/login">Return to Sign In</a></div></article></div></section>`;
       return;
     }
-    app.innerHTML = `<section class="auth-page">${authVisual()}<div class="auth-form-wrap"><article class="auth-card auth-card-wide"><span class="eyebrow">Create Account</span><h1>Select your profile</h1><p>Student accounts open immediately. Instructor profiles are reviewed by an administrator before login access is activated.</p><form class="auth-form" id="registerForm" novalidate><div class="profile-type-picker"><label><input type="radio" name="account_type" value="student" checked><span><i class="profile-type-icon">${icon('book')}</i><b><strong>Student Profile</strong><small>Learn, track courses and publish achievements</small></b></span></label><label><input type="radio" name="account_type" value="instructor"><span><i class="profile-type-icon">${icon('users')}</i><b><strong>Instructor Profile</strong><small>Manage assigned students after admin approval</small></b></span></label></div><div class="form-grid"><div class="form-group full"><label>Full name</label><input class="form-control" name="name" required maxlength="120" autocomplete="name"></div><div class="form-group"><label>Email</label><input class="form-control" name="email" type="email" required maxlength="190" autocomplete="email"></div><div class="form-group"><label>Phone</label><input class="form-control" name="phone" type="tel" required maxlength="40" autocomplete="tel"></div><div class="form-group"><label>Password</label><div class="password-wrap"><input class="form-control" name="password" type="password" minlength="8" maxlength="4096" required autocomplete="new-password"><button class="password-toggle" type="button" data-action="toggle-password">${icon('eye')}</button></div></div><div class="form-group"><label>Confirm password</label><input class="form-control" name="confirm" type="password" minlength="8" maxlength="4096" required autocomplete="new-password"></div></div><label class="checkbox-line" style="justify-content:flex-start"><input type="checkbox" name="terms" required> I agree to the <a href="#/terms">terms</a> and <a href="#/privacy">privacy policy</a>.</label><button class="button button-primary button-block" type="submit" id="registerSubmitButton">Create Student Account</button></form><p class="auth-switch">Already registered? <a href="#/login">Sign in</a></p></article></div></section>`;
+    app.innerHTML = `<section class="auth-page">${authVisual()}<div class="auth-form-wrap"><article class="auth-card auth-card-wide"><span class="eyebrow">Create Account</span><h1>Create your student account</h1><p>Students can create an account here. Instructor accounts are created by authorized academy administrators.</p><form class="auth-form" id="registerForm" novalidate><input type="hidden" name="account_type" value="student"><div class="form-grid"><div class="form-group full"><label>Full name</label><input class="form-control" name="name" required maxlength="120" autocomplete="name"></div><div class="form-group"><label>Email</label><input class="form-control" name="email" type="email" required maxlength="190" autocomplete="email"></div><div class="form-group"><label>Phone</label><input class="form-control" name="phone" type="tel" required maxlength="40" autocomplete="tel"></div><div class="form-group"><label>Password</label><div class="password-wrap"><input class="form-control" name="password" type="password" minlength="8" maxlength="4096" required autocomplete="new-password"><button class="password-toggle" type="button" data-action="toggle-password">${icon('eye')}</button></div></div><div class="form-group"><label>Confirm password</label><input class="form-control" name="confirm" type="password" minlength="8" maxlength="4096" required autocomplete="new-password"></div></div><label class="checkbox-line" style="justify-content:flex-start"><input type="checkbox" name="terms" required> I agree to the <a href="#/terms">terms</a> and <a href="#/privacy">privacy policy</a>.</label><button class="button button-primary button-block" type="submit" id="registerSubmitButton">Create Student Account</button></form><p class="auth-switch">Already registered? <a href="#/login">Sign in</a></p></article></div></section>`;
   }
 
   function renderForgotPassword() {
@@ -4949,6 +5075,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     const continuePanel=continueEntry?(()=>{const continueCourse=continueEntry.course,workspace=continueEntry.workspace,percent=Math.max(0,Math.min(100,Number(workspace.percent||0))),href=workspace.isRecordedCourse?studentRecordedCourseEntry(continueCourse.id):workspace.isLiveCourse?'#/live-classes':`#/learn/${continueCourse.slug}`,progressCopy=workspace.isRecordedCourse?`${workspace.recordedLectures.filter(x=>x.completed).length} of ${workspace.recordedLectures.length} lectures completed.`:workspace.isLiveCourse?'Continue with your Live classroom and schedule.':`${completedLessons(continueCourse.id)} of ${allLessonKeys(continueCourse).length} lessons completed.`;return `<article class="premium-resume-card"><div class="premium-resume-media">${imageMarkup(continueCourse.image,continueCourse.title,initials(continueCourse.title))}<span>${percent}% complete</span></div><div class="premium-resume-copy"><span class="eyebrow">Continue learning</span><h2>${escapeHtml(continueCourse.title)}</h2><p>${progressCopy} Continue exactly where you stopped.</p><div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div><div class="premium-resume-actions"><a class="button button-primary" href="${href}">${percent===100?'Review course':'Resume course'} ${icon('arrow')}</a><a class="button button-secondary" href="#/my-courses">All courses</a></div></div></article>`})():`<div class="empty-state premium-empty"><span class="empty-icon">${icon('book')}</span><h3>Your learning workspace is ready</h3><p>${state.pendingEnrollments.length?'A course order is waiting for activation.':'Enroll in a course to unlock lessons, quizzes and assignments.'}</p><a class="button button-primary" href="${state.pendingEnrollments.length?'#/purchase-history':'#/courses'}">${state.pendingEnrollments.length?'View orders':'Browse courses'}</a></div>`;
     const liveNotice=upcomingLiveRows.length?(()=>{const item=liveNowRows[0]||upcomingLiveRows.filter(x=>liveStatus(x)==='scheduled').sort((a,b)=>new Date(a.starts_at||0)-new Date(b.starts_at||0))[0],isLive=item&&liveStatus(item)==='live';return `<div class="premium-live-banner"><span class="live-dot"></span><div><small>${isLive?'LIVE NOW':'NEXT LIVE CLASS'}</small><strong>${escapeHtml(item?.title||'Live Class')}</strong><span>${escapeHtml(item?.course_title||'Course')} · ${classroomDate(item?.starts_at)}</span></div><button class="button ${isLive?'button-primary':'button-secondary'} button-sm" type="button" data-action="student-course-live-open" data-course-id="${item?.course_id||''}" data-live-id="${isLive?item?.id||'':''}">${isLive?'Join Live':'View Schedule'}</button></div>`;})():'';
     const content=`<section class="premium-dashboard-hero"><div><span class="eyebrow light">Student Workspace</span><h2>Good to see you, ${escapeHtml(state.user.name.split(' ')[0])}.</h2><p>Courses, Live classes, quizzes, assignments and certificates — all from one clean workspace.</p></div><div class="premium-hero-actions"><a href="#/my-courses" class="button button-primary">My Courses</a></div></section>
+      ${studentProfileReminder()}
       ${liveNotice}
       <div class="dashboard-metrics premium-metrics">${[[enrolled.length,'Active courses','book','Learning now'],[pendingWork.length,'Open tasks','clock','Needs attention'],[quizzes.filter(x=>x.completed).length,'Quizzes taken','note','Auto-scored'],[assignments.filter(x=>x.completed).length,'Assignments sent','project','Submitted']].map(m=>`<article class="metric-card"><div class="metric-card-top"><span>${m[1]}</span><i class="metric-card-icon">${icon(m[2])}</i></div><strong>${m[0]}</strong><small>${m[3]}</small></article>`).join('')}</div>
       <div class="premium-dashboard-grid"><section>${continuePanel}</section><aside class="panel premium-deadlines"><div class="panel-head"><div><span class="eyebrow">Next up</span><h2>Coursework</h2></div><a href="#/my-courses">Open courses</a></div>${pendingWork.length?`<div class="premium-task-list">${pendingWork.map(dashboardCourseworkCard).join('')}</div>`:`<div class="empty-state compact"><p>No open coursework right now.</p></div>`}</aside></div>
@@ -5047,19 +5174,37 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     dashboardShell('purchase-history',content,'Purchase History','Review course orders stored securely in your account.');
   }
 
+  function studentProfileCompletion(){
+    const u=state.user||{};
+    const p=state.studentAdminProfile||{};
+    const fields=[['Full name',u.name],['Email address',u.email],['Phone number',u.phone],['Father name',p.fatherName],['Date of birth',p.dob],['National ID',p.cnic],['City',u.city],['Country',u.country],['About me',u.bio],['Skills',Array.isArray(u.skills)?u.skills.join(','):u.skills],['Profile headline',u.headline&&u.headline!=='Full Stack Academy Learner'?u.headline:'']];
+    const done=fields.filter(([label,value])=>String(value||'').trim()).length;
+    return {percent:Math.round(done/fields.length*100),missing:fields.filter(([label,value])=>!String(value||'').trim()).map(([label])=>label)};
+  }
+  function studentProfileReminder(){
+    if(!state.loggedIn||state.user.role!=='student')return '';
+    const info=studentProfileCompletion();
+    return `<section class="panel fsa-profile-progress-card" style="margin-bottom:20px;padding:22px;border-radius:16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><span class="eyebrow">Your student profile</span><h3 style="margin:6px 0">${info.percent}% complete</h3><p style="margin:0">${info.percent===100?'Your student profile is complete.':'Add your details at your own pace. Profile completion is optional and never blocks course checkout.'}</p>${info.missing.length?`<small>Suggested next: ${escapeHtml(info.missing.slice(0,3).join(', '))}</small>`:''}</div><a class="button button-secondary button-sm" href="#/profile">${info.percent===100?'View profile':'Complete profile'}</a></div><div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${info.percent}" aria-label="Student profile completeness" style="margin-top:16px"><div class="progress-fill" style="width:${info.percent}%"></div></div></section>`;
+  }
   function renderProfile() {
-    const avatar = state.user.avatar ? `<img src="${state.user.avatar}" alt="${escapeHtml(state.user.name)}">` : initials(state.user.name);
-    const content = `<div class="profile-layout"><aside class="profile-card"><div class="profile-avatar-large" id="profileAvatar">${avatar}<label class="avatar-upload" for="avatarInput">${icon('camera')}</label><input class="sr-only" id="avatarInput" type="file" accept="image/*"></div><h2>${escapeHtml(state.user.name)}</h2><p>${escapeHtml(state.user.headline)}</p><div class="profile-stat-row"><span><strong>${state.enrollments.length}</strong><span>Courses</span></span><span><strong>${enrolledCourses().filter(c=>progressPercent(c.id)===100).length}</strong><span>Complete</span></span><span><strong>${state.orders.length}</strong><span>Orders</span></span></div></aside><section class="panel"><div class="settings-tabs">${[['personal','Personal Details'],['learning','Learning Preferences'],['security','Security']].map(t=>`<button class="${state.profileTab===t[0]?'active':''}" data-action="profile-tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div><div id="profileTabPanel">${profileTabContent(state.profileTab)}</div></section></div>`;
-    if(state.user.role==='instructor'){
-      const teachingTools=`<div class="instructor-page-actions" style="margin-bottom:18px"><div><span class="eyebrow">Teaching schedule</span><p>Create a single Live class or schedule the whole month by selected weekdays. Each class stays connected to the selected course and appears automatically for enrolled Live students.</p></div><a class="button button-primary" href="#/instructor-live">${icon('calendar')} Schedule Live Classes</a></div>`;
-      instructorShell('profile',teachingTools+content,'Instructor Profile','Update your professional information and manage your teaching schedule.');
-    }else dashboardShell('profile',content,'My Profile','Update your learner information, password and learning preferences.');
+    const avatar = state.user.avatar ? `<img src="${escapeHtml(state.user.avatar)}" alt="">` : initials(state.user.name);
+    const isStudent=state.user.role==='student';
+    const tabs=[['personal','Personal details'],['learning','Learning preferences'],['security','Password & security'],...(isStudent?[['email','Email verification']]:[])];
+    const content=`<div class="fsa-profile-premium"><header class="fsa-profile-hero"><a href="#/dashboard" class="fsa-profile-back">← Back to dashboard</a><div class="fsa-profile-hero-inner"><div class="fsa-profile-avatar" id="profileAvatar">${avatar}<label for="avatarInput" title="Change photo">${icon('camera')}</label><input id="avatarInput" type="file" accept="image/*" class="sr-only"></div><div><span class="fsa-profile-eyebrow">MY ACCOUNT</span><h1>${escapeHtml(state.user.name)}</h1><p>Keep your information up to date and your account secure.</p></div></div></header>${isStudent?studentProfileReminder():''}<section class="fsa-profile-editor"><nav class="fsa-profile-tabs" aria-label="Profile settings">${tabs.map(t=>`<button type="button" class="${state.profileTab===t[0]?'active':''}" data-action="profile-tab" data-tab="${t[0]}">${escapeHtml(t[1])}</button>`).join('')}</nav><div id="profileTabPanel" class="fsa-profile-panel">${profileTabContent(state.profileTab)}</div></section></div>`;
+    if(state.user.role==='instructor') instructorShell('profile',content,'Instructor Profile','Manage your account details.');
+    else { setChrome('dashboard'); app.innerHTML=`<main class="fsa-profile-standalone">${content}</main>`; }
   }
 
   function profileTabContent(tab) {
     if (tab === 'learning') return `<form id="learningPreferencesForm"><div class="form-grid"><div class="form-group"><label>Weekly learning goal (hours)</label><input class="form-control" name="weeklyGoal" type="number" min="1" max="40" value="${state.user.weeklyGoal}"></div><div class="form-group"><label>Preferred language</label><select class="form-control" name="language"><option>English / Hindi</option><option>English</option><option>Hindi</option></select></div><div class="form-group full"><label class="checkbox-line" style="justify-content:flex-start"><input type="checkbox" name="notifications" ${state.user.notifications?'checked':''}> Receive learning reminders and academy updates.</label></div></div><button class="button button-primary" type="submit" style="margin-top:18px">Save Preferences</button></form>`;
-    if (tab === 'security') return `<form id="securityForm"><div class="form-grid"><div class="form-group"><label>Current password</label><input class="form-control" name="currentPassword" type="password" required autocomplete="current-password"></div><div class="form-group"><label>New password</label><input class="form-control" name="newPassword" type="password" minlength="8" required autocomplete="new-password"></div><div class="form-group full"><label>Confirm new password</label><input class="form-control" name="confirmPassword" type="password" minlength="8" required autocomplete="new-password"></div></div><button class="button button-primary" type="submit" style="margin-top:18px">Update Password</button></form>`;
-    return `<form id="profileForm"><div class="form-grid"><div class="form-group"><label>Full name</label><input class="form-control" name="name" required value="${escapeHtml(state.user.name)}"></div><div class="form-group"><label>Email address</label><input class="form-control" name="email" type="email" required value="${escapeHtml(state.user.email)}" readonly></div><div class="form-group"><label>Academy ID</label><input class="form-control" value="${escapeHtml(state.user.student_code||'Assigned by administrator')}" readonly></div><div class="form-group"><label>Phone number</label><input class="form-control" name="phone" value="${escapeHtml(state.user.phone)}"></div><div class="form-group"><label>Headline</label><input class="form-control" name="headline" value="${escapeHtml(state.user.headline)}"></div><div class="form-group"><label>Branch</label><input class="form-control" name="branch" value="${escapeHtml(state.user.branch||'')}"></div><div class="form-group"><label>City</label><input class="form-control" name="city" value="${escapeHtml(state.user.city)}"></div><div class="form-group"><label>Country</label><input class="form-control" name="country" value="${escapeHtml(state.user.country)}"></div><div class="form-group full"><label>Skills (comma separated)</label><input class="form-control" name="skills" value="${escapeHtml((state.user.skills||[]).join(', '))}"></div><div class="form-group full"><label>Bio</label><textarea class="form-control" name="bio">${escapeHtml(state.user.bio)}</textarea></div><div class="form-group full"><label class="checkbox-line" style="justify-content:flex-start"><input type="checkbox" name="profile_public" ${state.user.profile_public!==false?'checked':''}> Publish my academy profile</label>${state.user.public_slug?`<small>Public URL: <a href="#/people/${escapeHtml(state.user.public_slug)}">#/people/${escapeHtml(state.user.public_slug)}</a></small>`:''}</div></div><button class="button button-primary" type="submit" style="margin-top:18px">Save Profile</button></form>`;
+    if(tab==='email') return `<div class="fsa-email-settings"><div class="fsa-info-row"><strong>Current email</strong><span>${escapeHtml(state.user.email)}</span></div><p>To change your sign-in email, verify the new address using a six-digit code. A valid email delivery configuration is required.</p><form id="emailOtpRequestForm" class="fsa-email-request"><label>New email address</label><div class="fsa-inline-field"><input class="form-control" type="email" name="newEmail" autocomplete="email" placeholder="name@example.com" required><button class="button button-primary" type="submit">Send code</button></div></form><form id="emailOtpConfirmForm"><label>Verification code</label><div class="fsa-inline-field"><input class="form-control" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" required><button class="button button-secondary" type="submit">Verify & change email</button></div><small>Code expires after 10 minutes. If you didn't receive it, confirm the address and request a new code.</small></form></div>`;
+    if (tab === 'security') return `<div class="fsa-security-intro"><h2>Change password</h2><p>Use a strong unique password. Your current password is required to save changes.</p></div><form id="securityForm"><div class="form-grid">${[['Current password','currentPassword','current-password'],['New password','newPassword','new-password'],['Confirm new password','confirmPassword','new-password']].map(([label,name,autocomplete])=>`<div class="form-group ${name==='confirmPassword'?'full':''}"><label>${label}</label><div class="fsa-password-field"><input class="form-control" name="${name}" type="password" minlength="${name==='currentPassword'?1:8}" autocomplete="${autocomplete}" required><button type="button" class="fsa-password-eye" data-action="toggle-password" aria-label="Show or hide ${label.toLowerCase()}">${icon('eye')}</button></div></div>`).join('')}</div><p class="fsa-hint">Minimum 8 characters. Consider using letters, numbers and symbols.</p><button class="button button-primary" type="submit">Update password</button></form>`;
+    const x=state.studentAdminProfile||{};
+    const field=(label,name,value,type='text',extra='')=>`<div class="form-group"><label>${label}</label><input class="form-control" name="${name}" type="${type}" value="${escapeHtml(String(value||''))}" ${extra}></div>`;
+    const career=x.isAlumni?`<h3 class="full">Alumni details</h3>${field('Placed role','alumniRole',x.alumniRole)}${field('Company','alumniCompany',x.alumniCompany)}${field('Package / salary','alumniSalary',x.alumniSalary)}${field('Location','alumniLocation',x.alumniLocation)}${field('Graduation year','alumniGraduationYear',x.alumniGraduationYear)}<div class="form-group full"><label>Alumni quote</label><textarea class="form-control" name="alumniQuote">${escapeHtml(x.alumniQuote||'')}</textarea></div>`:'';
+    const job=x.isJobSeeker?`<h3 class="full">Job seeker details</h3>${field('Experience','jobExperience',x.jobExperience)}${field('Location','jobLocation',x.jobLocation)}${field('Availability','jobAvailability',x.jobAvailability)}<div class="form-group full"><label>Job skills (one per line)</label><textarea class="form-control" name="jobSkills">${escapeHtml((x.jobSkills||[]).join('\n'))}</textarea></div><div class="form-group full"><label>Job seeker summary</label><textarea class="form-control" name="jobSummary">${escapeHtml(x.jobSummary||'')}</textarea></div>`:'';
+    const extraStudent=state.user.role==='student'?`<h3 class="full">Student identity</h3>${field('Father name','fatherName',x.fatherName)}${field('Date of birth','dob',x.dob,'date')}${field('CNIC / National ID','cnic',x.cnic)}${career}${job}`:'';
+    return `<form id="profileForm"><div class="form-grid"><div class="form-group"><label>Full name</label><input class="form-control" name="name" required value="${escapeHtml(state.user.name)}"></div><div class="form-group"><label>Email address</label><input class="form-control" name="email" type="email" required value="${escapeHtml(state.user.email)}" readonly></div><div class="form-group"><label>Academy ID</label><input class="form-control" value="${escapeHtml(state.user.student_code||'Assigned by administrator')}" readonly></div><div class="form-group"><label>Phone number</label><input class="form-control" name="phone" value="${escapeHtml(state.user.phone)}"></div><div class="form-group"><label>Headline</label><input class="form-control" name="headline" value="${escapeHtml(state.user.headline)}"></div>${state.user.role==='student'?'':`<div class="form-group"><label>Branch</label><input class="form-control" name="branch" value="${escapeHtml(state.user.branch||'')}"></div>`}<div class="form-group"><label>City</label><input class="form-control" name="city" value="${escapeHtml(state.user.city)}"></div><div class="form-group"><label>Country</label><input class="form-control" name="country" value="${escapeHtml(state.user.country)}"></div><div class="form-group full"><label>Skills (comma separated)</label><input class="form-control" name="skills" value="${escapeHtml((state.user.skills||[]).join(', '))}"></div><div class="form-group full"><label>Bio</label><textarea class="form-control" name="bio">${escapeHtml(state.user.bio)}</textarea></div>${extraStudent}${state.user.role==='student'?'':`<div class="form-group full"><label class="checkbox-line"><input type="checkbox" name="profile_public" ${state.user.profile_public!==false?'checked':''}> Publish my academy profile</label></div>`}</div><button class="button button-primary" type="submit" style="margin-top:18px">Save Profile</button></form>`;
   }
 
   function instructorShell(active,content,title,subtitle){
@@ -5092,6 +5237,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       <nav class="dashboard-nav">
         <span class="dashboard-nav-label">Teaching</span>
         ${renderLinks(teaching.slice(0,2))}
+        <a class="instructor-course-create-nav" href="admin/index.html?courseEditor=new&amp;mode=offline#courses" target="_blank" rel="noopener" title="Submit a new public course for approval">${icon('plus')}<span>Create Public Course</span></a>
         <div class="dashboard-nav-group ${['instructor-live','instructor-recordings'].includes(active)?'is-active is-open':''}">
           <button class="dashboard-nav-parent ${['instructor-live','instructor-recordings'].includes(active)?'active':''}" type="button" data-action="toggle-instructor-live-submenu" aria-expanded="${['instructor-live','instructor-recordings'].includes(active)?'true':'false'}">${icon('radio')}<span>Live Classes</span><b>${icon('chevronDown')}</b></button>
           <div class="dashboard-nav-submenu" aria-label="Live Classes submenu">
@@ -5131,7 +5277,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     const publishedAssignments=assignments.filter(x=>x.status!=='draft');
     const recentAssessments=[...quizzes.map(x=>({...x,_type:'Quiz'})),...assignments.map(x=>({...x,_type:'Assignment'}))]
       .sort((a,b)=>new Date(b.updated_at||b.created_at||0)-new Date(a.updated_at||a.created_at||0)).slice(0,5);
-    const content=`<section class="premium-dashboard-hero instructor-premium-hero"><div><span class="eyebrow light">Instructor Workspace</span><h2>Teach, assess and review from one place.</h2><p>Your assigned courses, live classes, recordings, multi-step quizzes and student submissions stay connected to the same classroom.</p></div><div class="premium-hero-actions"><a class="button button-primary" href="#/instructor-courses">Manage Course Curriculum</a></div></section>
+    const content=`<section class="premium-dashboard-hero instructor-premium-hero"><div><span class="eyebrow light">Instructor Workspace</span><h2>Teach, assess and review from one place.</h2><p>Your assigned courses, live classes, recordings, multi-step quizzes and student submissions stay connected to the same classroom.</p></div><div class="premium-hero-actions"><a class="button button-primary" href="admin/index.html?courseEditor=new&amp;mode=offline#courses" target="_blank" rel="noopener">${icon('plus')} Create Public Course</a><a class="button button-secondary" href="#/instructor-courses">Manage Assigned Courses</a></div></section>
       <div class="dashboard-metrics premium-metrics">${[[courses.length,'Assigned courses','book'],[(d.students||[]).length,'Students','users'],[toGrade.length,'To grade','project'],[publishedQuizzes.length,'Published quizzes','note']].map(m=>`<article class="premium-metric-card"><i>${icon(m[2])}</i><div><strong>${m[0]}</strong><span>${m[1]}</span></div></article>`).join('')}</div>
       <div class="premium-dashboard-grid">
         <section class="panel"><div class="panel-head"><div><span class="eyebrow">Teaching tools</span><h2>Quick actions</h2></div><a href="#/instructor-courses">All courses</a></div><div class="instructor-quick-grid premium"><a href="#/instructor-courses">${icon('book')}<span><strong>Assigned Courses</strong><small>Prepare lessons and manage coursework course-by-course.</small></span></a><a href="#/instructor-live">${icon('radio')}<span><strong>Live Classes</strong><small>Schedule and start your embedded Zoom classroom.</small></span></a><a href="#/instructor-recordings">${icon('play')}<span><strong>Recordings</strong><small>Publish completed class recordings for students.</small></span></a><a href="#/instructor-students">${icon('users')}<span><strong>Students</strong><small>Review learners attached to your courses.</small></span></a></div></section>
@@ -5431,14 +5577,33 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       }
     },delay);
   }
+
+  function branchDetailUrl(branch){return `branches/view/index.html?branch=${encodeURIComponent(branch.slug||branch.id)}`;}
+  function syncBranchChrome(){
+    const rows=D.branches||[];
+    const grid=document.querySelector('.branch-mega-grid');
+    if(grid)grid.innerHTML=rows.map((b,i)=>`<a class="branch-mega-card" href="${branchDetailUrl(b)}"><span class="branch-mega-image">${b.image?`<img src="${escapeHtml(b.image)}" alt="${escapeHtml(b.name)}" loading="lazy">`:''}<b>${String(i+1).padStart(2,'0')}</b></span><span class="branch-mega-card-copy"><small>${escapeHtml(b.location)}</small><strong>${escapeHtml(b.name)}</strong><em>View branch details</em></span></a>`).join('');
+    const mobile=document.querySelector('.mobile-branch-links');if(mobile)mobile.innerHTML=rows.map((b,i)=>`<a href="${branchDetailUrl(b)}"><b>${String(i+1).padStart(2,'0')}</b> ${escapeHtml(b.shortName||b.name)}</a>`).join('');
+    const count=document.querySelector('.branch-mega-kicker');if(count)count.textContent=`${rows.length} Hyderabad Centres`;
+    const mobileCount=document.querySelector('.mobile-branch-main span');if(mobileCount)mobileCount.textContent=`${String(rows.length).padStart(2,'0')} Centres`;
+    document.querySelectorAll('footer a[href="#/branches"]').forEach(a=>{if(a.textContent.includes('·'))a.textContent=rows.map(b=>b.shortName||String(b.name).replace(/^FSA\s*[—-]\s*/, '')).join(' · ');});
+  }
+  function syncCourseMegaMenu(){
+    const grid=document.querySelector('.course-mega-grid');if(!grid)return;
+    grid.innerHTML=(D.content?.courseNavigation||[]).map(c=>`<a class="course-mega-item" href="#/courses?q=${encodeURIComponent(c.query||'')}"><span class="mega-icon" data-premium-icon="${escapeHtml(c.icon||'book')}"></span><span><strong>${escapeHtml(c.title)}</strong><small>${escapeHtml(c.caption||'')}</small></span></a>`).join('');
+  }
+
   function applyBackendCatalog(catalog={}){
-    if(catalog.site) applySiteSettings(catalog.site);
+    if(catalog.site){D.site=catalog.site;applySiteSettings(catalog.site);}
+    if(catalog.content){D.content=catalog.content;D.stats=catalog.content.stats||[];D.faqs=catalog.content.faqs||[];D.academyImages=catalog.content.academyImages||{};window.FSA_CONTENT?.set(catalog.content);}
+
     ['courses','plans','branches','instructors','batches','companies','alumni','candidates','events','reviews'].forEach(key=>{
       if(Array.isArray(catalog[key])) D[key]=catalog[key];
     });
-    if(Array.isArray(D.categories) && Array.isArray(D.courses)){
-      D.categories.forEach(category => { category.count = D.courses.filter(course => course.category === category.name).length; });
-    }
+    D.categories=[...new Set((D.courses||[]).map(c=>c.category).filter(Boolean))].map(name=>({name,count:D.courses.filter(c=>c.category===name).length}));
+    syncBranchChrome();syncCourseMegaMenu();
+    document.dispatchEvent(new CustomEvent('fsa:catalog-updated'));
+
   }
   async function refreshCatalogData(){const catalog=await apiRequest('catalog');applyBackendCatalog(catalog);}
   function instructorCourseById(id){return instructorCourses().find(c=>Number(c.id)===Number(id));}
@@ -5485,14 +5650,18 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
 
   function renderInstructorCourses(){
     const courses=instructorCourses(), quizzes=state.instructorData.quizzes||[], assignments=state.instructorData.assignments||[], liveRows=state.instructorData.live_sessions||[], recordedRows=state.instructorData.recorded_lectures||[];
-    const content=`<section class="instructor-course-page-intro"><div><span class="eyebrow">Assigned courses</span><h2>Your teaching workspaces</h2><p>Every assigned course shows all three delivery types. Admin controls which modes are sold; you prepare the learning content for the modes enabled on your course.</p></div><div class="instructor-mode-legend"><span>${icon('classroom')} Offline</span><span>${icon('radio')} Live</span><span>${icon('video')} Recorded</span></div></section>${courses.length?`<div class="instructor-course-grid instructor-mode-course-grid">${courses.map(c=>{
+    const content=`<section class="instructor-public-course-cta"><div class="instructor-public-course-cta-copy"><span class="eyebrow">COURSE AUTHORING</span><h2>Create a public course</h2><p>Use the same course editor as Academy Admin. Your submission stays unpublished until approved by your Branch Head, Branch Admin, Admin Staff or Super Admin.</p></div><a class="button button-primary instructor-public-course-button" href="admin/index.html?courseEditor=new&amp;mode=offline#courses" target="_blank" rel="noopener">${icon('plus')} Create Public Course ${icon('arrow')}</a></section><section class="instructor-course-page-intro"><div><span class="eyebrow">Assigned courses</span><h2>Your teaching workspaces</h2><p>Every assigned course shows all three delivery types. Admin controls which modes are sold; you prepare the learning content for the modes enabled on your course.</p></div><div class="instructor-mode-legend"><span>${icon('classroom')} Offline</span><span>${icon('radio')} Live</span><span>${icon('video')} Recorded</span></div></section>${courses.length?`<div class="instructor-course-grid instructor-mode-course-grid">${courses.map(c=>{
       const quizCount=quizzes.filter(q=>Number(q.course_id)===Number(c.id)).length;
       const assignmentCount=assignments.filter(a=>Number(a.course_id)===Number(c.id)).length;
       const liveCount=liveRows.filter(row=>Number(row.course_id)===Number(c.id)).length;
       const recordedCount=recordedRows.filter(row=>Number(row.course_id)===Number(c.id)).length;
       const pending=String(c.approvalStatus||'approved')==='pending';
-      return `<article class="panel instructor-course-card instructor-course-card-v111"><header class="instructor-course-summary"><div class="instructor-course-thumb">${c.image?imageMarkup(c.image,c.title,initials(c.title)):`<span>${icon('book')}</span>`}</div><div class="instructor-course-summary-copy"><div class="instructor-course-summary-top"><span class="course-category">${escapeHtml(c.category)}</span><span class="status-pill ${pending?'status-pending':''}">${pending?'Content pending approval':escapeHtml(c.approvalStatus||'approved')}</span></div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.short||'Assigned academy course')}</p><div class="instructor-course-summary-meta"><span>${icon('book')} ${Number(c.lessons||0)} lessons</span><span>${icon('users')} Assigned instructor course</span>${c.branchName?`<span>${icon('map')} ${escapeHtml(c.branchName)}</span>`:''}</div></div>${c.visibility!=='private'&&c.status==='published'?`<a class="button button-secondary button-sm instructor-course-view" href="#/course/${encodeURIComponent(c.slug)}" target="_blank">View Course</a>`:''}</header><div class="instructor-three-modes">${instructorModeCard(c,'offline',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'live',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'recorded',{live:liveCount,recorded:recordedCount})}</div><footer class="instructor-coursework-strip coursera-coursework-strip"><div><span>${icon('book')}</span><strong>Course curriculum</strong><small>${recordedCount} lecture${recordedCount===1?'':'s'} · ${quizCount} quiz${quizCount===1?'':'zes'} · ${assignmentCount} assignment${assignmentCount===1?'':'s'}</small></div><div class="instructor-course-card-actions">${instructorModeEnabled(c,'offline')?`<button class="button button-secondary button-sm" type="button" data-action="instructor-offline-course-edit" data-id="${c.id}">${icon('edit')} Edit Course</button>`:''}<a class="button button-primary button-sm" href="#/instructor-course-manage/${c.id}">Manage Course Curriculum ${icon('arrow')}</a></div></footer></article>`;
-    }).join('')}</div>`:`<div class="empty-state"><span class="empty-icon">${icon('book')}</span><h3>No course assigned yet</h3><p>Ask Admin Staff or your branch administration to assign a course to your instructor account. Once assigned, it will appear here automatically from MySQL.</p></div>`}`;
+      const publicationReview=String(c.publicApprovalStatus||'approved').toLowerCase();
+      const publicDraft=publicationReview==='pending'||publicationReview==='rejected';
+      const publicReviewBadge=publicDraft?`<span class="status-pill ${publicationReview==='pending'?'status-pending':'status-rejected'}">${publicationReview==='pending'?'Public course: awaiting approval':'Public course: changes requested'}</span>`:'';
+      const publicDraftEdit=publicDraft?`<a class="button button-secondary button-sm" href="admin/index.html?courseEditor=${Number(c.id)}&amp;mode=offline#courses" target="_blank" rel="noopener">${icon('edit')} Edit Public Draft</a>`:'';
+      return `<article class="panel instructor-course-card instructor-course-card-v111"><header class="instructor-course-summary"><div class="instructor-course-thumb">${c.image?imageMarkup(c.image,c.title,initials(c.title)):`<span>${icon('book')}</span>`}</div><div class="instructor-course-summary-copy"><div class="instructor-course-summary-top"><span class="course-category">${escapeHtml(c.category)}</span><span class="status-pill ${pending?'status-pending':''}">${pending?'Content pending approval':escapeHtml(c.approvalStatus||'approved')}</span>${publicReviewBadge}</div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.short||'Assigned academy course')}</p><div class="instructor-course-summary-meta"><span>${icon('book')} ${Number(c.lessons||0)} lessons</span><span>${icon('users')} Assigned instructor course</span>${c.branchName?`<span>${icon('map')} ${escapeHtml(c.branchName)}</span>`:''}</div></div>${c.visibility!=='private'&&c.status==='published'?`<a class="button button-secondary button-sm instructor-course-view" href="#/course/${encodeURIComponent(c.slug)}" target="_blank">View Course</a>`:''}</header><div class="instructor-three-modes">${instructorModeCard(c,'offline',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'live',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'recorded',{live:liveCount,recorded:recordedCount})}</div><footer class="instructor-coursework-strip coursera-coursework-strip"><div><span>${icon('book')}</span><strong>Course curriculum</strong><small>${recordedCount} lecture${recordedCount===1?'':'s'} · ${quizCount} quiz${quizCount===1?'':'zes'} · ${assignmentCount} assignment${assignmentCount===1?'':'s'}</small></div><div class="instructor-course-card-actions">${publicDraftEdit}${instructorModeEnabled(c,'offline')?`<button class="button button-secondary button-sm" type="button" data-action="instructor-offline-course-edit" data-id="${c.id}">${icon('edit')} Edit Course</button>`:''}<a class="button button-primary button-sm" href="#/instructor-course-manage/${c.id}">Manage Course Curriculum ${icon('arrow')}</a></div></footer></article>`;
+    }).join('')}</div>`:`<div class="empty-state"><span class="empty-icon">${icon('book')}</span><h3>No courses yet</h3><p>Create your first public course for approval using the button above, or ask your branch administration to assign an existing course to your account.</p></div>`}`;
     instructorShell('instructor-courses',content,'My Courses','Manage Offline course content, Live teaching and Recorded lectures for every assigned course.');
   }
 
@@ -6364,6 +6533,127 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     state.playerCourses[slug]={course,fetchedAt:Date.now(),access:result.access||{}};
     return course;
   }
+  // Coursera-style Physical course content, inside the existing learner dashboard.
+  // This intentionally does not use Recorded/Live materials or lecturer uploads.
+  let physicalPageData=null;
+  let physicalSectionIndex=0;
+  let physicalRenderRequest=0;
+  const physicalSafeMedia=value=>{
+    const url=String(value||'').trim();
+    return /^(https?:\/\/|uploads\/|assets\/)/i.test(url)?escapeHtml(url):'';
+  };
+  if(typeof document!=="undefined"&&!document.getElementById("physicalRichLessonStyle")){const style=document.createElement("style");style.id="physicalRichLessonStyle";style.textContent=".pc-lesson-code{background:#18212c;color:#e7eef7;border-radius:12px;padding:18px;overflow-x:auto;white-space:pre;font:14px/1.7 ui-monospace,Consolas,monospace}.pc-learning-rich p{line-height:1.8}.pc-learning-rich .pc-lesson-list{padding-left:20px}.pc-inline-code{color:#852937;background:#f7edef;border-radius:4px;padding:2px 5px}.pc-code-caption{color:#852937;font-weight:700;margin-bottom:8px}.pc-syntax-keyword{color:#c792ea}.pc-syntax-string{color:#a4d68e}.pc-syntax-number{color:#f9ba67}.pc-syntax-comment{color:#8492a6;font-style:italic}";document.head.appendChild(style);}
+  function physicalHighlightSource(source){
+    const token=/(\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:const|let|var|function|return|if|else|for|while|async|await|class|import|from|export|default|true|false|null|undefined|SELECT|FROM|WHERE|INSERT|INTO|CREATE|TABLE|def|print|echo|public|private)\b|\b\d+(?:\.\d+)?\b)/gm;
+    let result='',last=0,match;
+    const html=part=>escapeHtml(part);
+    while((match=token.exec(source))!==null){result+=html(source.slice(last,match.index));const v=match[0];const name=/^(\/\/|#|\/\*)/.test(v)?'comment':/^["'`]/.test(v)?'string':/^\d/.test(v)?'number':'keyword';result+='<span class="pc-syntax-'+name+'">'+html(v)+'</span>';last=token.lastIndex;}
+    return result+html(source.slice(last));
+  }
+  function physicalRichText(value){
+    const lines=String(value||'').replace(/\r/g,'').split('\n');let html='',code=[],lang='text';
+    const inline=line=>{
+      let s=escapeHtml(line);s=s.replace(/`([^`]+)`/g,'<code class="pc-inline-code">$1</code>');
+      s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
+      s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(_,label,url)=>'<a href="'+url.replace(/&quot;/g,'')+'" target="_blank" rel="noopener noreferrer">'+label+'</a>');return s;
+    };
+    for(const line of lines){const f=line.match(/^```([a-zA-Z0-9]*)\s*$/);if(f){if(code!==null && code.length){html+='<pre class="pc-lesson-code"><code>'+physicalHighlightSource(code.join('\n'))+'</code></pre>';code=[];}if(lang==='__open__'){lang='text';}else{lang='__open__';}continue;}
+      if(lang==='__open__'){code.push(line);continue;}
+      if(/^### /.test(line))html+='<h4>'+inline(line.slice(4))+'</h4>';
+      else if(/^## /.test(line))html+='<h3>'+inline(line.slice(3))+'</h3>';
+      else if(/^# /.test(line))html+='<h2>'+inline(line.slice(2))+'</h2>';
+      else if(/^[-*] /.test(line))html+='<div class="pc-lesson-list">• '+inline(line.slice(2))+'</div>';
+      else if(/^\d+\. /.test(line))html+='<div class="pc-lesson-list">'+inline(line)+'</div>';
+      else if(line.trim())html+='<p>'+inline(line)+'</p>';
+    }
+    if(code.length)html+='<pre class="pc-lesson-code"><code>'+physicalHighlightSource(code.join('\n'))+'</code></pre>';
+    return html;
+  }
+  function physicalLearnerBlock(block,completed){
+    if(block.type==='locked')return `<div class="pc-locked"><span>${icon('lock')}</span><div><strong>Next content is locked</strong><p>Submit the required quiz or assignment above to continue.</p></div></div>`;
+    const title=block.title?`<h2>${escapeHtml(block.title)}</h2>`:'';
+    const text=block.text?`<p>${textHtml(block.text)}</p>`:'';
+    if(block.type==='banner')return `<header class="pc-learning-banner">${physicalSafeMedia(block.url)?`<img src="${physicalSafeMedia(block.url)}" alt="" loading="lazy">`:''}<div class="pc-learning-banner-text"><span>PHYSICAL COURSE</span><h2>${escapeHtml(block.title||'Welcome')}</h2>${text}</div></header>`;
+    if(block.type==='heading')return `<div class="pc-learning-block pc-learning-heading"><h2>${escapeHtml(block.title||'Lesson heading')}</h2></div>`;
+    if(block.type==='paragraph')return `<article class="pc-learning-block pc-learning-rich">${title}${physicalRichText(block.text||'')}</article>`;
+    if(block.type==='code')return `<article class="pc-learning-block pc-learning-code">${title}<div class="pc-code-caption">${escapeHtml(block.language||'text')}</div><pre class="pc-lesson-code"><code data-code-language="${escapeHtml(block.language||'text')}">${physicalHighlightSource(String(block.text||''))}</code></pre></article>`;
+    if(block.type==='callout')return `<aside class="pc-learning-block pc-learning-callout">${title}${text}</aside>`;
+    if(block.type==='divider')return `<hr class="pc-learning-divider">`;
+    if(block.type==='image')return `<figure class="pc-learning-block pc-learning-figure">${block.url&&physicalSafeMedia(block.url)?`<img src="${physicalSafeMedia(block.url)}" alt="${escapeHtml(block.title||'Course image')}" loading="lazy">`:''}${block.title?`<figcaption>${escapeHtml(block.title)}</figcaption>`:''}</figure>`;
+    if(block.type==='gallery')return `<div class="pc-learning-block">${title}<div class="pc-learning-gallery">${(block.images||[]).filter(physicalSafeMedia).map((url,i)=>`<img src="${physicalSafeMedia(url)}" loading="lazy" alt="${escapeHtml(block.title||'Gallery')} ${i+1}">`).join('')}</div></div>`;
+    if(block.type==='download')return `<div class="pc-learning-block pc-learning-download">${title}${physicalSafeMedia(block.url)?`<a class="button button-secondary button-sm" href="${physicalSafeMedia(block.url)}" target="_blank" rel="noopener noreferrer">${icon('download')} Open resource</a>`:'<p>Resource will be added soon.</p>'}</div>`;
+    if(block.type==='quiz'||block.type==='assignment'){
+      const done=completed.includes(block.id);
+      const answers=(block.choices||[]).map((value,i)=>`<label class="pc-quiz-answer"><input type="radio" name="answer" value="${i}" required><span>${escapeHtml(value)}</span></label>`).join('');
+      return `<article class="pc-learning-block pc-learning-activity"><div class="pc-activity-kicker">${block.type==='quiz'?'Knowledge check':'Practice assignment'} ${block.required?'<span class="pc-required-tag">Submission required</span>':'<span class="pc-optional-tag">Optional</span>'}</div>${title}${text}${done?`<div class="pc-activity-complete">${icon('check')} Submitted successfully${block.required?' · Next content unlocked':''}</div>`:`<form class="physical-activity-form" data-block-id="${escapeHtml(block.id)}" data-course-id="${Number(physicalPageData.course.id)}">${block.type==='quiz'?`<fieldset class="pc-quiz-options"><legend class="sr-only">Choose one answer</legend>${answers}</fieldset>`:`<label class="pc-assignment-answer">Your written submission<textarea name="answer" rows="5" placeholder="Write your response here…" minlength="10" required></textarea></label>`}<button type="submit" class="button button-primary">${block.type==='quiz'?'Submit answer':'Submit assignment'} ${icon('arrow')}</button></form>`}</article>`;
+    }
+    return '';
+  }
+  function physicalSectionCanOpen(index){
+    if(!physicalPageData)return false;
+    const section=physicalPageData.sections[index];
+    return !!section && !section.locked;
+  }
+  function physicalLessonKind(section){return ['quiz','assignment'].includes(section?.kind)?section.kind:'lesson';}
+  function physicalModuleLabel(section){return String(section?.module||'Course introduction').trim()||'Course introduction';}
+  function renderPhysicalPageView(){
+    if(!physicalPageData)return;
+    const {course,sections,progress}=physicalPageData;
+    physicalSectionIndex=Math.min(Math.max(0,physicalSectionIndex),sections.length-1);
+    if(!physicalSectionCanOpen(physicalSectionIndex))physicalSectionIndex=0;
+    const section=sections[physicalSectionIndex];
+    const submitted=progress?.submitted||[];
+    const completed=(progress?.completed||[]).length;
+    const required=Number(physicalPageData.required_total||0);
+    const nextAllowed=physicalSectionCanOpen(physicalSectionIndex+1);
+    const kind=physicalLessonKind(section),module=physicalModuleLabel(section);
+    const toc=sections.map((s,i)=>{
+      const label=physicalModuleLabel(s),k=physicalLessonKind(s);
+      const group=i===0||label!==physicalModuleLabel(sections[i-1])?`<div class="pc-toc-module"><span>${icon('layers')}</span><strong>${escapeHtml(label)}</strong></div>`:'';
+      return `${group}<button type="button" class="pc-toc-item ${i===physicalSectionIndex?'active':''}" data-action="pc-learner-nav" data-section="${i}" ${physicalSectionCanOpen(i)?'':'disabled'}><span class="pc-toc-number">${physicalSectionCanOpen(i)?(k==='quiz'?'?':k==='assignment'?'✓':String(i+1).padStart(2,'0')):icon('lock')}</span><span><strong>${escapeHtml(s.title)}</strong><small>${k==='quiz'?'Quiz':k==='assignment'?'Assignment':'Lesson'} ${s.locked?'· Locked':(s.blocks||[]).length+' widgets'}</small></span></button>`;
+    }).join('');
+    const content=`<div class="recorded-library-toolbar premium-recorded-toolbar offline-student-toolbar pc-learner-toolbar"><a href="#/my-courses">${icon('arrowLeft')} My Courses</a><div class="recorded-toolbar-actions"><span class="recorded-toolbar-course">Physical / Offline</span><span class="recorded-learning-status">${required?`${completed}/${required} checkpoints submitted`:'Classroom learning'}</span></div></div>
+    <section class="player-shell recorded-private-course-shell offline-private-course-shell pc-learner-shell"><div class="player-layout recorded-private-layout offline-private-layout pc-learner-layout">
+      <main class="lesson-stage recorded-private-stage offline-private-stage pc-learner-main"><div class="pc-learner-main-header"><div class="pc-learning-crumb">${escapeHtml(module)} <span>›</span> ${kind==='lesson'?'Lesson':kind==='quiz'?'Quiz':'Assignment'} ${physicalSectionIndex+1} of ${sections.length}</div><h1>${escapeHtml(section.title)}</h1>${section.description?`<p>${textHtml(section.description)}</p>`:'<p>Work through the content below, then complete any required activity to continue.</p>'}</div>
+      <div class="pc-learner-blocks">${section.blocks.map(b=>physicalLearnerBlock(b,submitted)).join('')||'<div class="pc-learning-block">Content for this lesson has not been added yet.</div>'}</div>
+      <footer class="pc-learner-pager"><button class="button button-secondary" data-action="pc-learner-nav" data-section="${physicalSectionIndex-1}" ${physicalSectionIndex===0?'disabled':''}>${icon('arrowLeft')} Previous</button>${physicalSectionIndex+1<sections.length?`<button class="button button-primary" data-action="pc-learner-nav" data-section="${physicalSectionIndex+1}" ${nextAllowed?'':'disabled'}>Next lesson ${icon('arrow')}</button>`:'<a class="button button-secondary" href="#/my-courses">Back to My Courses</a>'}</footer>
+      </main>
+      <aside class="curriculum-sidebar recorded-course-sidebar offline-course-sidebar pc-learner-toc"><div class="curriculum-sidebar-head"><span class="eyebrow">Course contents</span><h2>${escapeHtml(course.title)}</h2><p class="muted">${sections.length} lessons · ${required?`${completed} of ${required} required activities complete`:'Classroom learning'}</p></div><nav aria-label="Physical course lessons and modules" class="pc-toc-items">${toc}</nav></aside>
+    </div></section>`;
+    dashboardShell('my-courses',content,course.title,'Physical / Offline · Private classroom course');
+    initPage();
+  }
+  async function renderPhysicalPrivatePage(slug){
+    if(!state.loggedIn){routeTo('/login');return;}
+    const course=courseBySlug(slug);if(!course){renderNotFound();return;}
+    const offline=studentEnrollmentForCourse(course.id,'offline');
+    const fallback=studentEnrollmentForCourse(course.id);
+    if(!offline && fallback?.delivery_mode==='recorded'){routeTo(studentRecordedCourseEntry(course.id).replace(/^#/,''));return;}
+    if(!offline && fallback?.delivery_mode==='live'){routeTo('/live-classes');return;}
+    if(!offline){toast('Active Physical course enrollment is required.','error');routeTo('/my-courses');return;}
+    dashboardShell('my-courses','<div class="panel player-loading offline-dashboard-loading"><div class="loading-spinner"></div><strong>Loading physical course…</strong></div>',course.title,'Physical / Offline course');
+    const request=++physicalRenderRequest;
+    try{
+      physicalPageData=await apiRequest('physical_student_page',{query:{course_id:course.id}});
+      if(request!==physicalRenderRequest)return;
+      if(!physicalPageData.sections.length){dashboardShell('my-courses',`<div class="panel empty-state"><h3>Private classroom page not ready</h3><p>The academy has not added physical course content yet.</p><a class="button button-primary" href="#/my-courses">Back to My Courses</a></div>`,course.title,'Physical / Offline course');return;}
+      physicalSectionIndex=0;
+      renderPhysicalPageView();
+    }catch(error){if(request!==physicalRenderRequest)return;dashboardShell('my-courses',`<div class="panel empty-state"><h3>Unable to open course</h3><p>${escapeHtml(error.message)}</p><a href="#/my-courses" class="button button-secondary">Back to My Courses</a></div>`,course.title,'Physical / Offline course');}
+  }
+  async function physicalSubmitActivity(form){
+    const button=form.querySelector('button[type="submit"]');
+    const fd=new FormData(form),answer=String(fd.get('answer')??'');
+    if(answer.trim()===''){toast('Complete your answer before submitting.','error');return;}
+    if(button)button.disabled=true;
+    try{
+      const result=await apiRequest('physical_student_submit',{method:'POST',body:{course_id:Number(form.dataset.courseId),block_id:form.dataset.blockId,answer}});
+      toast(result.message||'Submission saved.');
+      physicalPageData=await apiRequest('physical_student_page',{query:{course_id:Number(form.dataset.courseId)}});
+      renderPhysicalPageView();
+    }catch(error){toast(error.message,'error');if(button)button.disabled=false;}
+  }
+
   async function renderPlayer(slug) {
     if (!state.loggedIn) { routeTo('/login'); return; }
     const baseCourse = courseBySlug(slug);
@@ -6425,7 +6715,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
 
   function renderHelp() {
     setChrome('public');
-    const items = [...D.faqs,{q:'How do I create a learner account?',a:'Open the registration page, enter your contact information and choose a secure password of at least eight characters.'},{q:'How can I reset my password?',a:'Use the Forgot Password link on the sign-in page. Password reset emails are delivered through the academy SMTP system.'}];
+    const managedFaqs = D.content?.helpFaqExtras;
+    const items = Array.isArray(managedFaqs) && managedFaqs.length ? managedFaqs : (D.faqs||[]);
     app.innerHTML = `${pageHero({eyebrow:'Help Centre',title:'How can we help?',text:'Find quick answers about courses, plans, enrollment and learner accounts.',center:true})}<section class="page-section"><div class="container">${faqList(items)}<div class="mission-grid" style="margin-top:60px"><div class="form-section"><span class="eyebrow">Send a Message</span><h2>Contact academy support</h2><form id="contactForm" novalidate><div class="form-grid"><div class="form-group"><label>Full name</label><input class="form-control" name="name" required value="${escapeHtml(state.user.name === 'Academy Learner' ? '' : state.user.name)}"></div><div class="form-group"><label>Email address</label><input class="form-control" name="email" type="email" required value="${escapeHtml(state.user.email)}"></div><div class="form-group"><label>Phone number</label><input class="form-control" name="phone" value="${escapeHtml(state.user.phone)}"></div><div class="form-group"><label>Subject</label><input class="form-control" name="subject" required placeholder="Course, account or enrollment support"></div><div class="form-group full"><label>Message</label><textarea class="form-control" name="message" required placeholder="Tell us how we can help"></textarea></div></div><button class="button button-primary" type="submit">Send Message</button></form></div><div class="cta-panel"><h2>Speak with the academy team</h2><p>Call or email Full Stack Academy for course guidance, branch information and enrollment assistance.</p><div class="cta-actions"><a class="button button-primary" href="#/contact">Open Contact Page</a><a class="button button-secondary" href="#/courses">Browse Courses</a></div></div></div></div></section>`;
   }
   function renderLegal(type) {
@@ -6451,7 +6742,14 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       ['timing','Processing','Approved refund timing can depend on the original payment method and banking or payment-provider processing timelines.'],
       ['contact','Contact','Refund questions can be sent to info@fullstackacademy.in or discussed with the academy team at +91 9015 236 236.']
     ];
-    app.innerHTML=`${pageHero({eyebrow:'Academy Policy',title,text:intro,center:true})}<section class="page-section section-surface"><div class="container legal-premium-shell"><aside class="legal-premium-nav"><span>On this page</span>${sections.map(([id,h])=>`<a href="#${id}"><i class="premium-link-icon">${icon(id==='security'?'shield':id==='contact'?'mail':'file')}</i>${escapeHtml(h)}</a>`).join('')}</aside><article class="legal-premium-content"><div class="legal-updated">${icon('calendar')} Last updated: September 2026</div>${sections.map(([id,h,body])=>`<section id="${id}"><h2>${escapeHtml(h)}</h2><p>${escapeHtml(body)}</p></section>`).join('')}</article></div></section>`;
+    const configured=D.content?.legalPages?.[type];
+    const policySections=Array.isArray(configured?.sections) && configured.sections.length
+      ? configured.sections.filter(s=>s && String(s.title||'').trim()).map((s,i)=>[
+          'policy-'+i, String(s.title), String(s.body||'')
+        ]) : sections;
+    const policyIntro=typeof configured?.intro==='string' ? configured.intro : intro;
+    const policyUpdated=typeof configured?.updated==='string' ? configured.updated : 'September 2026';
+    app.innerHTML=`${pageHero({eyebrow:'Academy Policy',title,text:escapeHtml(policyIntro),center:true})}<section class="page-section section-surface"><div class="container legal-premium-shell"><aside class="legal-premium-nav"><span>On this page</span>${policySections.map(([id,h])=>`<a href="#${id}"><i class="premium-link-icon">${icon(id==='security'?'shield':id==='contact'?'mail':'file')}</i>${escapeHtml(h)}</a>`).join('')}</aside><article class="legal-premium-content"><div class="legal-updated">${icon('calendar')} Last updated: ${escapeHtml(policyUpdated)}</div>${policySections.map(([id,h,body])=>`<section id="${id}"><h2>${escapeHtml(h)}</h2><p>${escapeHtml(body)}</p></section>`).join('')}</article></div></section>`;
   }
 
   function renderNotFound() {
@@ -6476,7 +6774,13 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   function addToCart(id, silent = false, requestedMode = '') {
     id = Number(id);
     const course=courseById(id);
+    if(!course){toast('Course unavailable.','error');return false;}
     const mode=normalizePurchaseMode(requestedMode) || defaultCoursePurchaseMode(course);
+    const access=purchaseState(id,mode);
+    if(access.kind!=='available'){
+      if(!silent)toast(access.kind==='pending'?'An enrollment request for this course is already pending.':'This course format is already on your account.');
+      return false;
+    }
     state.cartModes = state.cartModes && typeof state.cartModes==='object' ? state.cartModes : {};
     const previous=normalizePurchaseMode(state.cartModes[id]);
     state.cartModes[id]=mode;
@@ -6488,6 +6792,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       toast(previous && previous!==mode ? `Course updated to ${purchaseModeLabel(mode)}.` : 'This course is already in your cart.');
     }
     updateHeader(); updateCartDrawer();
+    return true;
   }
 
   function removeFromCart(id) {
@@ -6513,7 +6818,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       else { state.wishlist.push(id); toast('Saved locally. Sign in to keep it in your account.'); }
     }
     write(LS.wishlist,state.wishlist);
-    if (state.currentPath.startsWith('/course/')) renderCourseDetail(state.currentPath.split('/')[2]);
+    if (state.currentPath.startsWith('/course/')) renderCourseDetail(state.currentPath.split('/')[2],new URLSearchParams((location.hash.split('?')[1]||'')).get('mode')||state.detailDeliveryMode);
     else if (state.currentPath === '/wishlist') renderWishlist();
     else if (state.currentPath === '/courses') updateCoursesResults();
     else if (state.currentPath === '/dashboard') renderDashboard();
@@ -6539,6 +6844,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   function validateForm(form) {
     let valid = true;
     form.querySelectorAll('[required]').forEach(input => {
+      if(input.disabled)return;
       const okay = input.type === 'checkbox' ? input.checked : input.value.trim() !== '' && input.checkValidity();
       input.classList.toggle('invalid',!okay);
       valid = valid && okay;
@@ -6548,7 +6854,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   }
 
   async function completeCheckout(form) {
-    if (!state.loggedIn) { toast('Please sign in before placing an order.','error'); routeTo('/login'); return; }
+    if (!state.loggedIn) { sessionStorage.setItem('fsa_after_auth_path','/checkout');toast('Please sign in before placing an order.','error'); routeTo('/login'); return; }
     try {
       const studentSession=await apiRequest('auth_me',{query:{account_type:'student'}});
       if(!studentSession.authenticated || studentSession.user?.role!=='student'){
@@ -6557,8 +6863,11 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       }
       state.user={...state.user,...studentSession.user};
     } catch(error){ toast(error.message||'Please sign in with your Student Profile.','error'); routeTo('/login'); return; }
-    if (!validateForm(form)) return;
+    const editing=!!form.querySelector('#checkoutBillingEditor:not([hidden])');
+    if(!validateForm(form))return;
+    prunePurchasedCart(true);
     const t = cartTotals();
+    if(!t.courseItems.length){routeTo('/my-courses');return;}
     const fd = new FormData(form);
     const submitButton = form.querySelector('button[type="submit"]');
     const originalText = submitButton?.innerHTML;
@@ -6568,11 +6877,12 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
         course_ids: t.courseItems.map(course => course.id),
         course_items: t.courseItems.map(course => ({course_id:Number(course.id),delivery_mode:course.cartMode||defaultCoursePurchaseMode(course)})),
         plan_id: '', billing: '', coupon: state.coupon || '',
-        name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'),
-        country: fd.get('country'), state: fd.get('state'), address: fd.get('address'), city: fd.get('city'), postal: fd.get('postal'),
+        reuse_billing:form.dataset.returning==='yes'&&!editing&&!!state.checkoutProfile?.email,
+        name: editing||form.dataset.returning!=='yes'?fd.get('name'):state.user.name, email:editing||form.dataset.returning!=='yes'?fd.get('email'):state.user.email, phone:editing||form.dataset.returning!=='yes'?fd.get('phone'):state.user.phone,
+        country:editing||form.dataset.returning!=='yes'?fd.get('country'):null, state:editing||form.dataset.returning!=='yes'?fd.get('state'):null, address:editing||form.dataset.returning!=='yes'?fd.get('address'):null, city:editing||form.dataset.returning!=='yes'?fd.get('city'):null, postal:editing||form.dataset.returning!=='yes'?fd.get('postal'):null,
         payment_method: fd.get('payment'), message: fd.get('message') || ''
       }});
-      state.user.name = fd.get('name'); state.user.email = fd.get('email'); state.user.phone = fd.get('phone');
+      // Student identity remains server-owned; checkout does not change the login email.
       write(LS.lastOrder,result.order);
       state.cart = []; state.cartModes = {}; state.coupon = null;
       write(LS.cart,[]); write(LS.cartModes,{});
@@ -6591,6 +6901,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     if (!form || form.tagName !== 'FORM') return;
     const formId = form.getAttribute('id') || '';
     event.preventDefault();
+    if(form.matches('.physical-activity-form')){await physicalSubmitActivity(form);return;}
     if (formId === 'checkoutForm') return completeCheckout(form);
     if (formId === 'loginForm') {
       if (!validateForm(form)) return;
@@ -6604,8 +6915,9 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
         toast('Signed in successfully.');
         if(result.user.role==='instructor') routeTo('/instructor-dashboard');
         else {
+          const afterAuth=sessionStorage.getItem('fsa_after_auth_path'); sessionStorage.removeItem('fsa_after_auth_path');
           const resumePath=recordedStudentResumePath();
-          routeTo(resumePath||'/dashboard');
+          routeTo(afterAuth&&state.cart.length?afterAuth:(resumePath||'/dashboard'));
         }
       } catch (error) { toast(error.message,'error'); }
       return;
@@ -6618,7 +6930,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       const originalText = submitButton?.textContent || 'Create Learner Account';
       if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Creating Account…'; }
       try {
-        const accountType=fd.get('account_type')==='instructor'?'instructor':'student';
+        const accountType='student';
         const result = await apiRequest('auth_register', { method:'POST', body:{ account_type:accountType,name:fd.get('name'),email:fd.get('email'),phone:fd.get('phone'),password:fd.get('password'),headline:fd.get('headline'),branch:fd.get('branch'),bio:fd.get('bio'),skills:String(fd.get('skills')||'').split(',').map(x=>x.trim()).filter(Boolean) } });
         if(accountType==='instructor'){
           state.loggedIn=false;toast(result.message);routeTo('/login');return;
@@ -6636,7 +6948,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
           state.orders = [];
         }
         toast(result.message);
-        routeTo('/dashboard');
+        const afterAuth=sessionStorage.getItem('fsa_after_auth_path'); sessionStorage.removeItem('fsa_after_auth_path');
+        routeTo(afterAuth&&state.cart.length?afterAuth:'/profile');
       } catch (error) {
         toast(error.message,'error');
       } finally {
@@ -6671,12 +6984,33 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       } catch (error) { toast(error.message,'error'); }
       return;
     }
+    if(formId==='emailOtpRequestForm'){
+      if(!validateForm(form))return;
+      const fd=new FormData(form);
+      try{ const result=await apiRequest('profile_email_request',{method:'POST',body:{email:fd.get('newEmail')}});toast(result.message); }
+      catch(error){toast(error.message,'error');}
+      return;
+    }
+    if(formId==='emailOtpConfirmForm'){
+      if(!validateForm(form))return;
+      const fd=new FormData(form);
+      try{const result=await apiRequest('profile_email_confirm',{method:'POST',body:{code:fd.get('code')}});state.user={...state.user,...result.user};toast(result.message);renderProfile();initPage();}
+      catch(error){toast(error.message,'error');}
+      return;
+    }
     if (formId === 'profileForm') {
       if (!validateForm(form)) return;
       const fd = new FormData(form);
       try {
-        const result = await apiRequest('profile_update',{method:'POST',body:{name:fd.get('name'),phone:fd.get('phone'),headline:fd.get('headline'),bio:fd.get('bio'),city:fd.get('city'),country:fd.get('country'),branch:fd.get('branch'),skills:String(fd.get('skills')||'').split(',').map(x=>x.trim()).filter(Boolean),profile_public:fd.get('profile_public')==='on'}});
+        const result = await apiRequest('profile_update',{method:'POST',body:{name:fd.get('name'),phone:fd.get('phone'),headline:fd.get('headline'),bio:fd.get('bio'),city:fd.get('city'),country:fd.get('country'),branch:fd.get('branch'),skills:String(fd.get('skills')||'').split(',').map(x=>x.trim()).filter(Boolean),profile_public:state.user.role==='student'?state.user.profile_public:fd.get('profile_public')==='on'}});
         ['name','email','phone','headline','city','country','bio'].forEach(k=>state.user[k]=fd.get(k));
+        if(state.user.role==='student'){
+          const personal={fatherName:fd.get('fatherName'),dob:fd.get('dob'),cnic:fd.get('cnic')};
+          for(const key of ['alumniRole','alumniCompany','alumniSalary','alumniLocation','alumniGraduationYear','alumniQuote','jobExperience','jobLocation','jobAvailability','jobSummary'])if(fd.has(key))personal[key]=fd.get(key);
+          if(fd.has('jobSkills'))personal.jobSkills=String(fd.get('jobSkills')||'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean);
+          await apiRequest('student_profile_details_save',{method:'POST',body:personal});
+          const extra=await apiRequest('student_profile_details');state.studentAdminProfile=extra.profile||{};
+        }
         state.user = { ...state.user, ...result.user }; toast(result.message); renderProfile(); initPage();
       } catch (error) { toast(error.message,'error'); }
       return;
@@ -6937,6 +7271,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       return;
     }
     const action = target.dataset.action;
+    if(action==='pc-learner-nav'){event.preventDefault();const index=Number(target.dataset.section);if(physicalSectionCanOpen(index)){physicalSectionIndex=index;renderPhysicalPageView();window.scrollTo({top:0,behavior:'smooth'});}return;}
     if (action === 'open-mobile-menu') openOverlay(mobileMenu);
     if (action === 'close-mobile-menu') closeOverlays();
     if (action === 'open-cart') { updateCartDrawer(); openOverlay(cartDrawer); }
@@ -6954,13 +7289,20 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     if (action === 'event-media-thumb') updateEventMedia(Number(target.dataset.index || 0));
     if (action === 'event-media-prev' || action === 'event-media-next') { const root=document.querySelector('[data-event-media-root]'); const current=Number(root?.dataset.current || 0); updateEventMedia(current + (action==='event-media-next'?1:-1)); }
     if (action === 'event-add-calendar') { const item=eventBySlug(target.dataset.slug); if(item){ downloadEventCalendar(item); toast('Calendar file downloaded.'); } }
+    if(action==='checkout-edit-billing'){
+      const panel=document.getElementById('checkoutBillingEditor');if(!panel)return;
+      const open=panel.hidden;panel.hidden=!open;target.setAttribute('aria-expanded',String(open));
+      target.textContent=open?'Use saved details':'Edit saved details';
+      panel.querySelectorAll('input,select').forEach(input=>input.disabled=!open);
+      return;
+    }
     if (action === 'add-cart') {
       const requestedMode=target.dataset.mode || (state.currentPath.startsWith('/course/') ? state.detailDeliveryMode : '');
       addToCart(target.dataset.id,false,requestedMode);
     }
     if (action === 'remove-cart') removeFromCart(target.dataset.id);
     if (action === 'open-cart') { updateCartDrawer(); openOverlay(cartDrawer); }
-    if (action === 'buy-now') { addToCart(target.dataset.id,true); routeTo('/checkout'); }
+    if (action === 'buy-now') { if(addToCart(target.dataset.id,true))routeTo('/checkout'); }
     if (action === 'toggle-wishlist') await toggleWishlist(target.dataset.id);
     if (action === 'move-wishlist') { const id=Number(target.dataset.id); if(!state.wishlist.includes(id)) state.wishlist.push(id); write(LS.wishlist,state.wishlist); removeFromCart(id); toast('Moved to wishlist.'); }
     if (action === 'toggle-faq') target.parentElement.classList.toggle('open');
@@ -6978,12 +7320,11 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       const course=state.currentPath.startsWith('/course/')?courseBySlug(state.currentPath.split('/')[2]):null;
       updateBatchResults(course);
     }
+    if (action === 'course-scroll-batches') { document.getElementById('course-batches')?.scrollIntoView({behavior:'smooth',block:'start'}); return; }
     if (action === 'detail-mode') {
-      state.detailDeliveryMode=target.dataset.mode||'live';
-      document.querySelectorAll('[data-action="detail-mode"]').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode===state.detailDeliveryMode));
-      const copy=document.getElementById('detailModeCopy');
-      if(copy)copy.innerHTML=state.detailDeliveryMode==='classroom'?`<span>${icon('classroom')}</span><div><strong>Offline Classroom</strong><p>Choose a Hyderabad branch and attend an instructor-led in-person batch.</p></div>`:state.detailDeliveryMode==='recorded'?`<span>${icon('video')}</span><div><strong>Recorded</strong><p>Start flexibly and continue through the private learner library at your own pace.</p></div>`:`<span>${icon('radio')}</span><div><strong>Live Streamed</strong><p>Join a scheduled instructor-led online batch in real time.</p></div>`;
-      if(state.detailDeliveryMode!=='recorded'&&target.closest('.fsa-course-detail-copy'))document.getElementById('course-batches')?.scrollIntoView({behavior:'smooth',block:'start'});
+      const selected=target.dataset.mode||'classroom';
+      history.replaceState(null,'',`#/course/${encodeURIComponent(state.currentPath.split('/')[2])}?mode=${encodeURIComponent(selected)}`);
+      renderCourseDetail(state.currentPath.split('/')[2],selected);initPage();
     }
     if (action === 'course-review-prev' || action === 'course-review-next') moveCourseReview(action==='course-review-next'?1:-1);
     if (action === 'category-link') routeTo(`/courses?category=${encodeURIComponent(target.dataset.category)}`);
@@ -7373,17 +7714,26 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     app.focus({preventScroll:true});
   }
 
-  function router() {
+  let routeRequest=0;
+  async function router() {
     closeOverlays();
     const raw = decodeURIComponent((location.hash || '#/').slice(1));
     const [path, query=''] = raw.split('?');
+    const request=++routeRequest;
     state.currentPath = path || '/';
+    const publicRoute=['/','/courses','/batches','/events','/about','/contact','/companies','/alumni','/candidates','/branches','/help','/terms','/privacy','/refund','/super40-bba'].includes(path)||path.startsWith('/course/')||path.startsWith('/event/');
+    if(publicRoute && D.content){try{await refreshCatalogData();}catch(error){toast(error.message||'Backend connection failed.','error');}if(request!==routeRequest)return;}
+    if(state.loggedIn && state.user?.role==='student' && (path.startsWith('/course/')||['/courses','/cart','/checkout'].includes(path))){
+      try{await syncStudentData();prunePurchasedCart();}catch(error){console.warn('Enrollment refresh unavailable:',error.message);}
+      if(request!==routeRequest)return;
+    }
+
     const recordedRoute=state.currentPath.startsWith('/recorded-lectures')||state.currentPath.startsWith('/instructor-recorded-lectures');
     if(!recordedRoute){stopRecordedDiscussion();stopRecordedLectureTracking();stopRecordedLecturePreview();}
     window.scrollTo(0,0);
     if (state.currentPath === '/') renderHome();
     else if (state.currentPath === '/courses') { if(query) state.currentPath=`/courses?${query}`; renderCourses(); state.currentPath='/courses'; }
-    else if (state.currentPath.startsWith('/course/')) renderCourseDetail(state.currentPath.split('/')[2]);
+    else if (state.currentPath.startsWith('/course/')) renderCourseDetail(state.currentPath.split('/')[2],new URLSearchParams(query).get('mode')||'');
     else if (state.currentPath === '/super40-bba') { setChrome('public'); if (window.FSA_SUPER40_PAGE) window.FSA_SUPER40_PAGE.render(app); else renderNotFound(); }
     else if (state.currentPath === '/batches') renderBatches();
     else if (state.currentPath === '/cart') renderCart();
@@ -7421,7 +7771,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     else if (state.currentPath.startsWith('/learn/')) {
       const slug=state.currentPath.split('/')[2],classroomTarget=new URLSearchParams(query).get('classroom')||'';
       if(classroomTarget)state.lessonTab='classroom';
-      const loading=renderPlayer(slug);
+      const loading=classroomTarget?renderPlayer(slug):renderPhysicalPrivatePage(slug);
       if(classroomTarget)Promise.resolve(loading).then(()=>{const [kind,id]=classroomTarget.split(':');if(kind==='quiz'&&id)openStudentQuiz(Number(id));else if(kind==='assignment'&&id)openStudentAssignment(Number(id));}).catch(error=>toast(error.message||'Unable to open coursework.','error'));
     }
     else if (state.currentPath === '/events') renderEvents(query);
@@ -7436,7 +7786,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
     else if (['/terms','/privacy','/refund'].includes(state.currentPath)) renderLegal(state.currentPath.slice(1));
     else renderNotFound();
     window.FSA_CMS?.applyRoute(state.currentPath, app);
-    initPage();
+    initPage();window.FSA_CONTENT?.apply();
     if (state.currentPath === '/branches' && query) {
       const branchId = new URLSearchParams(query).get('branch');
       if (branchId && D.branches.some(branch => branch.id === branchId)) {
@@ -7462,6 +7812,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
   window.addEventListener('hashchange',router);
   window.addEventListener('scroll',()=>{ header.classList.toggle('is-scrolled',window.scrollY>12); scrollTopButton.classList.toggle('show',window.scrollY>500); updateScrollProgress(); },{passive:true});
   window.addEventListener('keydown',event=>{ if(event.key==='Escape'){if(document.getElementById('studentClassroomModal'))closeStudentClassroomModal();else if(document.getElementById('instructorClassroomModal'))closeInstructorClassroomModal();else closeOverlays();} });
+  ['courses','plans','branches','instructors','batches','companies','alumni','candidates','events','reviews'].forEach(key=>D[key]=[]);
   applySiteSettings(siteSettings);
   (async function initializeApp() {
     try {
@@ -7493,6 +7844,8 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       state.user = { ...defaultUser };
       state.enrollments = [];
       state.studentEnrollmentRows = [];
+      state.allEnrollmentRows = [];
+      state.checkoutProfile = null;
       state.pendingEnrollments = [];
       state.progress = {};
       state.orders = [];
@@ -7505,6 +7858,7 @@ window.FSA_BUILD='v113-checkout-mode-session-fix';
       state.playerCourses = {};
       state.instructorData = {students:[],profile_requests:[],certificate_requests:[],certifications:[],courses:[],live_sessions:[],recordings:[],recorded_lectures:[],recorded_lecture_progress:[],quizzes:[],quiz_attempts:[],assignments:[],submissions:[]};
       toast(message.includes('install') ? 'Open /install/ to configure the MySQL database.' : (message || 'Backend connection failed. Check PHP and MySQL.'), 'error');
+      app.innerHTML='<section class="page-section"><div class="container"><p>Backend connection failed. Check PHP and MySQL.</p></div></section>';return;
     }
     router();
   })();

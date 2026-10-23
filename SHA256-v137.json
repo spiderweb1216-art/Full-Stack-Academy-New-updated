@@ -1,0 +1,10 @@
+{
+  "README-INSTALL-v137.txt": "fcbf2e2f20f4828d804cb929afa60801041d85fa1b0ce2151cf1cffbb16e2bee",
+  "QA-REPORT-v137.txt": "3ddcab29274aca6d99d3d7dcc58bcdb7987852a6306eaa835bde82c04507e45c",
+  "js/app.js": "876f90caca06f111d0f9ee58ce35b54719e29e0f5e0ebf5735e19996e7b4dcad",
+  "api/index.php": "ac774996552dc66b03d0e5fcf84e488b997e21f7d480d31eace833f52f443c30",
+  "admin/index.html": "05af9fb9336f3849ef73871739bc3114bf6e8316357bde0696d04870e5ff28ad",
+  "admin/js/admin.js": "1f2895bb9c46c73f43538f94ae8cd432d9b5b307f5f0f3b718d6b620ab2f2b05",
+  "admin/css/physical-pages.css": "37ae1a2573da0a23fa8b4b66a24fdcde83f5b79b0fc068a4b4eba5b59ef60c45",
+  "api/lib/PhysicalCourses.php": "217bb73a3b483409067a52ea5ea5c108c29879771cf3e1e0bad75d86729a9696"
+}

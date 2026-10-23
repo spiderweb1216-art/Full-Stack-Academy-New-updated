@@ -136,3 +136,25 @@
   .candidate-card-photo,.alumni-card-media{aspect-ratio:1.7/1}
   .alumni-company-side{min-width:88px}
 }
+
+/* Uniform 1:1 portrait frames across Candidate / Alumni public pages.
+   Keep the face near the upper edge rather than centered vertically. */
+.candidate-card .candidate-card-photo,
+.alumni-card .alumni-card-media { aspect-ratio: 1 / 1; height:auto; }
+.candidate-card .candidate-card-photo > img,
+.alumni-card .alumni-card-media > img { display:block; width:100%; height:100%; object-fit:cover; object-position:50% 0%; }
+
+/* FSA sidebar directories: five cards per desktop row; retain square portraits. */
+@media (min-width: 1280px) {
+  .placement-directory-section .company-grid,
+  .placement-directory-section .alumni-grid,
+  .company-grid, .alumni-grid, .candidate-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .company-card-body, .alumni-card-body { padding-left: 11px; padding-right: 11px; }
+  .alumni-company-side { min-width: 0; max-width: 78px; }
+}
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .company-grid, .alumni-grid, .candidate-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

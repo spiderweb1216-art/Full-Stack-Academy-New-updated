@@ -15,6 +15,17 @@
   const mediaPickerBackdrop = document.getElementById('mediaPickerBackdrop');
   const userForm = document.getElementById('userForm');
   const courseForm = document.getElementById('courseForm');
+  const courseEditorParams = new URLSearchParams(location.search);
+  const editorPageMode = courseEditorParams.has('courseEditor');
+  const requestedEditorId = Number(courseEditorParams.get('courseEditor')||0);
+  const requestedEditorMode = courseEditorParams.get('mode') || 'offline';
+  let editorPageOpened = false;
+  const editorUrl = (id,mode='offline') => `index.html?courseEditor=${encodeURIComponent(id||'new')}&mode=${encodeURIComponent(mode)}#courses`;
+  const openCourseEditorTab = (id,mode='offline') => {
+    if(!['super_admin','admin_staff','branch_head','branch_admin','instructor'].includes(normalizedRole())){toast('You cannot create courses with this role.','error');return;}
+    const w=window.open(editorUrl(id,mode),'_blank','noopener');
+    if(!w)toast('Allow pop-ups to open the course editor in a new tab.','error');
+  };
   const accessForm = document.getElementById('accessForm');
   const privateContentForm = document.getElementById('privateContentForm');
 
@@ -22,6 +33,7 @@
   const COURSE_MODE_LABELS = {offline:'Physical / Offline',live:'Live',recorded:'Recorded'};
   const COURSE_MODE_FIELDS = ['badge','image','short','contentHeading','description','price','originalPrice','duration','hours','projects','rating','reviews','students','level','language','updated','instructor','instructorRole'];
   let activeCourseMode = 'offline';
+  let categorizedEditorMode = 'offline';
   let enabledCourseModes = ['offline'];
   let courseModeDrafts = {offline:{},live:{},recorded:{}};
 
@@ -31,8 +43,8 @@
   };
 
   const titles = {
-    dashboard:'Overview', courses:'Courses', batches:'Batches', branches:'Branches', companies:'Companies', events:'Events', reviews:'Reviews', students:'Students', alumni:'Alumni', candidates:'Job Seekers', instructors:'Instructors', video:'Zoom Live', media:'Media Library', orders:'Orders', enrollments:'Enrollments', users:'Users', approvals:'Approvals', inquiries:'Enquiries',
-    smtp:'SMTP Setup', templates:'Email Templates', logs:'Email Logs', pages:'Pages', snippets:'Code Snippets', theme:'Theme Colors', settings:'Website Settings', account:'Admin Account'
+    heroSlider:'Homepage Slider', websiteContent:'Website Content', dashboard:'Overview', courseTypes:'Course Types', physicalCourses:'Physical Courses', recordedCourses:'Recorded Courses', liveCourses:'Live Courses', courses:'All Courses', batches:'Batches', branches:'Branches', companies:'Companies', events:'Events', reviews:'Reviews', students:'Students', alumni:'Alumni', candidates:'Job Seekers', instructors:'Instructors', video:'Zoom Live', media:'Media Library', orders:'Orders', enrollments:'Enrollments', users:'Users', approvals:'Approvals', inquiries:'Enquiries',
+    smtp:'SMTP Setup', templates:'Email Templates', logs:'Email Logs', pages:'Pages', snippets:'Code Snippets', theme:'Theme Colors', settings:'Website Settings', integrations:'Integrations', account:'Admin Account'
   };
 
   const esc = (value='') => String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[ch]));
@@ -47,16 +59,16 @@
   const isBranchRole = () => ['branch_head','branch_admin'].includes(normalizedRole());
   const ROLE_VIEWS = {
     super_admin:Object.keys(titles),
-    admin_staff:['dashboard','courses','batches','branches','companies','events','reviews','students','instructors','media','orders','enrollments','users','approvals','inquiries','account'],
-    branch_head:['dashboard','courses','batches','branches','students','instructors','media','enrollments','users','approvals','account'],
-    branch_admin:['dashboard','courses','batches','branches','students','instructors','media','enrollments','users','approvals','account'],
-    instructor:['dashboard','courses','media','account']
+    admin_staff:['heroSlider','websiteContent','dashboard','courseTypes','courses','physicalCourses','recordedCourses','liveCourses','batches','branches','companies','events','reviews','students','instructors','media','orders','enrollments','users','approvals','inquiries','account'],
+    branch_head:['dashboard','courses','physicalCourses','recordedCourses','liveCourses','batches','branches','students','instructors','media','enrollments','users','approvals','account'],
+    branch_admin:['dashboard','courses','physicalCourses','recordedCourses','liveCourses','batches','branches','students','instructors','media','enrollments','users','approvals','account'],
+    instructor:['dashboard','courses','physicalCourses','recordedCourses','liveCourses','media','account']
   };
   const canView = view => (ROLE_VIEWS[normalizedRole()]||['dashboard','account']).includes(view);
   const manageableRoles = () => ({
     super_admin:['super_admin','admin_staff','branch_head','branch_admin','instructor','student'],
     admin_staff:['branch_head'],
-    branch_head:['branch_admin','student'],
+    branch_head:['branch_admin','instructor','student'],
     branch_admin:['instructor','student'],
     instructor:[]
   }[normalizedRole()]||[]);
@@ -223,8 +235,46 @@
     const projectsEmpty=document.getElementById('projectsEmpty'); if(projectsEmpty)projectsEmpty.hidden=projectCount>0;
     const reviewsEmpty=document.getElementById('reviewsEmpty'); if(reviewsEmpty)reviewsEmpty.hidden=reviewCount>0;
   }
+  function publicLessonEditor(lesson={},index=0){
+    return `<div class="public-lesson-editor" data-public-lesson>
+      <span class="public-lesson-num" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
+      <label>Lesson title<input data-field="public-lesson-title" maxlength="190" placeholder="Lesson ${String(index+1).padStart(2,'0')} — Topic name" value="${builderInput(lesson.title||'')}"></label>
+      <label>Duration <small>Optional</small><input data-field="public-lesson-duration" maxlength="60" placeholder="20 min" value="${builderInput(lesson.duration||'')}"></label>
+      <div class="public-lesson-controls"><button type="button" data-action="public-move-lesson" data-direction="-1" aria-label="Move lesson up" title="Move lesson up">↑</button><button type="button" data-action="public-move-lesson" data-direction="1" aria-label="Move lesson down" title="Move lesson down">↓</button><button type="button" data-action="public-remove-lesson" aria-label="Remove lesson" title="Remove lesson">×</button></div>
+    </div>`;
+  }
+  function publicModuleEditor(module={}){
+    const lessons=Array.isArray(module.lessons)?module.lessons:[];
+    return `<article class="builder-card public-module-editor"><div class="builder-card-head"><strong class="public-module-num">Module</strong><div class="public-module-controls"><button type="button" data-action="public-move-module" data-direction="-1" aria-label="Move module up" title="Move module up">↑</button><button type="button" data-action="public-move-module" data-direction="1" aria-label="Move module down" title="Move module down">↓</button><button class="builder-remove" type="button" data-action="public-remove-module">Remove module</button></div></div><div class="builder-card-body"><div class="builder-row two"><label>Module heading<input data-field="public-module-title" maxlength="190" placeholder="Module 01 — Foundations" value="${builderInput(module.title)}"></label><label>Duration <small>Optional</small><input data-field="public-module-duration" maxlength="60" placeholder="2 hours" value="${builderInput(module.duration)}"></label></div><div class="public-lesson-list">${lessons.map(publicLessonEditor).join('')}</div><button class="secondary-button public-add-lesson" type="button" data-action="public-add-lesson">+ Add Lesson</button></div></article>`;
+  }
+  function refreshPublicModules(){
+    const groups=[...document.querySelectorAll('#publicCurriculumBuilder .public-module-editor')];
+    groups.forEach((group,i)=>{
+      const title=group.querySelector('.public-module-num');if(title)title.textContent=`Module ${String(i+1).padStart(2,'0')}`;
+      group.querySelectorAll('.public-lesson-editor').forEach((row,j)=>{const count=row.querySelector('.public-lesson-num');if(count)count.textContent=String(j+1).padStart(2,'0');});
+    });
+  }
+  function publicFaqEditor(row={}){
+    return `<article class="builder-card public-faq-editor"><div class="builder-card-head"><strong>Course FAQ</strong><button class="builder-remove" type="button" data-action="public-remove-faq">Remove</button></div><div class="builder-card-body"><label>Question<input data-field="public-faq-question" maxlength="500" placeholder="What will I learn?" value="${builderInput(row.q)}"></label><label>Answer<textarea data-field="public-faq-answer" rows="3" maxlength="6000">${builderInput(row.a)}</textarea></label></div></article>`;
+  }
+  function collectPublicModules(){
+    return [...document.querySelectorAll('#publicCurriculumBuilder .public-module-editor')].map((card,i)=>({
+      title:card.querySelector('[data-field="public-module-title"]')?.value.trim()||`Module ${String(i+1).padStart(2,'0')}`,
+      duration:card.querySelector('[data-field="public-module-duration"]')?.value.trim()||'',
+      lessons:[...card.querySelectorAll('.public-lesson-editor')].map(row=>({
+        title:row.querySelector('[data-field="public-lesson-title"]')?.value.trim()||'',
+        duration:row.querySelector('[data-field="public-lesson-duration"]')?.value.trim()||'',preview:false
+      })).filter(l=>l.title)
+    })).filter(m=>m.title);
+  }
+  function collectPublicFaqs(){
+    return [...document.querySelectorAll('#publicFaqBuilder .public-faq-editor')].map(card=>({
+      q:card.querySelector('[data-field="public-faq-question"]')?.value.trim()||'',
+      a:card.querySelector('[data-field="public-faq-answer"]')?.value.trim()||''
+    })).filter(row=>row.q&&row.a);
+  }
   function emptyCourseModeContent(){
-    return {badge:'',image:'',short:'',contentHeading:'',description:'',price:'',originalPrice:'',duration:'',hours:'',projects:'',rating:'',reviews:'',students:'',level:'',language:'',updated:'',instructor:'',instructorRole:'',skills:[],requirements:[],audience:[],projectItems:[],courseReviews:[]};
+    return {badge:'',image:'',short:'',contentHeading:'',description:'',price:'',originalPrice:'',duration:'',hours:'',projects:'',rating:'',reviews:'',students:'',level:'',language:'',updated:'',instructor:'',instructorRole:'',skills:[],requirements:[],audience:[],projectItems:[],courseReviews:[],publicModules:[],publicModulesManaged:false,publicFaqs:[]};
   }
   function normalizeCourseModeDraft(value={}){
     const base=emptyCourseModeContent();
@@ -234,6 +284,9 @@
     base.audience=Array.isArray(base.audience)?base.audience:[];
     base.projectItems=Array.isArray(base.projectItems)?base.projectItems:[];
     base.courseReviews=Array.isArray(base.courseReviews)?base.courseReviews:[];
+    base.publicModules=Array.isArray(base.publicModules)?base.publicModules:[];
+    base.publicModulesManaged=Boolean(base.publicModulesManaged);
+    base.publicFaqs=Array.isArray(base.publicFaqs)?base.publicFaqs:[];
     return base;
   }
   function captureActiveCourseMode(){
@@ -243,8 +296,10 @@
     draft.skills=splitLines(courseForm.elements.skills?.value||'');
     draft.requirements=splitLines(courseForm.elements.requirements?.value||'');
     draft.audience=splitLines(courseForm.elements.audience?.value||'');
-    draft.projectItems=collectProjects();
-    draft.courseReviews=collectReviews();
+    // Keep legacy projects and reviews in storage; they are not part of the lean public-page editor.
+    draft.publicModules=collectPublicModules();
+    draft.publicModulesManaged=true;
+    // Preserve legacy per-course FAQs without showing them on the course detail page.
     if(draft.projectItems.length) draft.projects=draft.projectItems.length;
     if(draft.courseReviews.length){
       draft.reviews=Math.max(Number(draft.reviews||0),draft.courseReviews.length);
@@ -253,6 +308,17 @@
     courseModeDrafts[activeCourseMode]=draft;
   }
   function updateCourseModeTabs(){
+    const availability=document.getElementById('fsaFormatAvailability');
+    if(availability){
+      availability.querySelectorAll('input[data-mode]').forEach(box=>{box.checked=enabledCourseModes.includes(box.dataset.mode);});
+      const summary=availability.querySelector('[data-format-summary]');
+      if(summary)summary.textContent=enabledCourseModes.length===3?'All three course formats enabled. Click Save Public Page to save changes.':`${enabledCourseModes.length} format${enabledCourseModes.length===1?'':'s'} enabled. Select an inactive card to activate it, or choose Enable all.`;
+      availability.querySelectorAll('[data-format-status]').forEach(node=>{
+        const active=enabledCourseModes.includes(node.dataset.formatStatus);
+        node.textContent=active?'Enabled':'Disabled';
+        node.closest('.fsa-format-option')?.classList.toggle('is-enabled',active);
+      });
+    }
     document.querySelectorAll('.course-mode-tab').forEach(button=>{
       const mode=button.dataset.mode;
       const selected=mode===activeCourseMode;
@@ -268,21 +334,33 @@
       const enabled=enabledCourseModes.includes(activeCourseMode);
       const descriptions={offline:'Classroom / branch-based content and pricing.',live:'Instructor-led live online content and pricing.',recorded:'Self-paced recorded content and pricing.'};
       context.classList.toggle('is-disabled',!enabled);
-      context.innerHTML=`<strong>${esc(COURSE_MODE_LABELS[activeCourseMode])} ${enabled?'content':'is not enabled'}</strong><span>${enabled?'Everything below is stored separately for this delivery type — including image, descriptions, price, duration, outcomes, requirements, projects and reviews. '+descriptions[activeCourseMode]:'Click the + on this tab to enable this delivery type, then enter its own separate content.'}</span>`;
+      context.innerHTML=`<strong>${esc(COURSE_MODE_LABELS[activeCourseMode])} ${enabled?'content':'is not enabled'}</strong><span>${enabled?'Everything below is stored separately for this delivery type — including image, descriptions, price, duration, outcomes, requirements and curriculum modules. '+descriptions[activeCourseMode]:'Click the + on this tab to enable this delivery type, then enter its own separate content.'}</span>`;
     }
   }
-  function toggleCourseMode(mode){
-    if(!COURSE_MODES.includes(mode)) return;
+  function setCourseModeEnabled(mode,enabled){
+    if(!COURSE_MODES.includes(mode))return;
+    const alreadyEnabled=enabledCourseModes.includes(mode);
+    if(alreadyEnabled===enabled){updateCourseModeTabs();return;}
+    if(!enabled && enabledCourseModes.length===1){
+      toast('At least one course format must remain enabled.','error');
+      updateCourseModeTabs();
+      return;
+    }
     captureActiveCourseMode();
-    if(enabledCourseModes.includes(mode)){
-      if(enabledCourseModes.length===1){toast('A course must have at least one delivery type.','error');return;}
-      enabledCourseModes=enabledCourseModes.filter(x=>x!==mode);
-      if(activeCourseMode===mode) activeCourseMode=enabledCourseModes[0];
-    }else{
-      enabledCourseModes=[...enabledCourseModes,mode];
+    if(enabled){
+      enabledCourseModes=COURSE_MODES.filter(m=>enabledCourseModes.includes(m)||m===mode);
       activeCourseMode=mode;
+    }else{
+      enabledCourseModes=enabledCourseModes.filter(m=>m!==mode);
+      if(activeCourseMode===mode)activeCourseMode=enabledCourseModes[0];
     }
     loadCourseMode(activeCourseMode);
+  }
+  function enableAllCourseModes(){
+    captureActiveCourseMode();
+    enabledCourseModes=[...COURSE_MODES];
+    loadCourseMode(activeCourseMode);
+    toast('All three formats are enabled in this editor. Save Public Page to keep the changes.');
   }
   function loadCourseMode(mode){
     activeCourseMode=COURSE_MODES.includes(mode)?mode:'offline';
@@ -291,21 +369,22 @@
     if(courseForm.elements.skills) courseForm.elements.skills.value=toLines(draft.skills);
     if(courseForm.elements.requirements) courseForm.elements.requirements.value=toLines(draft.requirements);
     if(courseForm.elements.audience) courseForm.elements.audience.value=toLines(draft.audience);
-    document.getElementById('projectsBuilder').innerHTML=draft.projectItems.map(projectEditor).join('');
-    document.getElementById('reviewsBuilder').innerHTML=draft.courseReviews.map(reviewEditor).join('');
-    refreshBuilders();
+    const starter=[{title:'Module 01',duration:'',lessons:[{title:'Lesson 01',duration:''}]}];
+    const publicModules=draft.publicModules.length?draft.publicModules:(draft.publicModulesManaged?[]:starter);
+    document.getElementById('publicCurriculumBuilder').innerHTML=publicModules.map(publicModuleEditor).join('');
+    refreshPublicModules();
     updateImagePreview(courseForm.elements.image);
     updateCourseModeTabs();
   }
   function switchCourseMode(mode){
     if(!COURSE_MODES.includes(mode)) return;
-    if(mode===activeCourseMode){
-      if(!enabledCourseModes.includes(mode)){enabledCourseModes.push(mode);updateCourseModeTabs();}
-      return;
-    }
-    captureActiveCourseMode();
-    if(!enabledCourseModes.includes(mode)) enabledCourseModes.push(mode);
-    loadCourseMode(mode);
+    // The entire format card (including its + sign) has a single action:
+    // select the format and ENABLE it if it was not already offered.
+    const switching=mode!==activeCourseMode;
+    if(switching) captureActiveCourseMode();
+    if(!enabledCourseModes.includes(mode)) enabledCourseModes=[...enabledCourseModes,mode];
+    if(switching)loadCourseMode(mode);
+    else updateCourseModeTabs();
   }
 
   function renderCourseBuilders(course={}) {
@@ -313,8 +392,7 @@
     const projects=Array.isArray(course.projectItems)?course.projectItems:[];
     const reviews=Array.isArray(course.courseReviews)?course.courseReviews:[];
     document.getElementById('curriculumBuilder').innerHTML=modules.map(moduleEditor).join('');
-    document.getElementById('projectsBuilder').innerHTML=projects.map(projectEditor).join('');
-    document.getElementById('reviewsBuilder').innerHTML=reviews.map(reviewEditor).join('');
+    // Old project/review data remains in the course record but is not edited here.
     refreshBuilders();
   }
   function collectLessonResources(value='') {
@@ -388,7 +466,7 @@
 
     let response;
     try {
-      response = await fetch(`${API}?action=${encodeURIComponent(action)}`, init);
+      response = await fetch(`${API}?${new URLSearchParams({action,...(options.query||{})}).toString()}`, init);
     } catch (_) {
       throw new Error('The admin panel could not reach the backend. Check PHP, the database connection and your internet connection.');
     }
@@ -450,6 +528,9 @@
       const email=String(fd.get('email')||'').trim();
       const password=String(fd.get('password')||'');
       if(!name) throw new Error('Enter the user full name.');
+      const role=String(fd.get('role')||'');
+      if(role==='student') throw new Error('Create and manage students in Student Management.');
+      if(['branch_head','branch_admin','instructor'].includes(role)&&!String(fd.get('branch')||'').trim()) throw new Error('Please select a branch for this role.');
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid user email address.');
       if(!id && password.length<8) throw new Error('Enter a password of at least 8 characters for the new user.');
       if(id && password && password.length<8) throw new Error('A new password must contain at least 8 characters.');
@@ -469,8 +550,24 @@
       if(!slug) throw new Error('Enter a valid course URL slug.');
     }
   }
+  let adminAlerts=[];
+  let notificationPoll=null;
+  const alertsButton=()=>document.getElementById('adminAlertsButton');
+  async function refreshAdminAlerts(){
+    if(!state.user)return;
+    try{
+      const data=await api('admin_notifications');adminAlerts=data.items||[];
+      const num=Math.min(99,Number(data.count||0));
+      const badge=document.getElementById('adminAlertsCount');if(badge){badge.textContent=num>=99?'99+':String(num);badge.hidden=!num;}
+      const side=document.getElementById('adminApprovalsCount');if(side){side.textContent=String(data.pending||'');side.hidden=!data.pending;}
+      const list=document.getElementById('adminAlertsItems');
+      if(list)list.innerHTML=adminAlerts.length?adminAlerts.map(item=>`<button type="button" class="academy-notice ${item.read?'is-read':'is-new'}" data-action="academy-open-notice" data-key="${esc(item.key)}" data-next-view="${esc(item.view)}"><span class="academy-notice-dot"></span><span><strong>${esc(item.title)}</strong><small>${esc(item.description)}</small></span></button>`).join(''):'<p class="academy-alerts-empty">You are all caught up.</p>';
+    }catch(e){/* Keep the main dashboard usable if notifications are unavailable. */}
+  }
+  function startAdminAlerts(){refreshAdminAlerts();if(notificationPoll)clearInterval(notificationPoll);notificationPoll=setInterval(()=>{if(state.user&&!document.hidden)refreshAdminAlerts();},45000);}
   function showLogin(message=''){
     setModalOpen(modalBackdrop,false); setModalOpen(courseModalBackdrop,false); setModalOpen(accessModalBackdrop,false); setModalOpen(contentModalBackdrop,false); setModalOpen(mediaPickerBackdrop,false);
+    state.user=null;if(notificationPoll){clearInterval(notificationPoll);notificationPoll=null;}
     document.body.classList.remove('admin-mode'); loginView.hidden=false; adminApp.hidden=true; sidebar.classList.remove('open');
     setLoginStatus(message,Boolean(message));
     document.getElementById('adminLoginForm')?.elements.email?.focus();
@@ -481,9 +578,10 @@
     document.getElementById('adminName').textContent=state.user?.name || 'Administrator';
     document.getElementById('adminRole').textContent=roleLabel(state.user?.role);
     document.getElementById('adminInitials').textContent=initials(state.user?.name);
-    applyRoleNavigation();
+    applyRoleNavigation();startAdminAlerts();
     const requested=view || location.hash.slice(1) || 'dashboard';
-    const safeView=titles[requested] && canView(requested) ? requested : 'dashboard';
+    const alias=requested;
+    const safeView=titles[alias] && canView(alias) ? alias : 'dashboard';
     history.replaceState(null,'',`#${safeView}`);
     navigate(safeView,false);
   }
@@ -495,13 +593,20 @@
     if(!titles[view] || !canView(view)) view='dashboard'; state.view=view; if(updateHash) location.hash=view;
     document.getElementById('viewTitle').textContent=titles[view];
     document.querySelectorAll('.admin-nav [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
+    document.querySelector('[data-courses-menu]')?.classList.toggle('is-active',['courses','courseTypes','physicalCourses','recordedCourses','liveCourses'].includes(view));
     const studentsGroup=document.querySelector('[data-students-menu]');
     if(studentsGroup) studentsGroup.classList.toggle('is-active',view==='students');
     document.querySelectorAll('[data-student-section]').forEach(btn=>btn.classList.toggle('active',view==='students' && btn.dataset.studentSection===state.studentTab));
     sidebar.classList.remove('open'); loading();
     try {
-      if(view==='dashboard') await renderDashboard();
-      else if(view==='courses') await renderCourses();
+      if(view==='heroSlider') await renderHeroSlider();
+      else if(view==='websiteContent') await renderWebsiteContent();
+      else if(view==='dashboard') await renderDashboard();
+      else if(view==='courses') await renderAllCourses();
+      else if(view==='courseTypes') await renderCourseTypes();
+      else if(view==='physicalCourses') await renderPhysicalCourses();
+      else if(view==='recordedCourses') await renderModeCourses('recorded');
+      else if(view==='liveCourses') await renderModeCourses('live');
       else if(view==='batches') await renderBatchesAdmin();
       else if(view==='branches') await renderBranchesAdmin();
       else if(view==='companies') await renderCompaniesAdmin();
@@ -516,7 +621,7 @@
       else if(view==='orders') await renderOrders();
       else if(view==='enrollments') await renderEnrollments();
       else if(view==='users') await renderUsers();
-      else if(view==='approvals') await renderApprovals();
+      else if(view==='approvals'){await renderApprovals();refreshAdminAlerts();}
       else if(view==='inquiries') await renderInquiries();
       else if(view==='smtp') await renderSmtp();
       else if(view==='templates') await renderTemplates();
@@ -525,12 +630,34 @@
       else if(view==='snippets') await renderCmsSnippets();
       else if(view==='theme') await renderTheme();
       else if(view==='settings') await renderSettings();
+      else if(view==='integrations') await renderStudentIntegrations();
       else if(view==='account') renderAccount();
     } catch(error){
       if(error.installUrl){ content.innerHTML=`${emptyState('MySQL setup required','Open the installer to create the database and first administrator account.')}<div style="text-align:center;margin-top:15px"><a class="primary-button" href="../install/">Open Installer</a></div>`; }
       else content.innerHTML=emptyState('Unable to load this section',error.message);
       toast(error.message,'error'); if(/sign in|administrator access/i.test(error.message)) showLogin();
     }
+  }
+
+
+  async function renderStudentIntegrations(){
+    const res=await api('admin_student_integrations');const c=res.settings||{};const providers=c.providers||{};
+    const sw=(name,on,disabled=false)=>`<label class="integration-switch" aria-label="${name}" title="${disabled?'SMS gateway integration is required before activation':'Toggle '+name}"><input type="checkbox" name="${name}" ${on?'checked':''} ${disabled?'disabled':''}><span class="integration-switch-track"></span><span class="integration-switch-text">${disabled?'Unavailable':on?'On':'Off'}</span></label>`;
+    const providerCard=(key,label,description)=>{const v=providers[key]||{};return `<article class="settings-card integration-card"><div class="int-head"><div><h2>${label}</h2><p>${description}</p></div>${sw(key+'_enabled',!!v.enabled)}</div><div class="settings-form"><label>OAuth Client ID<input name="${key}_id" value="${esc(v.client_id||'')}" autocomplete="off" placeholder="Client / Application ID"></label><label>Client secret<input name="${key}_secret" type="password" value="" autocomplete="new-password" placeholder="${v.has_secret?'Configured — leave blank to keep':'Paste new client secret'}"></label></div></article>`};
+    content.innerHTML=`${pageHead('Student Login Integrations','Configure student-only sign-in providers and authentication security.')}
+      <form id="studentIntegrationsForm" class="integrations-stack">
+       ${providerCard('google','Google','Google Cloud OAuth 2.0 web application')}
+       ${providerCard('microsoft','Microsoft','Microsoft Entra ID application registration')}
+       ${providerCard('linkedin','LinkedIn','Sign In with LinkedIn using OpenID Connect')}
+       <article class="settings-card integration-card"><div class="int-head"><div><h2>Verification and abuse protection</h2><p>Manage student sign-in security and identity verification.</p></div></div>
+         <div class="integration-option-list">
+           <div class="integration-option"><div><strong>Email OTP</strong><p>Send a verification code through the configured SMTP service after password sign-in. Maximum five attempts within 15 minutes.</p></div>${sw('otp_email_enabled',!!c.otp_email_enabled)}</div>
+           <div class="integration-option"><div><strong>SMS OTP</strong><p>An SMS gateway is not connected yet. SMS codes cannot be sent or verified until a provider such as Twilio is configured in the backend.</p><span class="integration-unavailable">Requires SMS gateway integration</span></div>${sw('otp_sms_enabled',false,true)}</div>
+         </div>
+         <div class="settings-form integration-captcha"><label>reCAPTCHA type<select name="recaptcha_mode"><option value="off" ${!c.recaptcha_mode||c.recaptcha_mode==='off'?'selected':''}>Disabled</option><option value="v2" ${c.recaptcha_mode==='v2'?'selected':''}>v2 checkbox</option><option value="v3" ${c.recaptcha_mode==='v3'?'selected':''}>v3 score-based</option></select></label><label>reCAPTCHA site key<input name="recaptcha_site_key" value="${esc(c.recaptcha_site_key||'')}"></label><label>reCAPTCHA secret<input name="recaptcha_secret" type="password" placeholder="${c.recaptcha_has_secret?'Configured — leave blank to keep':'Secret key'}" autocomplete="new-password"></label></div><p class="form-hint">reCAPTCHA keys are saved, but challenge validation is not yet enforced by the current public login backend. Login attempts are limited to five failures in 15 minutes.</p>
+       </article><div class="int-save"><button class="primary-button" type="submit">Save Integrations</button></div>
+      </form>`;
+    content.querySelectorAll('.integration-switch input:not(:disabled)').forEach(el=>el.addEventListener('change',()=>{const t=el.parentElement.querySelector('.integration-switch-text');if(t)t.textContent=el.checked?'On':'Off'}));
   }
 
   async function renderDashboard(){
@@ -558,41 +685,67 @@
       ${recentUsers.length?`<div class="activity-list">${recentUsers.map(user=>`<div class="activity-item"><span class="activity-avatar">${initials(user.name)}</span><div><strong>${esc(user.name)}</strong><p>${esc(user.email)} · ${esc(roleLabel(user.role))}</p></div><span class="${statusClass(user.status)}">${esc(user.status)}</span></div>`).join('')}</div>`:emptyState('No users yet','New registrations will appear here.')}</div>`;
   }
 
-  async function renderCourses(){
-    const role=normalizedRole();
-    if(['super_admin','admin_staff','branch_head','branch_admin'].includes(role)){
-      const [result,branchesResult,instructorsResult]=await Promise.all([api('admin_courses'),api('admin_branches'),api('admin_instructors')]);
-      state.courses=result.courses||[];state.branches=branchesResult.branches||[];state.instructors=instructorsResult.instructors||[];
-    }else{const result=await api('admin_courses');state.courses=result.courses||[];}
-    drawCourses();
-  }
-  function drawCourses(){
-    const role=normalizedRole();const central=isCentralRole();const instructor=role==='instructor';
-    const addAction=central?'<button class="primary-button" data-action="add-course">+ Add Course</button>':'';
-    content.innerHTML=`${pageHead('Course Management',instructor?'Only courses assigned to your instructor account are shown. Recorded LMS courses require the Recorded Lectures permission before you can prepare them.':isBranchRole()?'Only courses assigned to your branch are shown. Branch approvals appear in Approval Centre.':'Assign a branch and instructor, then manage public course pages and protected LMS lessons.',addAction)}
-      <div class="toolbar"><div class="toolbar-group"><span class="form-hint">${state.courses.length} course${state.courses.length===1?'':'s'} in your access scope</span></div></div>
-      <div class="table-wrap">${state.courses.length?`<table class="data-table"><thead><tr><th>Course</th><th>Type</th><th>Branch / Instructor</th><th>Lessons</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.courses.map(course=>{const approval=course.approvalStatus||'approved';const modes=Array.isArray(course.deliveryModes)&&course.deliveryModes.length?course.deliveryModes:[course.deliveryMode||'offline'];const recorded=modes.includes('recorded');const recordedBlocked=instructor&&recorded&&!Boolean(state.user?.can_record_lectures);const contentAction=recordedBlocked?'<span class="status-pill status-pending">Recorded permission required</span>':`<button data-action="edit-private-content" data-id="${course.id}">${instructor?'Prepare LMS Content':'Private Lessons'}</button>`;const actions=[central?`<button data-action="edit-course" data-id="${course.id}">Edit Course</button>`:'',contentAction,`<a href="../#/course/${encodeURIComponent(course.slug)}" target="_blank">View</a>`,central?`<button data-action="delete-course" data-id="${course.id}">Delete</button>`:''].filter(Boolean).join('');return `<tr><td><div class="user-cell"><span>${initials(course.title)}</span><div><strong>${esc(course.title)}</strong><small>${esc(course.slug)}</small></div></div></td><td>${modes.map(mode=>`<span class="course-mode-pill">${esc(COURSE_MODE_LABELS[mode]||mode)}</span>`).join(' ')}</td><td><strong>${esc(course.branchName||'Not assigned')}</strong><br><small>${esc(state.instructors.find(x=>Number(x.id)===Number(course.instructorUserId))?.name||course.instructor||'No instructor')}</small></td><td>${course.lessons}${course.pendingLessons?`<br><small>${course.pendingLessons} pending</small>`:''}</td><td><span class="${statusClass(approval)}">${esc(approval)}</span><br><small>${course.approvalKind==='central'?'Central approval':course.approvalKind==='branch'?'Branch approval':''}</small></td><td><span class="${statusClass(course.status)}">${esc(course.status)}</span></td><td><div class="row-actions">${actions}</div></td></tr>`;}).join('')}</tbody></table>`:emptyState('No courses found',instructor?'No course has been assigned to you yet.':'No course is available in your access scope.')}</div>`;
-  }
-  function openCourseModal(course=null){
+  function openCourseModal(course=null, scopedMode=null, activateOnOpen=false){
     setFormStatus('courseForm');
     courseForm.reset();
     const set=(name,value)=>{ if(courseForm.elements[name]) courseForm.elements[name].value=value ?? ''; };
     ['id','title','slug','category','status'].forEach(name=>set(name,course?.[name]));
     courseForm.elements.status.value=course?.status||'published';
+    if(normalizedRole()==='instructor')courseForm.elements.status.value='draft';
+    if(courseForm.elements.visibility)courseForm.elements.visibility.value=course?.visibility||'public';
     courseForm.elements.featured.checked=Boolean(course?.featured);
     if(courseForm.elements.branchName)courseForm.elements.branchName.innerHTML='<option value="">Choose branch</option>'+state.branches.map(b=>`<option value="${esc(b.shortName||b.name||b.slug)}" ${(b.shortName||b.name||b.slug)===(course?.branchName||'')?'selected':''}>${esc(b.shortName||b.name)}</option>`).join('');
-    if(courseForm.elements.assignedInstructorId)courseForm.elements.assignedInstructorId.innerHTML='<option value="0">No instructor assigned</option>'+state.instructors.map(i=>`<option value="${i.id}" ${Number(i.id)===Number(course?.instructorUserId||0)?'selected':''}>${esc(i.name)} — ${esc(i.branch||'No branch')}</option>`).join('');
+    if(courseForm.elements.assignedInstructorId)courseForm.elements.assignedInstructorId.innerHTML='<option value="0">No instructor assigned</option>'+state.instructors.filter(i=>!isBranchRole()||String(i.branch||'').toLowerCase()===String(state.user?.branch||'').toLowerCase()).map(i=>`<option value="${i.id}" ${Number(i.id)===Number(course?.instructorUserId||0)?'selected':''}>${esc(i.name)} — ${esc(i.branch||'No branch')}</option>`).join('');
+    if(isBranchRole()||normalizedRole()==='instructor'){
+      if(courseForm.elements.branchName){courseForm.elements.branchName.innerHTML=`<option value="${esc(state.user?.branch||'')}">${esc(state.user?.branch||'Assigned branch')}</option>`;courseForm.elements.branchName.value=state.user?.branch||'';}
+    }
+    if(normalizedRole()==='instructor'){
+      if(courseForm.elements.assignedInstructorId){courseForm.elements.assignedInstructorId.innerHTML=`<option value="${Number(state.user.id)}">${esc(state.user.name)}</option>`;courseForm.elements.assignedInstructorId.value=String(state.user.id);}
+      if(courseForm.elements.visibility)courseForm.elements.visibility.value='public';
+    }
+    courseForm.querySelectorAll('[data-central-publish-only]').forEach(node=>node.hidden=normalizedRole()==='instructor');
 
-    enabledCourseModes=Array.isArray(course?.deliveryModes)?course.deliveryModes.filter(mode=>COURSE_MODES.includes(mode)):[];
-    if(!enabledCourseModes.length) enabledCourseModes=[COURSE_MODES.includes(course?.deliveryMode)?course.deliveryMode:'offline'];
-    activeCourseMode=enabledCourseModes[0]||'offline';
+    // New public courses begin with Physical, Live and Recorded enabled.
+    // Existing courses retain their database setting until the editor saves a change.
+    enabledCourseModes=course
+      ? (Array.isArray(course.deliveryModes)?course.deliveryModes.filter(mode=>COURSE_MODES.includes(mode)):[])
+      : [...COURSE_MODES];
+    if(course && !enabledCourseModes.length && !(course.deliveryModes||[]).includes('disabled'))
+      enabledCourseModes=[COURSE_MODES.includes(course.deliveryMode)?course.deliveryMode:'offline'];
+    categorizedEditorMode=COURSE_MODES.includes(scopedMode)?scopedMode:(enabledCourseModes[0]||'offline');
+    activeCourseMode=categorizedEditorMode;
+    // Only the explicit Offer Existing Course action can preselect a new mode.
+    // Ordinary editing and tab navigation must not activate additional formats.
+    if(activateOnOpen && course && !enabledCourseModes.includes(activeCourseMode))enabledCourseModes.push(activeCourseMode);
+    if(!course && !enabledCourseModes.includes(activeCourseMode)) enabledCourseModes=[activeCourseMode];
     const incoming=course?.contentModes&&typeof course.contentModes==='object'?course.contentModes:{};
     courseModeDrafts={offline:normalizeCourseModeDraft(incoming.offline),live:normalizeCourseModeDraft(incoming.live),recorded:normalizeCourseModeDraft(incoming.recorded)};
-    if(course && !incoming[activeCourseMode]) courseModeDrafts[activeCourseMode]=normalizeCourseModeDraft(course);
+    if(course && !incoming[activeCourseMode] && (!Array.isArray(course.deliveryModes) || course.deliveryModes.includes(activeCourseMode))) courseModeDrafts[activeCourseMode]=normalizeCourseModeDraft(course);
+    // Never copy protected lesson metadata into a public syllabus. Use only saved public modules.
     loadCourseMode(activeCourseMode);
 
-    document.getElementById('courseModalTitle').textContent=course?'Edit Public Course Page':'Add Course';
+    const modalType=COURSE_MODE_LABELS[categorizedEditorMode]||'Course';
+    document.getElementById('courseModalTitle').textContent=(course?'Edit ':'Add ')+(course?.title||'Course')+' — Formats & Details';
+    // Categorized editor deliberately works on one delivery version at a time.
+    const switcher=courseForm.querySelector('.course-mode-switcher');
+    if(switcher){
+      switcher.style.display='';
+      let picker=switcher.querySelector('#fsaFormatAvailability');
+      if(!picker){
+        picker=document.createElement('div');picker.id='fsaFormatAvailability';picker.className='fsa-format-availability';
+        const tabs=switcher.querySelector('.course-mode-tabs');
+        if(tabs)tabs.before(picker);else switcher.append(picker);
+      }
+      picker.innerHTML=`<div class="fsa-format-label"><div><strong>Course formats</strong><span>Choose which formats this course offers. New courses start with all three enabled.</span></div><button type="button" class="fsa-enable-all-formats" data-action="fsa-enable-all-formats">Enable all formats</button></div><div class="fsa-format-options">${COURSE_MODES.map(m=>`<label class="fsa-format-option"><input type="checkbox" data-course-format-checkbox data-mode="${m}" ${enabledCourseModes.includes(m)?'checked':''}><span>${m==='offline'?'Physical / Offline':m==='recorded'?'Recorded':'Live'} <small data-format-status="${m}">${enabledCourseModes.includes(m)?'Enabled':'Disabled'}</small></span></label>`).join('')}</div><small data-format-summary></small>`;
+      updateCourseModeTabs();
+    }
+    const modeNote=document.getElementById('courseModeContext');
+    if(modeNote && scopedMode)modeNote.setAttribute('aria-label',`${modalType} public course page editor`);
     setModalOpen(courseModalBackdrop,true);
+    if(editorPageMode){document.body.classList.add('fsa-editor-page');document.body.classList.remove('modal-open');document.title=`Edit Course | ${course?.title||'New Course'}`;
+      const hdr=courseModalBackdrop.querySelector('.course-editor-modal > header');
+      if(hdr && !hdr.querySelector('.fsa-editor-menu-button')){const menu=document.createElement('button');menu.type='button';menu.className='icon-button mobile-only fsa-editor-menu-button';menu.textContent='☰';menu.setAttribute('aria-label','Open dashboard navigation');menu.addEventListener('click',()=>sidebar.classList.toggle('open'));hdr.prepend(menu);}
+      const backButton=courseModalBackdrop.querySelector('.course-editor-modal > header [data-action="close-course-modal"]');if(backButton){backButton.textContent='← Back to All Courses';backButton.className='fsa-back-to-courses';backButton.setAttribute('aria-label','Back to All Courses');backButton.setAttribute('title','Return to All Courses');backButton.type='button';}}
     setTimeout(()=>courseForm.elements.title.focus(),0);
   }
   function openPrivateContentModal(course){
@@ -630,7 +783,7 @@
     const branchOptions=state.branches.map(b=>`<option value="${esc(b.slug)}" ${String(row.branchSlug||'')===String(b.slug)?'selected':''}>${esc(b.shortName||b.name)}</option>`).join('');
     const instructorOptions=state.instructors.map(i=>`<option value="${i.id}" ${Number(row.instructorId)===Number(i.id)?'selected':''}>${esc(i.name)}${i.branch?` — ${esc(i.branch)}`:''}</option>`).join('');
     content.innerHTML=`${pageHead(row.id?'Edit Batch':'Add Batch','The existing public batch cards will use these backend values without changing the frontend design.')}
-      <section class="settings-card"><form class="settings-form" id="batchForm"><input type="hidden" name="id" value="${esc(row.id||'')}">
+      <section class="settings-card academy-shared-editor" data-editor-type="batch"><form class="settings-form academy-shared-editor-form" id="batchForm"><input type="hidden" name="id" value="${esc(row.id||'')}">
       <label>Course<select name="courseId"><option value="0">Custom / keep typed name</option>${courseOptions}</select></label><label>Course name<input name="course" required maxlength="190" value="${esc(row.course||'')}"></label>
       <label>Course slug<input name="slug" maxlength="190" value="${esc(row.slug||'')}"></label><label>Learning mode<select name="modeKey"><option value="live-streamed" ${row.modeKey==='live-streamed'?'selected':''}>Live Streamed</option><option value="offline-classroom" ${row.modeKey==='offline-classroom'?'selected':''}>Offline Classroom</option><option value="recorded" ${row.modeKey==='recorded'?'selected':''}>Recorded</option></select></label>
       <label class="full">Batch / course image<div class="media-input-row"><input name="image" maxlength="2000" value="${esc(row.image||'')}"><button class="secondary-button" type="button" data-action="choose-media" data-media-target="image">Choose from Media</button></div></label>
@@ -652,6 +805,59 @@
   }
   function easyDetails(title,help,body,open=false){
     return `<details class="easy-editor-section full" ${open?'open':''}><summary><div><strong>${esc(title)}</strong><small>${esc(help)}</small></div><span>⌄</span></summary><div class="easy-editor-body">${body}</div></details>`;
+  }
+
+  // Branches administration: these functions were missing from LMS v5.1.
+  async function renderBranchesAdmin(){
+    const result=await api('admin_branches');
+    state.branches=Array.isArray(result.branches)?result.branches:[];
+    const canEdit=isCentralRole();
+    const addAction=canEdit?'<button class="primary-button" type="button" data-action="add-branch">+ Add Branch</button>':'';
+    content.innerHTML=`${pageHead('Branch Management',canEdit?'Manage academy locations, contact details, photography and the public branch pages.':'View branch information available to your account.',addAction)}
+      <div class="toolbar"><div class="toolbar-group"><span class="form-hint">${state.branches.length} branch${state.branches.length===1?'':'es'} in your access scope</span></div></div>
+      <div class="table-wrap">${state.branches.length?`<table class="data-table"><thead><tr><th>Branch</th><th>Location & Contact</th><th>Opening hours</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.branches.map(branch=>{
+        const id=Number(branch.dbId)||0;
+        const slug=String(branch.slug||'');
+        const url=`../branches/view/index.html?branch=${encodeURIComponent(slug)}`;
+        const preview=branch.image||branch.heroImage||'';
+        const image=preview?`<img src="${esc(mediaUrl(preview))}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:10px">`:esc(initials(branch.shortName||branch.name||'FS'));
+        const editButtons=canEdit?`<button type="button" data-action="edit-branch" data-id="${id}">Edit</button><button type="button" data-action="delete-branch" data-id="${id}">Delete</button>`:'';
+        return `<tr><td><div class="user-cell"><span>${image}</span><div><strong>${esc(branch.name||branch.shortName||'Unnamed branch')}</strong><small>${esc(slug)}</small></div></div></td><td>${esc(branch.location||branch.address||'—')}<br><small>${esc(branch.phone||branch.email||'')}</small></td><td>${esc(branch.hours||'—')}</td><td><span class="${statusClass(branch.status)}">${esc(branch.status||'published')}</span></td><td><div class="row-actions"><a href="${esc(url)}" target="_blank" rel="noopener">View</a>${editButtons}</div></td></tr>`;
+      }).join('')}</tbody></table>`:emptyState('No branches found',canEdit?'Add your first branch to publish an academy location.':'No branches are assigned to your account.')}</div>`;
+  }
+
+  function openBranchEditor(branch={}){
+    if(!isCentralRole()){
+      toast('You do not have permission to edit branches.','error');
+      return;
+    }
+    const b={status:'published',sortOrder:state.branches.length+1,...branch};
+    const existing=Number(b.dbId)||0;
+    content.innerHTML=`${pageHead(existing?'Edit Branch':'Add Branch','Update a location and its public branch page. Changes are saved to MySQL.')}
+      <section class="settings-card easy-editor-card academy-shared-editor" data-editor-type="branch"><form id="branchForm" class="settings-form easy-editor-form academy-shared-editor-form">
+        <input type="hidden" name="dbId" value="${existing||''}">
+        <label>Branch name<input name="name" required maxlength="190" value="${esc(b.name||'')}" placeholder="FSA — Charminar"></label>
+        <label>Short name<input name="shortName" maxlength="120" value="${esc(b.shortName||'')}" placeholder="Charminar"></label>
+        <label>URL slug<input name="slug" maxlength="120" value="${esc(b.slug||'')}" placeholder="charminar (automatically created if empty)"></label>
+        <label>Area / location<input name="location" maxlength="190" value="${esc(b.location||'')}" placeholder="Charminar, Hyderabad"></label>
+        <label class="full">Full address<input name="address" maxlength="500" value="${esc(b.address||'')}" placeholder="Street address and city"></label>
+        <label>Phone number<input name="phone" maxlength="60" value="${esc(b.phone||'')}"></label>
+        <label>Extension<input name="extension" maxlength="80" value="${esc(b.extension||'')}"></label>
+        <label>Email<input name="email" type="email" maxlength="190" value="${esc(b.email||'')}"></label>
+        <label>Opening hours<input name="hours" maxlength="190" value="${esc(b.hours||'')}" placeholder="Mon–Sat · 9 AM–8 PM"></label>
+        <label class="full">Description<textarea name="description" maxlength="5000" rows="5">${esc(b.description||'')}</textarea></label>
+        ${easyImageField('Branch listing image','image',b.image||'','Photo shown in the branches listing.')}
+        ${easyImageField('Branch page hero image','heroImage',b.heroImage||'','Large image shown on the branch detail page.')}
+        ${easyDetails('Gallery & display options','Optional gallery, map coordinates and publishing controls.',`
+          <div class="settings-form easy-inner-grid">
+            <label class="full">Gallery image URLs (one per line)<textarea name="gallery" rows="5" placeholder="assets/images/branch-detail/example/gallery-1.jpg">${esc(toLines(b.gallery))}</textarea></label>
+            <label>Latitude<input name="lat" type="number" step="any" min="-90" max="90" value="${b.lat===null||b.lat===undefined?'':esc(b.lat)}"></label>
+            <label>Longitude<input name="lng" type="number" step="any" min="-180" max="180" value="${b.lng===null||b.lng===undefined?'':esc(b.lng)}"></label>
+            <label>Sort order<input name="sortOrder" type="number" value="${Number(b.sortOrder)||0}"></label>
+            <label>Status<select name="status"><option value="published" ${b.status!=='draft'?'selected':''}>Published</option><option value="draft" ${b.status==='draft'?'selected':''}>Draft</option></select></label>
+          </div>`)}
+        <div class="form-actions full"><button class="secondary-button" type="button" data-view="branches">Cancel</button><button class="primary-button" type="submit">${existing?'Save Changes':'Create Branch'}</button></div>
+      </form></section>`;
   }
 
   async function renderCompaniesAdmin(){
@@ -1165,7 +1371,7 @@
   async function renderInstructorsAdmin(){
     const [result,branchResult]=await Promise.all([api('admin_instructors'),api('admin_branches')]);state.instructors=result.instructors||[];state.branches=branchResult.branches||[];
     content.innerHTML=`${pageHead('Instructors','Instructor profiles shown here are the same backend profiles used by the public Instructors page.')}
-      <div class="table-wrap">${state.instructors.length?`<table class="data-table"><thead><tr><th>Instructor</th><th>Headline</th><th>Branch</th><th>Status</th><th>Public</th><th>Actions</th></tr></thead><tbody>${state.instructors.map(i=>`<tr><td><div class="user-cell"><span>${i.avatar?`<img src="${esc(mediaUrl(i.avatar))}" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover">`:initials(i.name)}</span><div><strong>${esc(i.name)}</strong><small>${esc(i.email)}</small></div></div></td><td>${esc(i.headline||'Instructor')}</td><td>${esc(i.branch||'—')}</td><td><span class="${statusClass(i.status)}">${esc(i.status)}</span></td><td>${i.profile_public?'Yes':'No'}</td><td>${['super_admin','branch_admin'].includes(normalizedRole())?`<button data-action="edit-instructor" data-id="${i.id}">Edit Profile</button>`:'<span class="muted">View only</span>'}</td></tr>`).join('')}</tbody></table>`:emptyState('No instructors found','Create an Instructor user first from Users.')}</div>`;
+      <div class="table-wrap">${state.instructors.length?`<table class="data-table"><thead><tr><th>Instructor</th><th>Headline</th><th>Branch</th><th>Status</th><th>Public</th><th>Actions</th></tr></thead><tbody>${state.instructors.map(i=>`<tr><td><div class="user-cell"><span>${i.avatar?`<img src="${esc(mediaUrl(i.avatar))}" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover">`:initials(i.name)}</span><div><strong>${esc(i.name)}</strong><small>${esc(i.email)}</small></div></div></td><td>${esc(i.headline||'Instructor')}</td><td>${esc(i.branch||'—')}</td><td><span class="${statusClass(i.status)}">${esc(i.status)}</span></td><td>${i.profile_public?'Yes':'No'}</td><td>${['super_admin','branch_head','branch_admin'].includes(normalizedRole())?`<button data-action="edit-instructor" data-id="${i.id}">Edit Profile</button>`:'<span class="muted">View only</span>'}</td></tr>`).join('')}</tbody></table>`:emptyState('No instructors found','Create an Instructor user first from Users.')}</div>`;
   }
   function openInstructorEditor(item){
     if(!item)return;
@@ -1287,25 +1493,31 @@
     const availableRoles=ROLE_ORDER.filter(role=>state.users.some(user=>user.role===role||(role==='super_admin'&&user.role==='admin')));
     const roleFilterOptions=availableRoles.map(role=>`<option value="${role}" ${state.userRole===role?'selected':''}>${esc(roleLabel(role))}</option>`).join('');
     content.innerHTML=`${pageHead('User Management','Role hierarchy is enforced automatically. Use the access-role filter to quickly view each level.',manageableRoles().length?'<button class="primary-button" data-action="add-user">+ Add User</button>':'')}
-      <div class="toolbar"><div class="toolbar-group"><input id="userSearch" type="search" placeholder="Search name, email, ID, phone or role" value="${esc(state.userSearch)}"><select id="userRoleFilter" aria-label="Filter by access role"><option value="all">All access roles</option>${roleFilterOptions}</select></div><span class="form-hint">${users.length} account${users.length===1?'':'s'} shown</span></div>
-      <div class="table-wrap">${users.length?`<table class="data-table"><thead><tr><th>User</th><th>Academy ID / Branch</th><th>Access Role</th><th>Status</th><th>Recorded LMS</th><th>Actions</th></tr></thead><tbody>${users.map(user=>`<tr><td><div class="user-cell"><span>${initials(user.name)}</span><div><strong>${esc(user.name)}</strong><small>${esc(user.email)}</small></div></div></td><td><strong>${esc(user.student_code||'—')}</strong><br><small>${esc(user.branch||'No branch')}</small></td><td>${esc(roleLabel(user.role))}</td><td><span class="${statusClass(user.status)}">${esc(user.status)}</span></td><td>${user.role==='instructor'?`<span class="status-pill ${user.can_record_lectures?'status-active':'status-pending'}">${user.can_record_lectures?'Allowed':'Not allowed'}</span>`:'—'}</td><td><div class="row-actions"><button data-action="edit-user" data-id="${user.id}">Edit</button>${user.role==='student'?`<button data-action="generate-student-code" data-id="${user.id}">New ID</button>`:''}<button data-action="toggle-user-status" data-id="${user.id}" data-status="${user.status==='active'?'blocked':'active'}">${user.status==='active'?'Block':'Activate'}</button>${Number(user.id)!==Number(state.user.id)?`<button data-action="delete-user" data-id="${user.id}">Delete</button>`:''}</div></td></tr>`).join('')}</tbody></table>`:emptyState('No matching users','Try another search or access role.')}</div>`;
+      <div class="toolbar"><div class="toolbar-group"><input id="userSearch" type="search" placeholder="Search name, email, branch, phone or role" value="${esc(state.userSearch)}"><select id="userRoleFilter" aria-label="Filter by access role"><option value="all">All access roles</option>${roleFilterOptions}</select></div><span class="form-hint">${users.length} account${users.length===1?'':'s'} shown</span></div>
+      <div class="table-wrap">${users.length?`<table class="data-table"><thead><tr><th>User</th><th>Branch</th><th>Access Role</th><th>Status</th><th>Recorded LMS</th><th>Actions</th></tr></thead><tbody>${users.map(user=>`<tr><td><div class="user-cell"><span>${initials(user.name)}</span><div><strong>${esc(user.name)}</strong><small>${esc(user.email)}</small></div></div></td><td><span>${esc(user.branch||'Academy-wide')}</span></td><td>${esc(roleLabel(user.role))}</td><td><span class="${statusClass(user.status)}">${esc(user.status)}</span></td><td>${user.role==='instructor'?`<span class="status-pill ${user.can_record_lectures?'status-active':'status-pending'}">${user.can_record_lectures?'Allowed':'Not allowed'}</span>`:'—'}</td><td><div class="row-actions">${user.role==='student'?'':`<button data-action="edit-user" data-id="${user.id}">Edit</button>`}<button data-action="toggle-user-status" data-id="${user.id}" data-status="${user.status==='active'?'blocked':'active'}">${user.status==='active'?'Block':'Activate'}</button>${Number(user.id)!==Number(state.user.id)?`<button data-action="delete-user" data-id="${user.id}">Delete</button>`:''}</div></td></tr>`).join('')}</tbody></table>`:emptyState('No matching users','Try another search or access role.')}</div>`;
   }
   function syncUserRoleFields(){
     const selectedRole=userForm.elements.role?.value||'';
     const row=document.getElementById('recordedLecturePermissionRow');
     const checkbox=userForm.elements.can_record_lectures;
     const canGrant=isCentralRole();
+    const needsBranch=['branch_head','branch_admin','instructor'].includes(selectedRole);
+    const branchRow=document.getElementById('userBranchRow');
+    const branchSelect=userForm.elements.branch;
+    if(branchRow)branchRow.hidden=!needsBranch;
+    if(branchSelect){branchSelect.required=needsBranch;branchSelect.disabled=!needsBranch;if(!needsBranch)branchSelect.value='';}
     if(row) row.hidden=selectedRole!=='instructor';
     if(checkbox){checkbox.disabled=selectedRole!=='instructor'||!canGrant;if(selectedRole!=='instructor')checkbox.checked=false;}
   }
   function openUserModal(user=null){
+    if(user?.role==='student'){toast('Manage students through Student Management.','error');return;}
     setFormStatus('userForm');userForm.reset();
     const allowed=manageableRoles();
     if(!allowed.length){toast('Your role cannot create or edit user accounts.','error');return;}
     userForm.elements.id.value=user?.id||'';userForm.elements.name.value=user?.name||'';userForm.elements.email.value=user?.email||'';userForm.elements.phone.value=user?.phone||'';
-    const roleSelect=userForm.elements.role;const currentRole=user?.role==='admin'?'super_admin':(user?.role||allowed[0]);
-    const roleOptions=ROLE_ORDER.filter(r=>allowed.includes(r)||(user&&r===currentRole));roleSelect.innerHTML=roleOptions.map(r=>`<option value="${r}" ${r===currentRole?'selected':''}>${esc(roleLabel(r))}</option>`).join('');
-    userForm.elements.status.value=user?.status||'active';userForm.elements.student_code.value=user?.student_code||'';
+    const roleSelect=userForm.elements.role;const currentRole=user?.role==='admin'?'super_admin':(user?.role||allowed.find(r=>r!=='student')); 
+    const roleOptions=ROLE_ORDER.filter(r=>r!=='student'&&(allowed.includes(r)||(user&&r===currentRole)));roleSelect.innerHTML=roleOptions.map(r=>`<option value="${r}" ${r===currentRole?'selected':''}>${esc(roleLabel(r))}</option>`).join('');
+    userForm.elements.status.value=user?.status||'active';
     const branchSelect=userForm.elements.branch;const selectedBranch=user?.branch||state.user?.branch||'';branchSelect.innerHTML='<option value="">Choose branch</option>'+state.branches.map(b=>`<option value="${esc(b.shortName||b.name||b.slug)}" ${(b.shortName||b.name||b.slug)===selectedBranch?'selected':''}>${esc(b.shortName||b.name)}</option>`).join('');
     if(isBranchRole()){branchSelect.innerHTML=`<option value="${esc(state.user?.branch||'')}">${esc(state.user?.branch||'Current branch')}</option>`;branchSelect.value=state.user?.branch||'';}
     if(userForm.elements.can_record_lectures)userForm.elements.can_record_lectures.checked=Boolean(user?.can_record_lectures);
@@ -1318,7 +1530,13 @@
     const instructors=r.instructor_applications||[],profiles=r.profile_requests||[],certs=r.certificate_requests||[],courseRequests=r.course_content_requests||[];
     const actionButtons=(type,item)=>item.status==='pending'?`<div class="row-actions"><button class="primary-button" data-action="review-approval" data-type="${type}" data-id="${item.id}" data-decision="approved">Approve</button><button class="danger-button" data-action="review-approval" data-type="${type}" data-id="${item.id}" data-decision="rejected">Reject</button></div>`:`<span class="${statusClass(item.status)}">${esc(item.status)}</span>`;
     const courseTable=courseRequests.length?`<table class="data-table"><thead><tr><th>Course</th><th>Instructor</th><th>Branch</th><th>Approval level</th><th>Pending lessons</th><th>Status</th><th>Action</th></tr></thead><tbody>${courseRequests.map(x=>`<tr><td><strong>${esc(x.title)}</strong><br><small>${esc(x.slug)}</small></td><td>${esc(x.instructorName||'Instructor')}</td><td>${esc(x.branch||'—')}</td><td><strong>${x.kind==='central'?'Super Admin / Admin Staff':'Branch Head / Branch Admin'}</strong></td><td>${Number(x.pendingLessons||0)}</td><td><span class="${statusClass(x.status)}">${esc(x.status)}</span>${x.note?`<br><small>${esc(x.note)}</small>`:''}</td><td>${actionButtons('course_content',x)}</td></tr>`).join('')}</tbody></table>`:emptyState('No course content approvals','Instructor course content waiting for approval will appear here.');
+    const pendingEnrollments=r.enrollment_requests||[];
+    const enrollmentTable=pendingEnrollments.length?`<table class="data-table"><thead><tr><th>Student</th><th>Course</th><th>Branch</th><th>Status</th><th>Action</th></tr></thead><tbody>${pendingEnrollments.map(x=>`<tr><td>${esc(x.student)}</td><td>${esc(x.course)}</td><td>${esc(x.branch)}</td><td><span class="${statusClass('pending')}">Pending</span></td><td>${actionButtons('enrollment',x)}</td></tr>`).join('')}</tbody></table>`:emptyState('No enrollment approvals','Manual pending enrollments and paid-course access requests will appear here. Unpaid orders must be confirmed through Orders.');
+    const publicCourses=r.course_public_requests||[];
+    const publicTable=publicCourses.length?`<table class="data-table"><thead><tr><th>Public course</th><th>Submitted by</th><th>Branch</th><th>Status</th><th>Decision</th></tr></thead><tbody>${publicCourses.map(x=>`<tr><td><strong>${esc(x.title)}</strong><br><small>${esc(x.slug)}</small></td><td>${esc(x.instructorName)}</td><td>${esc(x.branch)}</td><td><span class="${statusClass(x.status)}">${esc(x.status)}</span>${x.note?`<small>${esc(x.note)}</small>`:''}</td><td>${actionButtons('course_public',x)}</td></tr>`).join('')}</tbody></table>`:emptyState('No new public course requests','Instructor-created public courses awaiting review will appear here.');
     content.innerHTML=`${pageHead('Approval Centre','Recorded LMS content is approved centrally. Other assigned branch course content can be approved by the Branch Head or Branch Admin.')}
+      <section><h2>Public course approvals</h2><div class="table-wrap">${publicTable}</div></section>
+      <section><h2>Student enrollment approvals</h2><div class="table-wrap">${enrollmentTable}</div></section>
       <section><h2>Course content approvals</h2><div class="table-wrap">${courseTable}</div></section>
       <section><h2>Instructor applications</h2><div class="table-wrap">${instructors.length?`<table class="data-table"><thead><tr><th>Applicant</th><th>Professional profile</th><th>Branch</th><th>Status</th><th>Action</th></tr></thead><tbody>${instructors.map(x=>`<tr><td><strong>${esc(x.name)}</strong><br><small>${esc(x.email)} · ${esc(x.phone||'')}</small></td><td>${esc(x.headline||'Instructor')}<br><small>${esc((x.skills||[]).join(', ')||'Skills not supplied')}</small></td><td>${esc(x.branch||'Not selected')}</td><td><span class="${statusClass(x.status)}">${esc(x.status)}</span></td><td>${actionButtons('instructor',x)}</td></tr>`).join('')}</tbody></table>`:emptyState('No instructor profiles','Instructor signups will appear here for approval.')}</div></section>
       <div class="dashboard-grid"><section><h2>Student profile changes</h2><div class="table-wrap">${profiles.length?`<table class="data-table"><thead><tr><th>Student</th><th>Instructor</th><th>Proposed changes</th><th>Status</th><th>Action</th></tr></thead><tbody>${profiles.map(x=>`<tr><td><strong>${esc(x.student_name)}</strong></td><td>${esc(x.instructor_name)}</td><td><small>${Object.entries(x.payload||{}).filter(([,v])=>v&&(!Array.isArray(v)||v.length)).map(([k,v])=>`${esc(k.replaceAll('_',' '))}: ${esc(Array.isArray(v)?v.join(', '):v)}`).join('<br>')}</small></td><td><span class="${statusClass(x.status)}">${esc(x.status)}</span></td><td>${actionButtons('profile',x)}</td></tr>`).join('')}</tbody></table>`:emptyState('No profile requests','Instructor profile edits will appear here.')}</div></section>
@@ -1444,6 +1662,99 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
     if(snippet.html_code)parts.push(snippet.html_code);if(snippet.css_code)parts.push(`<style>\n${snippet.css_code}\n</style>`);if(snippet.js_code)parts.push(`<script>\n${snippet.js_code}\n<\/script>`);return parts.join('\n\n');
   }
 
+  let websiteDraft=null,websiteRevision='',websiteSection='heroSlides',websiteSearch='';
+  const websiteSections={translations:'Translation Dictionary (Hindi)',homeSections:'Homepage Services, Mission & Images',coursesPage:'Courses Archive Page',heroSlides:'Homepage Banners',stats:'Homepage Statistics',faqs:'Help FAQs',courseFaqTemplates:'Course FAQ Templates',courseFaqs:'Per-course FAQs',academyImages:'Page Images',callback:'Callback Options',assistant:'Assistant Questions / Replies',super40:'SUPER40 Program',news:'Latest News',attributes:'Labels / Placeholders',helpFaqExtras:'Account Help FAQs',courseNavigation:'Course Navigation',copy:'Website Text',assets:'Image / Link URLs',routes:'Page-specific Text / Images',placementEmail:'Placement Contact Email'};
+  function websiteContentFields(){
+    const value=websiteDraft?.[websiteSection];
+    if(['copy','assets','attributes'].includes(websiteSection)){
+      const entries=Object.entries(value||{}).filter(([key,val])=>`${key} ${val}`.toLowerCase().includes(websiteSearch.toLowerCase()));
+      return `<label>Search current text or URL<input class="form-control" id="websiteContentSearch" value="${esc(websiteSearch)}" autocomplete="off"></label><p>${entries.length} fields. The first 80 matching fields are displayed; search to find another field.</p><div id="websiteTextFields">${entries.slice(0,80).map(([key,val])=>`<label style="display:block;margin:18px 0"><small>${esc(key)}</small><textarea class="form-control" data-website-key="${esc(key)}" rows="2">${esc(val)}</textarea></label>`).join('')}</div><details><summary>Add a text or URL override</summary><label>Exact current text / URL<input class="form-control" id="websiteNewKey"></label><label>Replacement<input class="form-control" id="websiteNewValue"></label><button type="button" class="secondary-button" id="websiteAddOverride">Add field</button></details>`;
+    }
+    if(websiteSection==='placementEmail')return `<label>Placement team email<input class="form-control" type="email" id="websiteContentValue" value="${esc(value||'')}"></label>`;
+    return `<p>${websiteSection==='super40'?'Edit the program section arrays, fee schedule, dates and scholarship values.':websiteSection==='routes'?'Use route keys such as /about or /privacy, with copy and assets objects.':'Edit this section as JSON. Keep property names; change values, add rows, or remove rows.'}</p><textarea class="form-control" id="websiteContentJson" spellcheck="false" style="width:100%;min-height:440px;font-family:monospace">${esc(JSON.stringify(value??{},null,2))}</textarea>`;
+  }
+  function paintWebsiteContent(){
+    content.innerHTML=`${pageHead('Website Content','Edit existing text and images without changing page layouts. Companies, alumni, reviews, events, branches and batches remain in their own sections.')}<form id="websiteContentForm"><label>Content section<select class="form-control" id="websiteContentSection">${Object.entries(websiteSections).map(([key,label])=>`<option value="${key}" ${key===websiteSection?'selected':''}>${label}</option>`).join('')}</select></label><div id="websiteContentFields">${websiteContentFields()}</div><div class="form-actions" style="margin-top:20px"><button class="primary-button" type="submit">Save Website Content</button><button class="secondary-button" type="button" id="websiteContentReload">Reload Saved Content</button><a class="secondary-button" href="../index.html" target="_blank" rel="noopener">View Website</a></div><p id="websiteContentStatus" role="status"></p></form>`;
+    const form=document.getElementById('websiteContentForm');
+    const remember=()=>{
+      if(['copy','assets','attributes'].includes(websiteSection))form.querySelectorAll('[data-website-key]').forEach(input=>websiteDraft[websiteSection][input.dataset.websiteKey]=input.value);
+      else if(websiteSection==='placementEmail')websiteDraft.placementEmail=document.getElementById('websiteContentValue').value.trim();
+      else websiteDraft[websiteSection]=JSON.parse(document.getElementById('websiteContentJson').value);
+    };
+    document.getElementById('websiteContentSection').onchange=event=>{try{remember();websiteSection=event.target.value;websiteSearch='';paintWebsiteContent();}catch(error){toast('Correct the JSON before switching sections.','error');event.target.value=websiteSection;}};
+    document.getElementById('websiteContentReload').onclick=()=>renderWebsiteContent();
+    const search=document.getElementById('websiteContentSearch');
+    if(search)search.oninput=()=>{remember();websiteSearch=search.value;paintWebsiteContent();const next=document.getElementById('websiteContentSearch');next.focus();next.setSelectionRange(websiteSearch.length,websiteSearch.length);};
+    const add=document.getElementById('websiteAddOverride');if(add)add.onclick=()=>{remember();const key=document.getElementById('websiteNewKey').value.trim();if(!key)return;websiteDraft[websiteSection][key]=document.getElementById('websiteNewValue').value;websiteSearch=key;paintWebsiteContent();};
+    form.onsubmit=async event=>{event.preventDefault();event.stopPropagation();try{remember();const button=form.querySelector('[type="submit"]');button.disabled=true;const result=await api('admin_website_content_save',{method:'POST',body:{content:websiteDraft,revision:websiteRevision}});websiteDraft=result.content;websiteRevision=result.revision;toast(result.message);document.getElementById('websiteContentStatus').textContent=result.message;button.disabled=false;}catch(error){toast(error.message||'Unable to save content.','error');form.querySelector('[type="submit"]').disabled=false;}};
+  }
+  // Homepage slider manager: upload to existing Media Library, save through revision-safe CMS.
+  let bannerDraft=[],bannerContent=null,bannerRevision='',bannerBusy=false;
+  const bannerFormats={desktopImage:{label:'Desktop',dimension:'1920 × 700'},tabletImage:{label:'Tablet',dimension:'1280 × 800'},mobileImage:{label:'Mobile',dimension:'1066 × 1600'}};
+  const bannerGet=(row,key)=>String(row[key]||(key==='desktopImage'?row.image:'')||'');
+  function bannerFields(row,index){
+    const images=Object.entries(bannerFormats).map(([key,cfg])=>{
+      const url=bannerGet(row,key);return `<div class="fsa-banner-slot" data-format="${key}" data-index="${index}">
+        <div class="fsa-banner-slot-head"><strong>${cfg.label}</strong><small>${cfg.dimension} px</small></div>
+        <div class="fsa-banner-drop" data-banner-drop="${key}" data-index="${index}" role="button" tabindex="0" aria-label="Upload ${cfg.label} image for slide ${index+1}">
+          ${url?`<img src="${esc(mediaUrl(url))}" alt="${cfg.label} banner preview" loading="lazy">`:`<span>＋<br>Drop image here<br><small>or click to upload</small></span>`}
+          ${url?`<button class="fsa-banner-delete" type="button" data-banner-clear="${key}" data-index="${index}" aria-label="Remove ${cfg.label} image from slide ${index+1}" title="Remove image">×</button>`:''}
+        </div><input type="hidden" name="${key}" value="${esc(url)}"><input class="fsa-banner-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" data-index="${index}" data-format="${key}" hidden>
+      </div>`;
+    }).join('');
+    return `<section class="settings-card fsa-banner-card" draggable="true" data-banner-index="${index}">
+      <div class="fsa-banner-card-head"><span class="fsa-banner-handle" title="Drag to reorder">⠿</span><h2>Banner ${index+1} <small class="fsa-banner-compact-state">${row.enabled!==false?'· Visible':'· Hidden'}</small></h2><div class="row-actions"><button type="button" data-banner-action="up" data-index="${index}" ${index===0?'disabled':''}>↑</button><button type="button" data-banner-action="down" data-index="${index}" ${index===bannerDraft.length-1?'disabled':''}>↓</button><button type="button" class="fsa-banner-remove" data-banner-action="remove" data-index="${index}" aria-label="Delete slide ${index+1}">× Delete slide</button></div></div>
+      <div class="fsa-banner-images">${images}</div>
+      <div class="settings-form fsa-banner-details"><label>Button text<input name="buttonText" value="${esc(row.buttonText??'See Details')}" maxlength="60" placeholder="e.g. Explore Courses"></label><label>Button link<input name="href" value="${esc(row.href||'')}" placeholder="#/courses or https://example.com"></label><label class="full">Image description (accessibility)<input name="alt" value="${esc(row.alt||'')}" maxlength="250" placeholder="Describe the banner image"></label><div class="fsa-banner-action-preview full"><span>BUTTON PREVIEW</span><span class="fsa-banner-action-pill" data-banner-button-preview="${index}">${esc(row.buttonText??'See Details')||'Button hidden'} &nbsp; ↗</span><small>This uses the same button style as your homepage. The entire banner image also opens the same link.</small></div><label class="check-row full"><input type="checkbox" name="enabled" ${row.enabled!==false?'checked':''}><span><strong>Visible on homepage</strong></span></label></div>
+    </section>`;
+  }
+  function collectBannerEdits(){document.querySelectorAll('.fsa-banner-card[data-banner-index]').forEach(el=>{const row=bannerDraft[Number(el.dataset.bannerIndex)];if(!row)return;Object.keys(bannerFormats).forEach(k=>row[k]=el.querySelector(`[name="${k}"]`).value.trim());row.image=row.desktopImage;row.buttonText=el.querySelector('[name="buttonText"]').value.trim();row.href=el.querySelector('[name="href"]').value.trim();row.alt=el.querySelector('[name="alt"]').value.trim();row.enabled=el.querySelector('[name="enabled"]').checked;});}
+  function bannerSetBusy(busy,message=''){bannerBusy=busy;document.querySelectorAll('#homepageSliderForm button, #homepageSliderForm input[type="file"]').forEach(n=>n.disabled=busy);const el=document.getElementById('bannerUploadStatus');if(el)el.textContent=message;}
+  async function bannerUpload(files,format,index=null){
+    const selected=[...files].filter(f=>f&&f.type.startsWith('image/'));
+    if(!selected.length){toast('Select supported image files.','error');return;}
+    if(bannerBusy)return;collectBannerEdits();bannerSetBusy(true,`Uploading 0 of ${selected.length}…`);
+    let success=0;try{for(const file of selected){if(file.size>8*1024*1024)throw new Error(`${file.name}: maximum image size is 8 MB.`);
+      const form=new FormData();form.append('media',file);
+      const result=await api('admin_media_upload',{method:'POST',body:form});const url=result.media?.url;
+      if(!url)throw new Error(`Upload did not return a URL for ${file.name}.`);
+      let dest=index;
+      if(dest===null||dest===undefined||success>0){dest=bannerDraft.length;bannerDraft.push({image:'',desktopImage:'',tabletImage:'',mobileImage:'',href:'#/courses',buttonText:'See Details',alt:'',enabled:true});}
+      bannerDraft[dest][format]=url;if(format==='desktopImage')bannerDraft[dest].image=url;
+      success++;bannerSetBusy(true,`Uploaded ${success} of ${selected.length}…`);
+    }toast(`${success} image${success===1?'':'s'} uploaded. Click Save Homepage Slides to publish.`);}
+    catch(error){toast(error.message||'Upload failed','error');}
+    finally{bannerBusy=false;paintBannerEditor();document.getElementById('bannerUploadStatus').textContent=`${success} uploaded. Unsaved changes — click Save Homepage Slides.`;}
+  }
+  function paintBannerEditor(){
+    content.innerHTML=`${pageHead('Homepage Slider','Manage every homepage banner here. Drag and drop images, upload multiple files, reorder banners, then save. The public homepage design stays unchanged.')}
+      <style>
+      .fsa-banner-tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:0 0 16px}.fsa-banner-tools label{cursor:pointer}.fsa-banner-note{margin-bottom:22px;color:#75686b}
+      .fsa-banner-card{padding:20px;margin-bottom:18px;border-radius:18px}.fsa-banner-card.fsa-dragging{opacity:.48}.fsa-banner-card.fsa-over{outline:2px dashed #942638;outline-offset:3px}
+      .fsa-banner-card-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}.fsa-banner-card-head h2{margin:0;flex:1}.fsa-banner-compact-state{font-size:12px;font-weight:500;color:#97787f}.fsa-banner-action-preview{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;background:#fbf5f6;border:1px solid #ebd6db;border-radius:12px}.fsa-banner-action-preview>span:first-child{font-size:10px;letter-spacing:.09em;font-weight:750;color:#8c273b}.fsa-banner-action-preview small{color:#7f7476}.fsa-banner-action-pill{display:inline-flex;align-items:center;background:#8d2539;color:white;border-radius:40px;padding:10px 18px;font-size:12px;font-weight:700}.fsa-banner-details input:focus{border-color:#8c273b;outline:2px solid #ecd0d7;outline-offset:1px}.fsa-banner-handle{font-size:26px;color:#91283b;cursor:grab;user-select:none}.fsa-banner-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+      .fsa-banner-slot{min-width:0}.fsa-banner-slot-head{display:flex;justify-content:space-between;gap:5px;margin-bottom:8px}.fsa-banner-slot-head small{font-size:11px;color:#897e7e}
+      .fsa-banner-drop{position:relative;display:grid;place-items:center;text-align:center;height:170px;overflow:hidden;border:1.5px dashed #cdb5bb;border-radius:13px;background:#fbf5f6;cursor:pointer;color:#872639;transition:background .15s,border .15s}.fsa-banner-drop:hover,.fsa-banner-drop.fsa-over{background:#f7e8eb;border-color:#91283b}.fsa-banner-drop img{display:block;width:100%;height:100%;object-fit:contain;background:#f6eff0}.fsa-banner-drop span{line-height:1.6;font-weight:650}.fsa-banner-drop small{font-weight:400}
+      .fsa-banner-delete{position:absolute;right:8px;top:8px;z-index:2;display:grid;place-items:center;background:#8e2437!important;color:white!important;border:none!important;border-radius:50%!important;width:32px!important;height:32px!important;padding:0!important;font-size:24px!important;cursor:pointer}.fsa-banner-details{margin-top:16px}.fsa-banner-remove{color:#922b3b!important}
+      @media(max-width:900px){.fsa-banner-images{grid-template-columns:1fr}.fsa-banner-drop{height:190px}.fsa-banner-card-head h2{min-width:100px}}
+      </style>
+      <form id="homepageSliderForm"><div class="fsa-banner-tools"><button type="button" class="secondary-button" id="addBannerSlide">＋ Add empty banner</button><label class="secondary-button">⇧ Bulk upload desktop<input type="file" id="bulkBannerDesktop" multiple accept="image/*" hidden></label><label class="secondary-button">⇧ Bulk upload tablet<input type="file" id="bulkBannerTablet" multiple accept="image/*" hidden></label><label class="secondary-button">⇧ Bulk upload mobile<input type="file" id="bulkBannerMobile" multiple accept="image/*" hidden></label><a class="secondary-button" href="../index.html" target="_blank" rel="noopener">Preview homepage ↗</a></div>
+      <p class="fsa-banner-note">Upload a desktop, tablet and mobile image into the same banner card. Bulk upload creates one new banner per image for the chosen device. You can drag cards to reorder. Desktop 1920×700 · tablet 1280×800 · mobile 1066×1600 px. Unset device images fall back to desktop.</p>
+      <p id="bannerUploadStatus" role="status" aria-live="polite"></p><div id="fsaBannerList">${bannerDraft.map(bannerFields).join('')}</div>
+      <div class="form-actions"><button class="primary-button" type="submit">Save Homepage Slides</button><button class="secondary-button" type="button" id="reloadBannerSlides">Reload saved</button></div><p id="bannerSaveStatus" role="status"></p></form>`;
+    document.getElementById('addBannerSlide').onclick=()=>{collectBannerEdits();bannerDraft.push({image:'',desktopImage:'',tabletImage:'',mobileImage:'',href:'#/courses',buttonText:'See Details',alt:'',enabled:true});paintBannerEditor();};
+    document.getElementById('reloadBannerSlides').onclick=()=>{if(confirm('Discard unsaved banner changes and reload?'))renderHeroSlider();};
+    [['bulkBannerDesktop','desktopImage'],['bulkBannerTablet','tabletImage'],['bulkBannerMobile','mobileImage']].forEach(([id,key])=>{document.getElementById(id).onchange=e=>bannerUpload(e.target.files,key);});
+    content.querySelectorAll('[data-banner-action]').forEach(b=>b.onclick=()=>{collectBannerEdits();const i=Number(b.dataset.index),a=b.dataset.bannerAction;if(a==='remove'){if(!confirm('Delete this slide? Changes take effect only after saving.'))return;bannerDraft.splice(i,1);}if(a==='up'&&i>0)[bannerDraft[i-1],bannerDraft[i]]=[bannerDraft[i],bannerDraft[i-1]];if(a==='down'&&i<bannerDraft.length-1)[bannerDraft[i+1],bannerDraft[i]]=[bannerDraft[i],bannerDraft[i+1]];paintBannerEditor();});
+    content.querySelectorAll('[data-banner-clear]').forEach(b=>b.onclick=e=>{e.stopPropagation();collectBannerEdits();const i=Number(b.dataset.index),key=b.dataset.bannerClear;bannerDraft[i][key]='';if(key==='desktopImage')bannerDraft[i].image='';paintBannerEditor();});
+    content.querySelectorAll('.fsa-banner-drop').forEach(zone=>{const i=Number(zone.dataset.index),key=zone.dataset.bannerDrop;const input=zone.parentNode.querySelector('input[type=file]');zone.onclick=e=>{if(!e.target.closest('[data-banner-clear]'))input.click();};zone.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}};input.onchange=e=>bannerUpload(e.target.files,key,i);zone.ondragover=e=>{e.preventDefault();e.stopPropagation();zone.classList.add('fsa-over');};zone.ondragleave=()=>zone.classList.remove('fsa-over');zone.ondrop=e=>{e.preventDefault();e.stopPropagation();zone.classList.remove('fsa-over');bannerUpload(e.dataTransfer.files,key,i);};});
+    let dragging=null;content.querySelectorAll('.fsa-banner-card').forEach(card=>{card.ondragstart=e=>{if(e.target.closest('.fsa-banner-drop')){e.preventDefault();return;}dragging=Number(card.dataset.bannerIndex);card.classList.add('fsa-dragging');e.dataTransfer.effectAllowed='move';};card.ondragend=()=>{dragging=null;card.classList.remove('fsa-dragging');content.querySelectorAll('.fsa-over').forEach(n=>n.classList.remove('fsa-over'));};card.ondragover=e=>{if(dragging===null)return;e.preventDefault();card.classList.add('fsa-over');};card.ondragleave=()=>card.classList.remove('fsa-over');card.ondrop=e=>{if(dragging===null||e.target.closest('.fsa-banner-drop'))return;e.preventDefault();collectBannerEdits();const dest=Number(card.dataset.bannerIndex);const [moved]=bannerDraft.splice(dragging,1);bannerDraft.splice(dest,0,moved);dragging=null;paintBannerEditor();};});
+    content.querySelectorAll('.fsa-banner-card input[name="buttonText"]').forEach(inp=>inp.addEventListener('input',()=>{const preview=inp.closest('.fsa-banner-card').querySelector('[data-banner-button-preview]');if(preview)preview.textContent=(inp.value.trim()||'Button hidden')+'  ↗';}));
+    document.getElementById('homepageSliderForm').onsubmit=async e=>{e.preventDefault();if(bannerBusy)return;collectBannerEdits();bannerSetBusy(true,'Saving banners…');try{const next={...bannerContent,heroSlides:bannerDraft};const result=await api('admin_website_content_save',{method:'POST',body:{content:next,revision:bannerRevision}});bannerContent=result.content;bannerRevision=result.revision;bannerDraft=(result.content.heroSlides||[]).map(r=>({...r}));toast('Homepage slides saved.');bannerBusy=false;paintBannerEditor();document.getElementById('bannerSaveStatus').textContent='Saved. Refresh the homepage to see changes.';}catch(error){bannerSetBusy(false,'Save failed. Your edits are still here.');toast(error.message||'Could not save slides.','error');}};
+  }
+  async function renderHeroSlider(){const result=await api('admin_website_content');bannerContent=result.content;bannerRevision=result.revision;bannerDraft=(result.content.heroSlides||[]).map(r=>({...r}));paintBannerEditor();}
+
+  async function renderWebsiteContent(){const result=await api('admin_website_content');websiteDraft=result.content;websiteRevision=result.revision;paintWebsiteContent();}
+
   async function renderSettings(){
     const result=await api('admin_settings');
     state.settings=result.settings;
@@ -1455,7 +1766,685 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
 
   function renderAccount(){ content.innerHTML=`${pageHead('Administrator Account','Change the default password before publishing the website.')}<div class="settings-layout"><aside class="settings-menu"><button class="active">Profile & Security</button><button data-view="users">All Administrators</button></aside><section class="settings-card"><h2>${esc(state.user.name)}</h2><p>${esc(state.user.email)} · Administrator</p><form class="settings-form" id="adminPasswordForm"><label class="full">Current password<input name="current_password" type="password" required></label><label>New password<input name="new_password" type="password" minlength="8" required></label><label>Confirm password<input name="confirm_password" type="password" minlength="8" required></label><div class="form-actions"><button class="primary-button" type="submit">Update Password</button></div></form></section></div>`; }
 
+  // Physical-only page builder. Section headings drive the right-hand course TOC.
+  // Native HTML Drag & Drop reorders widgets and sections, with keyboard-accessible move buttons.
+  const PC_TYPES={banner:'Course banner',heading:'Heading',paragraph:'Text content',image:'Image',gallery:'Image gallery',callout:'Highlight',download:'Link / download',quiz:'Quiz',assignment:'Assignment',code:'Code block',divider:'Divider'};
+  const PC_ICONS={banner:'▣',heading:'H',paragraph:'¶',image:'▧',gallery:'▦',callout:'✦',download:'↗',quiz:'?',assignment:'✓',code:'</>',divider:'—'};
+  let pcCourse=null,pcSections=[],pcDirty=false,pcDrag=null,pcOpenBlock=null,pcActiveLesson=0;
+  const pcId=()=>`pc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,9)}`;
+  function pcNewBlock(type){
+    const base={id:pcId(),type,title:'',text:'',url:'',images:[],choices:['Option A','Option B'],correct:0,required:false};
+    if(type==='quiz')base.questions=[{id:pcId(),prompt:'',choices:['Option A','Option B'],correct:0}];
+    return base;
+  }
+  function pcOptions(value){return Object.entries(PC_TYPES).map(([type,label])=>`<option value="${type}" ${type===value?'selected':''}>${esc(label)}</option>`).join('');}
+  function pcField(label,field,value='',type='input',hint=''){
+    return `<label class="pc-field">${esc(label)}${type==='textarea'?`<textarea data-pc-field="${field}" rows="${field==='text'?'4':'3'}">${esc(value)}</textarea>`:`<input data-pc-field="${field}" value="${esc(value)}" type="text">`}${hint?`<small>${esc(hint)}</small>`:''}</label>`;
+  }
+
+  function pcQuizQuestions(block){
+    const list=Array.isArray(block?.questions)&&block.questions.length?block.questions:[];
+    if(list.length)return list.map((question,index)=>({
+      id:physicalSafeId(question?.id||pcId()),
+      prompt:String(question?.prompt||question?.text||'').trim(),
+      choices:(Array.isArray(question?.choices)?question.choices:[]).map(v=>String(v||'').trim()).filter(Boolean).slice(0,8),
+      correct:Math.max(0,Number(question?.correct)||0)
+    })).map(question=>({...question,choices:question.choices.length?question.choices:['Option A','Option B'],correct:Math.max(0,Math.min(question.choices.length-1,question.correct))}));
+    const choices=(block?.choices||['Option A','Option B']).map(v=>String(v||'').trim()).filter(Boolean).slice(0,8);
+    return [{id:pcId(),prompt:String(block?.text||'').trim(),choices:choices.length?choices:['Option A','Option B'],correct:Math.max(0,Math.min((choices.length||2)-1,Number(block?.correct)||0))}];
+  }
+  function physicalSafeId(value){
+    const text=String(value||'').replace(/[^a-zA-Z0-9_-]+/g,'').slice(0,64);
+    return text||pcId();
+  }
+  function pcQuizQuestionEditor(question,qi){
+    const choices=(question.choices||['Option A','Option B']).join('\n');
+    return `<article class="pc-quiz-question" data-pc-quiz-question="${qi}" data-question-id="${esc(question.id||'')}">
+      <div class="pc-quiz-question-top"><strong>Question ${qi+1}</strong><button type="button" class="pc-danger" data-action="pc-remove-quiz-question" data-question="${qi}" ${qi===0?'disabled':''}>Remove</button></div>
+      <label class="pc-field">Question text<textarea data-pc-quiz-field="prompt" rows="3">${esc(question.prompt||'')}</textarea></label>
+      <label class="pc-field">Answer options — one per line<textarea data-pc-quiz-field="choices" rows="4">${esc(choices)}</textarea><small>Up to 8 answer choices for this question.</small></label>
+      <label class="pc-field">Correct answer number<input data-pc-quiz-field="correct" type="number" min="1" max="8" value="${Math.max(0,Number(question.correct)||0)+1}"></label>
+    </article>`;
+  }
+  function pcQuizSummary(block){
+    const questions=pcQuizQuestions(block);
+    return `${questions.length} question${questions.length===1?'':'s'}`;
+  }
+  function pcBlockEditor(block,si,bi){
+    const type=PC_TYPES[block.type]?block.type:'paragraph';const isOpen=pcOpenBlock===block.id;
+    let inputs='';
+    if(type!=='divider') inputs+=pcField(type==='banner'?'Banner headline':type==='quiz'?'Quiz title':type==='assignment'?'Assignment title':'Widget heading / caption','title',block.title);
+    if(type==='paragraph') inputs+=`<div class="pc-rich-field"><div class="pc-rich-toolbar" role="toolbar" aria-label="Lesson formatting"><button type="button" data-pc-format="heading" title="Heading">H2</button><button type="button" data-pc-format="bold" title="Bold"><strong>B</strong></button><button type="button" data-pc-format="italic" title="Italic"><em>I</em></button><button type="button" data-pc-format="list" title="Bullet list">≡</button><button type="button" data-pc-format="number" title="Numbered list">1.</button><button type="button" data-pc-format="link" title="Link">🔗</button><button type="button" data-pc-format="inlinecode" title="Inline code">&lt;/&gt;</button><button type="button" data-pc-format="code" title="Fenced code block">{ }</button></div>${pcField('Lesson content — rich formatting','text',block.text,'textarea','Use toolbar to format text. Use a separate Code Block widget for longer code examples.')}<div class="pc-rich-preview-label">Student preview</div><div class="pc-rich-preview" data-pc-preview></div></div>`;
+    if(type==='code') inputs+=`${pcField('Source code','text',block.text,'textarea','Paste code exactly as written. It will display with a colored code editor style to students.')}<label class="pc-field">Programming language<select data-pc-field="language">${['javascript','html','css','jsx','json','python','php','sql','bash','text'].map(lang=>`<option value="${lang}" ${String(block.language||'javascript')===lang?'selected':''}>${lang.toUpperCase()}</option>`).join('')}</select></label><div class="pc-rich-preview-label">Code preview</div><pre class="pc-code-preview"><code data-pc-code-preview></code></pre>`;
+    if(['banner','callout','assignment'].includes(type)) inputs+=pcField(type==='banner'?'Short banner description':type==='assignment'?'Assignment instructions':'Body text','text',block.text,'textarea');
+    if(['banner','image','download'].includes(type))inputs+=`<div class="pc-media-field">${pcField(type==='banner'?'Banner image URL':type==='image'?'Image URL':'File / link URL','url',block.url,'input','Upload in Media Library or provide an https:// link.')}<button type="button" class="secondary-button" data-action="pc-pick-media" data-section="${si}" data-block="${bi}">Choose media</button></div>`;
+    if(type==='gallery')inputs+=pcField('Gallery image URLs — one per line','images',(block.images||[]).join('\n'),'textarea','Add up to 16 photos using the Media Library URLs.');
+    if(type==='quiz'){
+      const questions=pcQuizQuestions(block);
+      inputs+=`<div class="pc-quiz-builder"><div class="pc-quiz-builder-head"><div><strong>Quiz questions</strong><small>Create one quiz with multiple questions.</small></div><button type="button" class="secondary-button" data-action="pc-add-quiz-question">+ Add question</button></div><div class="pc-quiz-list">${questions.map((question,qi)=>pcQuizQuestionEditor(question,qi)).join('')}</div></div>`;
+    }
+    if(['quiz','assignment'].includes(type))inputs+=`<label class="pc-required"><input type="checkbox" data-pc-field="required" ${block.required?'checked':''}><span><strong>Require submission to continue</strong><small>When checked, the next content stays locked until the learner submits successfully.</small></span></label>`;
+    const label=block.title|| (type==='paragraph'?String(block.text||'').slice(0,65):type==='quiz'?pcQuizSummary(block):'Configure this widget');
+    const photo=type==='image'&&cmUrl(block.url)?`<img src="${esc(cmUrl(block.url))}" alt="" loading="lazy">`:'';
+    const stage=type==='banner'?`<div class="pc-builder-banner-stage">${cmUrl(block.url)?`<img src="${esc(cmUrl(block.url))}" alt="" loading="lazy">`:''}<div><span>PHYSICAL COURSE</span><h2>${esc(block.title||'Add your banner headline')}</h2><p>${esc(block.text||'Add a short introduction to your course.')}</p></div></div>`:'';
+    return `<article class="pc-block ${isOpen?'pc-block-open':''}" data-pc-block="${bi}" data-pc-block-id="${esc(block.id)}" tabindex="0" aria-label="${esc(PC_TYPES[type])} widget, draggable to reorder">
+      <div class="pc-block-top"><span class="pc-drag-handle" draggable="true" aria-label="Drag widget" title="Drag to reorder">⠿</span><span class="pc-block-icon" aria-hidden="true">${PC_ICONS[type]}</span><div class="pc-block-summary"><strong>${esc(PC_TYPES[type])}</strong><small>${esc(label||'Configure this widget')}</small></div>${photo}<div class="pc-actions"><button type="button" data-action="pc-toggle-block" data-id="${esc(block.id)}" aria-expanded="${isOpen}">${isOpen?'Close':'Edit'}</button><button type="button" data-action="pc-move-block" data-section="${si}" data-block="${bi}" data-direction="-1" title="Move up">↑</button><button type="button" data-action="pc-move-block" data-section="${si}" data-block="${bi}" data-direction="1" title="Move down">↓</button><button type="button" data-action="pc-remove-block" data-section="${si}" data-block="${bi}" class="pc-danger" title="Delete widget">×</button></div></div>${stage}
+      <div class="pc-block-fields" ${isOpen?'':'hidden'}><label class="pc-field">Widget type<select data-pc-field="type" data-section="${si}" data-block="${bi}">${pcOptions(type)}</select></label>${inputs}</div></article>`;
+  }
+  function pcRichSafe(text){return String(text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function pcRichPreview(value){
+    const source=String(value||'').replace(/\r/g,'');
+    return source.split(/\n/).map(line=>{
+      let safe=pcRichSafe(line);
+      safe=safe.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
+      const link=safe.match(/\[([^\]]+)\]\((https?:\/\/[^ )]+)\)/);if(link)safe=safe.replace(link[0],'<a href="'+link[2].replace(/&quot;/g,'')+'" target="_blank" rel="noopener noreferrer">'+link[1]+'</a>');
+      if(/^### /.test(line))return '<h4>'+safe.slice(4)+'</h4>';
+      if(/^## /.test(line))return '<h3>'+safe.slice(3)+'</h3>';
+      if(/^# /.test(line))return '<h2>'+safe.slice(2)+'</h2>';
+      if(/^[-*] /.test(line))return '<div class="pc-preview-item">• '+safe.slice(2)+'</div>';
+      if(/^\d+\. /.test(line))return '<div class="pc-preview-item">'+safe+'</div>';
+      return safe?'<p>'+safe+'</p>':'<div style="height:8px"></div>';
+    }).join('');
+  }
+  function pcRefreshRichPreviews(root=document){
+    root.querySelectorAll('.pc-rich-field').forEach(w=>{const src=w.querySelector('[data-pc-field="text"]'),target=w.querySelector('[data-pc-preview]');if(src&&target)target.innerHTML=pcRichPreview(src.value);});
+    root.querySelectorAll('.pc-block').forEach(w=>{const src=w.querySelector('[data-pc-field="text"]'),target=w.querySelector('[data-pc-code-preview]');if(src&&target)target.textContent=src.value;});
+  }
+  document.addEventListener('click',event=>{const button=event.target.closest('[data-pc-format]');if(!button)return;event.preventDefault();const box=button.closest('.pc-rich-field');pcInsertFormat(box?.querySelector('[data-pc-field="text"]'),button.dataset.pcFormat);});
+  document.addEventListener('input',event=>{if(!event.target.matches('#pcEditor .pc-rich-field [data-pc-field="text"],#pcEditor .pc-block:has([data-pc-code-preview]) [data-pc-field="text"]'))return;pcRefreshRichPreviews(event.target.closest('.pc-block')||document);});
+  function pcInsertFormat(textarea,mode){
+    if(!textarea)return;const start=textarea.selectionStart,end=textarea.selectionEnd,selected=textarea.value.slice(start,end);
+    const map={heading:['## ',''],bold:['**','**'],italic:['*','*'],list:['- ',''],number:['1. ',''],link:['[','](https://example.com)'],inlinecode:['`','`'],code:['```javascript\n','\n```']};
+    const [before,after]=map[mode]||['',''];const value=before+(selected||(mode==='heading'?'Heading':mode==='code'?'// Paste your code here':'text'))+after;
+    textarea.setRangeText(value,start,end,'select');textarea.focus();textarea.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  function pcCapture(){
+    const main=document.getElementById('pcEditor');if(!main)return;
+    // A module heading is a property of every child section. Capture it once
+    // per visible group, never just on the selected lesson.
+    main.querySelectorAll('[data-pc-module-title]').forEach(input=>{
+      const start=Number(input.dataset.moduleStart),end=Number(input.dataset.moduleEnd);
+      const original=pcSections[start] ? pcModuleName(pcSections[start]) : 'Module';
+      const title=input.value.trim().slice(0,190)||original;
+      for(let i=start;i<=end;i++)if(pcSections[i])pcSections[i].module=title;
+    });
+    main.querySelectorAll('.pc-lesson-surface[data-pc-section]').forEach(section=>{
+      const si=Number(section.dataset.pcSection),target=pcSections[si];if(!target)return;
+      target.title=section.querySelector('[data-pc-section-title]')?.value||'';
+      target.description=section.querySelector('[data-pc-lesson-description]')?.value||'';
+      section.querySelectorAll('[data-pc-block]').forEach(row=>{
+        const bi=Number(row.dataset.pcBlock),block=target.blocks[bi];if(!block)return;
+        row.querySelectorAll('[data-pc-field]').forEach(field=>{
+          const key=field.dataset.pcField;
+          if(key==='required')block.required=field.checked;
+          else if(key==='choices')block.choices=field.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,8);
+          else if(key==='images')block.images=field.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,16);
+          else if(key==='correct')block.correct=Math.max(0,(Number(field.value)||1)-1);
+          else block[key]=field.value;
+        });
+        if((block.type||'')==='quiz'){
+          const questions=[];
+          row.querySelectorAll('[data-pc-quiz-question]').forEach((questionRow,index)=>{
+            const prompt=(questionRow.querySelector('[data-pc-quiz-field="prompt"]')?.value||'').trim();
+            const choices=(questionRow.querySelector('[data-pc-quiz-field="choices"]')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,8);
+            const correct=Math.max(0,(Number(questionRow.querySelector('[data-pc-quiz-field="correct"]')?.value)||1)-1);
+            questions.push({id:physicalSafeId(questionRow.dataset.questionId||pcId()),prompt,choices:choices.length?choices:['Option A','Option B'],correct:Math.max(0,Math.min((choices.length?choices.length:2)-1,correct))});
+          });
+          if(!questions.length)questions.push({id:pcId(),prompt:'',choices:['Option A','Option B'],correct:0});
+          block.questions=questions;
+          block.text=questions[0]?.prompt||block.text||'';
+          block.choices=questions[0]?.choices||block.choices||['Option A','Option B'];
+          block.correct=questions[0]?.correct||0;
+        }
+      });
+    });
+  }
+  function pcMarkDirty(){pcDirty=true;const status=document.getElementById('pcSaveState');if(status)status.textContent='Unsaved changes';}
+  function pcLessonKind(section){return ['lesson','quiz','assignment'].includes(section?.kind)?section.kind:'lesson';}
+  function pcModuleName(section){return String(section?.module||'Course introduction').trim()||'Course introduction';}
+  function pcGroups(){
+    const groups=[];
+    pcSections.forEach((section,i)=>{
+      const name=pcModuleName(section);
+      if(!groups.length||groups[groups.length-1].name!==name)groups.push({name,start:i,end:i});
+      else groups[groups.length-1].end=i;
+    });
+    return groups;
+  }
+  function pcGroupAt(sectionIndex){return pcGroups().find(group=>group.start<=sectionIndex&&group.end>=sectionIndex);}
+  function pcNextModuleName(){
+    const used=new Set(pcGroups().map(g=>g.name.toLowerCase()));
+    let n=pcGroups().length+1;while(used.has(`module ${String(n).padStart(2,'0')}`))n++;
+    return `Module ${String(n).padStart(2,'0')}`;
+  }
+  function pcNewLesson(kind='lesson',module='Module 01'){
+    kind=['lesson','quiz','assignment'].includes(kind)?kind:'lesson';
+    const count=pcSections.filter(s=>pcModuleName(s)===module&&pcLessonKind(s)===kind).length+1;
+    const title=`${kind==='lesson'?'Lesson':kind==='quiz'?'Quiz':'Assignment'} ${String(count).padStart(2,'0')}`;
+    const blocks=kind==='quiz'?[{...pcNewBlock('quiz'),title:'Knowledge check',text:''}]:kind==='assignment'?[{...pcNewBlock('assignment'),title:'Practice assignment',text:''}]:[];
+    return {id:pcId(),title,module,kind,description:'',blocks};
+  }
+  function pcToc(){
+    const groups=pcGroups();
+    const cards=groups.map((group,gi)=>{
+      const itemRows=pcSections.slice(group.start,group.end+1).map((section,offset)=>{
+        const i=group.start+offset,kind=pcLessonKind(section);
+        const short=kind==='quiz'?'?':kind==='assignment'?'✓':String(pcSections.slice(group.start,i+1).filter(s=>pcLessonKind(s)==='lesson').length).padStart(2,'0');
+        return `<div class="pc-outline-line ${i===pcActiveLesson?'selected':''}" draggable="true" data-pc-outline-lesson="${i}" data-pc-outline-row="${i}" title="Drag to reorder lessons">
+          <button type="button" class="pc-outline-lesson" data-action="pc-select-lesson" data-section="${i}" aria-current="${i===pcActiveLesson?'step':'false'}"><span class="pc-outline-kind">${short}</span><span><strong>${esc(section.title||`Untitled ${kind}`)}</strong><small>${kind[0].toUpperCase()+kind.slice(1)} · ${(section.blocks||[]).length} widgets</small></span></button>
+          <div class="pc-outline-order"><button type="button" data-action="pc-move-section" data-section="${i}" data-direction="-1" title="Move up in this module" aria-label="Move ${esc(section.title)} up">↑</button><button type="button" data-action="pc-move-section" data-section="${i}" data-direction="1" title="Move down in this module" aria-label="Move ${esc(section.title)} down">↓</button></div>
+        </div>`;
+      }).join('');
+      return `<section class="pc-module-card" data-pc-outline-module="${group.start}"><header class="pc-module-head"><span class="pc-module-index">${String(gi+1).padStart(2,'0')}</span><label class="pc-module-name">Module title<input data-pc-module-title data-module-start="${group.start}" data-module-end="${group.end}" maxlength="190" value="${esc(group.name)}" aria-label="Module ${gi+1} title"></label><div class="pc-module-controls"><button type="button" data-action="pc-move-module" data-module-start="${group.start}" data-direction="-1" ${gi===0?'disabled':''} title="Move module up">↑</button><button type="button" data-action="pc-move-module" data-module-start="${group.start}" data-direction="1" ${gi===groups.length-1?'disabled':''} title="Move module down">↓</button><button type="button" data-action="pc-remove-module" data-module-start="${group.start}" class="pc-danger" title="Delete module and its content">×</button></div></header>
+        <div class="pc-module-lessons" data-pc-outline-drop="${group.start}">${itemRows}</div>
+        <div class="pc-module-add-actions"><button type="button" data-action="pc-add-lesson" data-kind="lesson" data-module-start="${group.start}">+ Lesson</button><button type="button" data-action="pc-add-lesson" data-kind="quiz" data-module-start="${group.start}">+ Quiz</button><button type="button" data-action="pc-add-lesson" data-kind="assignment" data-module-start="${group.start}">+ Assignment</button></div>
+      </section>`;
+    }).join('');
+    const label=`+ Add ${pcNextModuleName()}`;
+    return `<div class="pc-toc-title"><span>COURSE STRUCTURE</span><h3>Modules & activities</h3><small>${groups.length} modules · ${pcSections.length} items</small></div><nav aria-label="Modules, lessons, quizzes and assignments" class="pc-builder-toc-links">${cards||'<p class="pc-module-blank">Your course is empty. Add a module to automatically create Lesson 01.</p>'}</nav><div class="pc-structure-add"><button type="button" class="pc-add-module-primary" data-action="pc-add-module">${label}</button><small>Each module starts with Lesson 01. Add unlimited lessons, quizzes and assignments inside it.</small></div>`;
+  }
+  function pcRenderEditor(){
+    if(!pcCourse)return;
+    pcActiveLesson=Math.min(Math.max(pcActiveLesson,0),Math.max(0,pcSections.length-1));
+    const si=pcActiveLesson,section=pcSections[si];
+    const type=pcLessonKind(section),module=section?pcModuleName(section):'';
+    const paletteGroups=[['Basic content',['banner','heading','paragraph','callout','divider']],['Media & resources',['image','gallery','download']],['Assessments',['quiz','assignment']]];
+    const palette=paletteGroups.map(([label,types])=>`<div class="pc-palette-group"><h4>${label}</h4><div class="pc-palette-list">${types.map(t=>`<button type="button" draggable="true" class="pc-widget-palette-item" data-pc-palette="${t}" data-action="pc-palette-add" ${!section?'disabled':''} aria-label="Add ${esc(PC_TYPES[t])} widget"><span>${PC_ICONS[t]}</span><b>${esc(PC_TYPES[t])}</b><small>+</small></button>`).join('')}</div></div>`).join('');
+    const editorBody=!section?`<div class="pc-empty-canvas"><span class="pc-empty-icon">▤</span><span class="pc-overline">START YOUR PRIVATE COURSE</span><h2>Add your first module</h2><p>Click Add Module. Module 01 will be created with Lesson 01 ready for the drag-and-drop content editor.</p><button type="button" class="primary-button" data-action="pc-add-module">+ Add Module 01</button></div>`:`
+      <div class="pc-canvas-heading"><div class="pc-editor-breadcrumb">PHYSICAL COURSES / ${esc(module)} / ${esc(section.title)}</div><div class="pc-canvas-top"><div><span class="pc-overline">${esc(module.toUpperCase())} · ITEM ${si+1} OF ${pcSections.length}</span><h2>${esc(section.title||'Untitled item')}</h2><p>Edit the title, then drag content widgets below. Add more lessons, quizzes, or assignments from the module on the left.</p></div><span class="pc-lesson-kind-pill pc-lesson-${type}">${type==='quiz'?'?':type==='assignment'?'✓':'▤'} ${type[0].toUpperCase()+type.slice(1)}</span></div></div>
+      <section class="pc-section pc-lesson-surface" data-pc-section="${si}" data-pc-section-id="${esc(section.id)}" id="pc-builder-section-${si}"><header class="pc-section-top pc-lesson-settings"><div class="pc-lesson-form"><label class="pc-section-name">${type==='lesson'?'Lesson':type==='quiz'?'Quiz':'Assignment'} title<input data-pc-section-title maxlength="190" value="${esc(section.title)}" placeholder="e.g. Introduction to data analysis"></label><div class="pc-lesson-module-reference"><small>Inside module</small><strong>${esc(module)}</strong><span>Change this module title on the left.</span></div><label class="pc-section-name pc-lesson-description">Short introduction (optional)<textarea data-pc-lesson-description rows="2" placeholder="Briefly introduce this ${type} to learners.">${esc(section.description||'')}</textarea></label></div><div class="pc-lesson-operations"><button type="button" data-action="pc-duplicate-lesson" data-section="${si}">Duplicate ${type}</button><button type="button" class="pc-danger" data-action="pc-remove-section" data-section="${si}">Delete ${type}</button></div></header>
+      <div class="pc-section-body" data-pc-dropzone="${si}"><div class="pc-canvas-content-title"><strong>${type==='lesson'?'Lesson':type==='quiz'?'Quiz':'Assignment'} content</strong><small>${(section.blocks||[]).length} widgets · Drag ⋮⋮ to rearrange</small></div>${(section.blocks||[]).map((block,bi)=>pcBlockEditor(block,si,bi)).join('')}
+      <div class="pc-drop-hint pc-drop-zone">＋ Drop a widget here, or click a widget on the left</div><div class="pc-add-widget"><select data-pc-new-type aria-label="Choose widget">${pcOptions('paragraph')}</select><button type="button" class="secondary-button" data-action="pc-add-block" data-section="${si}">+ Insert widget</button></div></div></section>
+      <div class="pc-editor-footer"><button type="button" class="secondary-button" data-action="pc-select-lesson" data-section="${si-1}" ${si===0?'disabled':''}>← Previous</button><span>${si+1} / ${pcSections.length}</span><button type="button" class="secondary-button" data-action="pc-select-lesson" data-section="${si+1}" ${si===pcSections.length-1?'disabled':''}>Next →</button><button type="button" class="primary-button" data-action="pc-save">Save</button></div>`;
+    content.innerHTML=`${pageHead('Physical Course · Lesson Builder',`${esc(pcCourse.title)} · Admin editor · Your existing website theme`)}
+      <div id="pcEditor" class="pc-editor pc-editor-v130 pc-editor-v132"><div class="pc-editor-toolbar"><div><button type="button" class="secondary-button" data-action="pc-back">← Physical courses</button><button type="button" class="secondary-button" data-action="cm-view-private" data-id="${pcCourse.id}" data-mode="offline">Preview saved page ↗</button><span id="pcSaveState" class="pc-save-state" role="status">${pcDirty?'Unsaved changes':'Saved version loaded'}</span></div><button type="button" class="primary-button" data-action="pc-save" ${!section?'disabled':''}>Save course content</button></div>
+      <div class="pc-builder-layout"><aside class="pc-builder-sidebar" aria-label="Widget picker and module structure">
+      <div class="pc-builder-widgets"><div class="pc-picker-head"><span class="pc-overline">PAGE BUILDER</span><h3>Elements</h3><p>Click or drag a widget into the selected lesson, quiz or assignment.</p></div><label class="pc-picker-search">⌕ <input type="search" id="pcWidgetSearch" placeholder="Find a widget…" aria-label="Search widgets"></label><div class="pc-widget-palette">${palette}</div></div>
+      <div class="pc-builder-toc">${pcToc()}</div></aside>
+      <main class="pc-builder-canvas" aria-label="Selected lesson editor">${editorBody}</main></div></div>`;
+    pcRefreshRichPreviews(content);
+  }
+  async function pcOpenEditor(id){
+    loading();try{
+      const res=await api('admin_physical_page',{query:{course_id:id}});
+      pcCourse=res.course;pcSections=Array.isArray(res.sections)?res.sections:[];
+      pcDirty=false;pcOpenBlock=null;pcActiveLesson=0;pcRenderEditor();
+    }catch(e){toast(e.message,'error');await renderAllCourses();}
+  }
+  // One category = one manager. Existing multi-delivery courses appear in each enabled category.
+  const categoryForMode = mode => mode==='recorded'?'recordedCourses':mode==='live'?'liveCourses':'physicalCourses';
+  const courseModes = course => {const modes=Array.isArray(course?.deliveryModes)?course.deliveryModes:(Array.isArray(course?.delivery_modes)?course.delivery_modes:[]);return modes.includes('disabled')?[]:modes.filter(mode=>COURSE_MODES.includes(mode)).length?modes.filter(mode=>COURSE_MODES.includes(mode)):[course.deliveryMode||'offline'];};
+  // Single admin control center for enabling or deactivating delivery types.
+  // Deactivated formats retain their course content and historical enrollments.
+  async function renderCourseTypes(){
+    const response=await api('admin_courses');
+    const rows=response.courses||[];
+    state.courses=rows;
+    const counts=Object.fromEntries(COURSE_MODES.map(mode=>[mode,rows.filter(course=>courseModes(course).includes(mode)).length]));
+    const totals={all:rows.length,deactivated:rows.filter(c=>courseModes(c).length===0).length};
+    const names={offline:'Physical',recorded:'Recorded',live:'Live'};
+    const rowMarkup=course=>{
+      const enabled=courseModes(course);const inactive=enabled.length===0;
+      return `<tr data-types-row="${course.id}" data-types-search="${esc([course.title,course.slug,course.category].join(' ').toLowerCase())}">
+        <td><div class="ct-course"><span class="ct-course-avatar">${initials(course.title)}</span><div><strong>${esc(course.title)}</strong><small>${esc(course.slug)}</small></div></div></td>
+        ${['offline','recorded','live'].map(mode=>`<td data-label="${names[mode]}"><label class="ct-toggle" title="${enabled.includes(mode)?'Deactivate':'Activate'} ${names[mode]} — saved content is preserved"><input type="checkbox" data-course-type-toggle data-id="${course.id}" data-mode="${mode}" ${enabled.includes(mode)?'checked':''}><span class="ct-switch" aria-hidden="true"></span><span class="ct-toggle-word">${enabled.includes(mode)?'Active':'Off'}</span></label></td>`).join('')}
+        <td><span class="ct-status ${inactive?'ct-is-off':'ct-is-on'}">${inactive?'Deactivated':`${enabled.length} active`}</span></td>
+      </tr>`;
+    };
+    content.innerHTML=`${pageHead('Course Types','Choose exactly which formats each course offers. Unchecking a format deactivates it — it does not delete the course, its pages, lessons, or existing student access.')}
+      <section class="ct-panel"><header class="ct-panel-head"><div><div class="cm-manager-eyebrow">DELIVERY AVAILABILITY</div><h2>Course type settings</h2><p>Changes are saved individually. Turn formats back on at any time.</p></div><label class="ct-search">⌕ <input type="search" id="ctCourseSearch" placeholder="Search courses…" autocomplete="off" aria-label="Search course types"></label></header>
+      <div class="ct-stats"><div><strong>${rows.length}</strong><span>Total courses</span></div><div><strong>${counts.offline}</strong><span>Physical active</span></div><div><strong>${counts.recorded}</strong><span>Recorded active</span></div><div><strong>${counts.live}</strong><span>Live active</span></div><div><strong>${totals.deactivated}</strong><span>Fully deactivated</span></div></div>
+      <div class="ct-note"><strong>Data-safe controls</strong> — unchecking removes an offering from its course list and new purchases. It never deletes lessons, assignments, quizzes, public-page content, payment history, or existing student enrollments.</div>
+      <div class="ct-table-scroll"><table class="ct-table"><thead><tr><th>Course</th><th>Physical</th><th>Recorded</th><th>Live</th><th>Status</th></tr></thead><tbody>${rows.map(rowMarkup).join('')}</tbody></table><p class="ct-empty" id="ctSearchEmpty" hidden>No courses match your search.</p></div>
+      <div class="ct-footnote"><span>✓ Checked = active and listed</span><span>○ Unchecked = deactivated, data retained</span></div></section>`;
+    const search=document.getElementById('ctCourseSearch');
+    search?.addEventListener('input',()=>{
+      const text=search.value.trim().toLowerCase();let visible=0;
+      content.querySelectorAll('[data-types-row]').forEach(row=>{const ok=!text||text.split(/\s+/).every(word=>row.dataset.typesSearch.includes(word));row.hidden=!ok;if(ok)visible++;});
+      const empty=document.getElementById('ctSearchEmpty');if(empty)empty.hidden=visible>0;
+    });
+  }
+  // One entry per course. Format toggles and per-format content remain in the existing editor.
+  async function renderAllCourses(){
+    pcCourse=null;
+    const central=isCentralRole(),instructor=normalizedRole()==='instructor';
+    const calls=[api('admin_courses')];
+    if(central||isBranchRole())calls.push(api('admin_branches'),api('admin_instructors'));
+    const result=await Promise.all(calls);
+    state.courses=result[0].courses||[];
+    if(central||isBranchRole()){state.branches=result[1].branches||[];state.instructors=result[2].instructors||[];}
+    if(instructor){state.branches=[{shortName:state.user.branch,name:state.user.branch}];state.instructors=[{id:state.user.id,name:state.user.name,branch:state.user.branch}];}
+    if(editorPageMode && !editorPageOpened){
+      editorPageOpened=true;
+      // All authorized course creators use the identical editor and backend validation.
+      const course=requestedEditorId ? state.courses.find(c=>Number(c.id)===requestedEditorId) : null;
+      if(requestedEditorId && !course){toast('Course not found or access denied.','error');return;}
+      openCourseModal(course,requestedEditorMode);
+    }
+    const rows=state.courses.slice().sort((a,b)=>{
+      const aDate=Date.parse(a.createdAt||a.created_at||'')||0;
+      const bDate=Date.parse(b.createdAt||b.created_at||'')||0;
+      return bDate-aDate || Number(b.id||0)-Number(a.id||0);
+    });
+    const formatTabs=course=>{
+      const enabled=courseModes(course);
+      return `<div class="fsa-all-format-links" role="group" aria-label="${esc(course.title)} available formats">${COURSE_MODES.map(mode=>{
+        const on=enabled.includes(mode),label=mode==='offline'?'Physical':mode==='live'?'Live':'Recorded';
+        if(!on)return `<span class="fsa-all-format-off" title="${label} inactive">${label} · Off</span>`;
+        return `<span class="fsa-all-format-active">✓ ${label}</span>`;
+      }).join('')}</div>`;
+    };
+    const cards=rows.map(course=>{
+      const id=Number(course.id),modes=courseModes(course),name=esc(course.title),slug=encodeURIComponent(course.slug||'');
+      // One public editor per course; delivery formats are tabs INSIDE that editor.
+      // Private editing remains a separate workflow using the original page builder.
+      const canEdit=central||isBranchRole()||(instructor&&course.publicApprovalStatus!=='approved'&&Number(course.instructorUserId)===Number(state.user.id));
+      const publicActions=canEdit?`<button type="button" class="secondary-button" data-action="cm-edit-public" data-id="${id}" data-mode="${modes[0]||'offline'}">Edit public page ✎</button>`:'';
+      const publicViews=course.visibility==='private'?'<span class="status-pill status-pending">Private — not publicly listed</span>':modes.map(mode=>{
+        const label=mode==='offline'?'Physical':mode==='live'?'Live':'Recorded';
+        return `<a class="cm-mini-action" href="../#/course/${slug}?mode=${mode==='offline'?'classroom':mode}" target="_blank" rel="noopener" aria-label="View ${label} public page for ${name}">${label} ↗</a>`;
+      }).join('');
+      const privateViews=modes.map(mode=>{
+        const label=mode==='offline'?'Physical':mode==='live'?'Live':'Recorded';
+        return `<button type="button" class="cm-mini-action" data-action="cm-view-private" data-id="${id}" data-mode="${mode}" aria-label="Preview ${label} private page for ${name}">${label} preview ↗</button>`;
+      }).join('');
+      const privateEdit=(central||isBranchRole()) && modes.includes('offline')?`<button type="button" class="secondary-button" data-action="pc-edit" data-id="${id}">Edit Physical private page ✎</button>`:'';
+      const instructorHint=modes.some(m=>m==='live'||m==='recorded')?`<small class="fsa-private-hint">Live / Recorded private lessons are edited by their assigned instructor.</small>`:'';
+      const actions=`<div class="fsa-course-actions-unified"><div class="fsa-course-action-group"><strong>Public page</strong><div class="fsa-action-wrap">${publicActions}${publicViews}</div></div><div class="fsa-course-action-group"><strong>Private page</strong><div class="fsa-action-wrap">${privateEdit}${privateViews||'<small>No active formats</small>'}</div>${instructorHint}</div></div>`;
+      const manage='';
+      const approvalTag=course.publicApprovalStatus==='pending'?'<span class="status-pill status-pending">Awaiting approval</span>':course.publicApprovalStatus==='rejected'?'<span class="status-pill status-rejected">Rejected — edit & resubmit</span>':'';
+      return `<article class="fsa-all-course-row" data-all-course-search="${esc([course.title,course.slug,course.category,course.branchName,course.status].join(' ').toLowerCase())}">
+        <div class="fsa-all-course-main"><span class="cm-course-avatar">${initials(course.title)}</span><div><h3>${name}</h3><small>${esc(course.slug||'')} · ${esc(course.status||'draft')} · ${esc(course.visibility||'public')}</small>${approvalTag}${formatTabs(course)}</div></div>
+        <div class="fsa-all-course-actions">${actions||'<span class="fsa-all-inactive">All formats inactive — not available on public catalogue.</span>'}</div>
+        <div class="fsa-all-course-manage">${manage}</div>
+      </article>`;
+    }).join('');
+    const add=`<button class="primary-button" data-action="cm-add-course" data-mode="offline">+ Add Course</button>`;
+    content.innerHTML=`${pageHead('All Courses','Edit the public course page with Physical, Live and Recorded tabs. Edit the Physical private page using its original page builder; instructor-managed private lessons remain separate.',add)}
+      <div class="panel fsa-all-courses-panel"><div class="panel-head"><div><h2>Course directory <span class="cm-total-pill">${rows.length}</span></h2><p>One course record · public format tabs · private page tools</p></div><label class="cm-search-box"><span aria-hidden="true">⌕</span><input id="fsaAllCourseSearch" type="search" placeholder="Search courses" aria-label="Search all courses"></label></div>
+      <div id="fsaAllCoursesList">${cards||emptyState('No courses yet','Add your first course to get started.')}</div><p id="fsaAllCourseEmpty" class="cm-no-matches" hidden>No matching courses.</p></div>`;
+    const input=document.getElementById('fsaAllCourseSearch');
+    input?.addEventListener('input',()=>{
+      const q=input.value.trim().toLowerCase();let found=0;
+      content.querySelectorAll('[data-all-course-search]').forEach(row=>{
+        const hit=!q||q.split(/\s+/).every(term=>row.dataset.allCourseSearch.includes(term));row.hidden=!hit;if(hit)found++;
+      });
+      const empty=document.getElementById('fsaAllCourseEmpty');if(empty)empty.hidden=found>0;
+    });
+  }
+
+  async function renderPhysicalCourses(){await renderModeCourses('offline');}
+  async function renderModeCourses(mode){
+    if(!COURSE_MODES.includes(mode))mode='offline';
+    pcCourse=null;
+    const central=isCentralRole(),instructor=normalizedRole()==='instructor';
+    const requests=[api('admin_courses')];
+    if(central){requests.push(api('admin_branches'),api('admin_instructors'));}
+    if(mode==='offline')requests.push(api('admin_physical_courses'));
+    const result=await Promise.all(requests);
+    state.courses=result[0].courses||[];
+    if(central){state.branches=result[1].branches||[];state.instructors=result[2].instructors||[];}
+    const pages=mode==='offline'?result[result.length-1].courses||[]:[];
+    const pageMap=new Map(pages.map(p=>[Number(p.id),p]));
+    const rows=state.courses.filter(course=>courseModes(course).includes(mode));
+    const name=mode==='offline'?'Physical Courses':mode==='recorded'?'Recorded Courses':'Live Courses';
+    const privateInfo=mode==='offline'?'Physical private learning pages are available to authorized academy and branch staff.':'Private lessons are instructor-managed. Admin access is view-only.';
+    const canEditPhysical=!instructor;
+    const actions=rows.map(course=>{
+      const id=Number(course.id),sameType=courseModes(course).length===1;
+      const courseTitle=esc(course.title),courseSlug=esc(course.slug);
+      const courseStatus=String(course.status||'draft');
+      const isReady=Boolean(pageMap.get(id)?.has_page);
+      const viewPublic=course.visibility==='private'?'<span class="status-pill status-pending">Private</span>':`<a class="cm-mini-action cm-action-view" href="../#/course/${encodeURIComponent(course.slug)}?mode=${mode==='offline'?'classroom':mode}" target="_blank" rel="noopener" aria-label="View public page of ${courseTitle}">View <span aria-hidden="true">↗</span></a>`;
+      const canEditPublic=central||isBranchRole()||(instructor&&course.publicApprovalStatus!=='approved'&&Number(course.instructorUserId)===Number(state.user.id));
+      const editPublic=canEditPublic?`<button type="button" class="cm-mini-action cm-action-edit" data-action="cm-edit-public" data-id="${id}" data-mode="${mode}" aria-label="Edit public page of ${courseTitle}">Edit <span aria-hidden="true">✎</span></button>`:'';
+      const publicButtons=`<div class="cm-action-pair">${viewPublic}${editPublic}</div>`;
+      const privateButtons=mode==='offline'
+        ? `<div class="cm-private-status ${isReady?'cm-private-ready':'cm-private-empty'}"><span class="cm-status-dot" aria-hidden="true"></span>${isReady?'Page created':'Not created'}</div><div class="cm-action-pair"><button type="button" class="cm-mini-action cm-action-view" data-action="cm-view-private" data-id="${id}" data-mode="offline" aria-label="Preview private page of ${courseTitle}">Preview <span aria-hidden="true">↗</span></button>${canEditPhysical?`<button type="button" class="cm-mini-action cm-action-primary" data-action="pc-edit" data-id="${id}" aria-label="Edit private page data of ${courseTitle}">${isReady?'Edit content':'Build page'} <span aria-hidden="true">✎</span></button>`:''}</div>`
+        : `<div class="cm-private-status cm-private-instructor"><span class="cm-status-dot" aria-hidden="true"></span>Instructor managed</div><div class="cm-action-pair"><button type="button" class="cm-mini-action cm-action-view" data-action="cm-view-private" data-id="${id}" data-mode="${mode}" aria-label="Preview private page of ${courseTitle}">Preview <span aria-hidden="true">↗</span></button>${instructor?`<a class="cm-mini-action cm-action-primary" href="../#/instructor-course-manage/${id}" target="_blank" rel="noopener">Instructor editor <span aria-hidden="true">↗</span></a>`:''}</div>`;
+      const availability=central?`<div class="fsa-row-format-status" aria-label="Course delivery availability">${COURSE_MODES.map(m=>`<span class="fsa-row-format-pill ${courseModes(course).includes(m)?'on':'off'}" title="${COURSE_MODE_LABELS[m]}: ${courseModes(course).includes(m)?'Enabled':'Disabled'}">${courseModes(course).includes(m)?'✓':'○'} ${m==='offline'?'Physical':m==='recorded'?'Recorded':'Live'}</span>`).join('')}</div>`:'';
+      const formatDisable=central?`<div class="fsa-row-availability-action"><button type="button" data-action="fsa-open-types" title="Manage all delivery formats in Course Types">Manage types ↗</button></div>`:'';
+      const footer=central&&sameType?`<button type="button" class="cm-delete-link" data-action="cm-delete" data-id="${id}" data-mode="${mode}" title="Delete this entire course and its enrollments">Delete course</button>`:'';
+      const courseSearch=esc([course.title,course.slug,course.branchName,course.instructor,course.status].join(' ').toLowerCase());
+      return `<tr data-cm-search="${courseSearch}">
+        <td data-label="Course"><div class="cm-course-info"><span class="cm-course-avatar" aria-hidden="true">${initials(course.title)}</span><div class="cm-course-copy"><div class="cm-course-title">${courseTitle}</div><div class="cm-course-meta"><span class="cm-course-slug">${courseSlug}</span><span class="${statusClass(courseStatus)}">${esc(courseStatus)}</span>${!sameType?'<span class="cm-shared-tag">Multi-format</span>':''}</div>${availability}</div></div></td>
+        <td data-label="Public page"><div class="cm-page-cell"><div class="cm-cell-hint">Public listing</div>${publicButtons}</div></td>
+        <td data-label="Private page"><div class="cm-page-cell">${privateButtons}</div></td>
+        <td data-label="Assigned to"><div class="cm-assignment"><strong>${esc(course.branchName||'Not assigned')}</strong><span>${esc(course.instructor||'No instructor assigned')}</span>${formatDisable}${footer}</div></td>
+      </tr>`;
+    });
+    const add=`<button class="primary-button" data-action="cm-add-course" data-mode="${mode}">+ Add ${mode==='offline'?'Physical':mode==='recorded'?'Recorded':'Live'} Course</button>`;
+    const intro=mode==='offline'?'Only courses with Physical enabled appear here. Admin manages public and private pages.':'Only courses with this format enabled appear here. Admin edits public content and previews instructor-managed lessons.';
+    const candidates=(central||isBranchRole())?state.courses.filter(course=>!courseModes(course).includes(mode)):[];
+    const formatName=mode==='offline'?'Physical':mode==='recorded'?'Recorded':'Live';
+    const attachExisting=candidates.length?`<div class="cm-add-format"><div><strong>Already offer this subject in another format?</strong><span>Add a ${formatName} option to an existing course without duplicating its record or enrollments.</span></div><label class="cm-add-format-select"><span>Existing course</span><select id="cmExistingCourseForMode" aria-label="Choose a course to offer as ${formatName}">${candidates.map(course=>`<option value="${Number(course.id)}">${esc(course.title)}</option>`).join('')}</select></label><button type="button" class="secondary-button" data-action="cm-attach-mode" data-mode="${mode}">+ Offer as ${formatName}</button></div>`:'';
+    content.innerHTML=`${pageHead(name,privateInfo,add)}
+      ${attachExisting}
+      <div class="panel pc-course-list cm-course-manager">
+        <div class="panel-head cm-manager-heading">
+          <div class="cm-manager-copy"><div class="cm-manager-eyebrow">COURSE DIRECTORY</div><h2>${esc(name)} <span class="cm-total-pill">${rows.length}</span></h2><p>${esc(intro)}</p></div>
+          ${rows.length?`<div class="cm-search-group"><label class="cm-search-box"><span aria-hidden="true" class="cm-search-icon">⌕</span><input id="cmCourseSearch" type="search" placeholder="Search by course, branch or instructor" aria-label="Search ${esc(name)}" autocomplete="off"></label><span class="cm-result-count" id="cmCourseResultCount" aria-live="polite">Showing ${rows.length} of ${rows.length}</span></div>`:''}
+        </div>
+        ${rows.length?`<div class="table-wrap cm-course-table-wrap"><table class="data-table cm-mode-table"><colgroup><col class="cm-col-course"><col class="cm-col-public"><col class="cm-col-private"><col class="cm-col-assignment"></colgroup><thead><tr><th scope="col">Course</th><th scope="col">Public page</th><th scope="col">Private page</th><th scope="col">Assigned to</th></tr></thead><tbody>${actions.join('')}</tbody></table></div><div id="cmCourseNoMatches" class="cm-no-matches" hidden>No matching courses. Try a different search.</div>`:emptyState('No '+name.toLowerCase()+' yet',central?'Use Add Course above to create the first '+name.toLowerCase()+' record.':'A course will appear here after assignment to your account.')}
+      </div>`;
+    const searchInput=document.getElementById('cmCourseSearch');
+    if(searchInput){
+      searchInput.addEventListener('input',()=>{
+        const query=searchInput.value.trim().toLowerCase().replace(/\s+/g,' ');
+        let visible=0;
+        content.querySelectorAll('.cm-mode-table tbody tr').forEach(row=>{
+          const matches=!query||query.split(' ').every(word=>(row.dataset.cmSearch||'').includes(word));
+          row.hidden=!matches;if(matches)visible++;
+        });
+        const resultCount=document.getElementById('cmCourseResultCount');
+        if(resultCount)resultCount.textContent=`Showing ${visible} of ${rows.length}`;
+        const empty=document.getElementById('cmCourseNoMatches');if(empty)empty.hidden=visible!==0;
+      });
+    }
+  }
+  function cmParagraph(value){return `<p class="cm-text">${esc(value||'').replace(/\n/g,'<br>')}</p>`;}
+  function cmUrl(value){const url=String(value||'').trim();return /^https?:\/\//i.test(url)?url:/^(?:uploads|assets)\/[\w.\-/%]+$/i.test(url)?`../${url}`:'';}
+  function cmBlock(block){
+    const title=block.title?`<h3>${esc(block.title)}</h3>`:'';
+    const url=cmUrl(block.url),type=block.type||'paragraph';
+    if(type==='divider')return '<hr>';
+    if(type==='banner')return `<header class="cm-hero-banner">${url?`<img src="${esc(url)}" alt="" loading="lazy">`:''}<div class="cm-hero-copy"><span>PHYSICAL COURSE</span><h2>${esc(block.title||'Welcome to this course')}</h2>${cmParagraph(block.text||'')}</div></header>`;
+    if(type==='heading')return `<div class="cm-preview-block"><h2>${esc(block.title||'Heading')}</h2></div>`;
+    if(type==='image')return `<div class="cm-preview-block">${title}${url?`<img class="cm-preview-image" src="${esc(url)}" alt="${esc(block.title||'Course image')}" loading="lazy">`:'<p>Image not set.</p>'}</div>`;
+    if(type==='gallery')return `<div class="cm-preview-block">${title}<div class="cm-preview-gallery">${(block.images||[]).map(v=>cmUrl(v)).filter(Boolean).map(v=>`<img src="${esc(v)}" loading="lazy" alt="Gallery image">`).join('')}</div></div>`;
+    if(type==='download')return `<div class="cm-preview-block">${title}${cmParagraph(block.text||'')}${url?`<a target="_blank" rel="noopener noreferrer" href="${esc(url)}">${esc(block.linkTitle||'Open learning resource ↗')}</a>`:'<p>No file attached.</p>'}</div>`;
+    if(type==='quiz'){const questions=pcQuizQuestions(block);return `<div class="cm-preview-block cm-assessment cm-preview-quiz"><div class="cm-private-type">Quiz ${block.required?'· Required':''}</div>${title}<div class="cm-quiz-meta">${questions.length} question${questions.length===1?'':'s'}</div>${questions.map((question,qi)=>`<div class="cm-quiz-question"><strong>Question ${qi+1}</strong>${cmParagraph(question.prompt||'')}${(question.choices||[]).map((option,i)=>`<div class="cm-choice">${i+1}. ${esc(option)}</div>`).join('')}</div>`).join('')}<small>Read-only preview · Correct answers are not displayed</small></div>`;}
+    if(type==='assignment')return `<div class="cm-preview-block cm-assessment"><div class="cm-private-type">Assignment ${block.required?'· Required':''}</div>${title}${cmParagraph(block.text)}<small>Submission is only available to enrolled students.</small></div>`;
+    return `<div class="cm-preview-block ${type==='callout'?'cm-preview-callout':''}">${title}${cmParagraph(block.text)}</div>`;
+  }
+  function cmPreviewShell(course,mode,sections,readonly=true){
+    const name=mode==='offline'?'Physical':'Recorded';
+    const scope=mode==='live'?'Live':name;
+    const groups=[];
+    sections.forEach((section,index)=>{
+      const module=pcModuleName(section);
+      let current=groups[groups.length-1];
+      if(!current||current.name!==module){current={name:module,items:[]};groups.push(current);}current.items.push({section,index});
+    });
+    const sectionNodes=sections.map((section,idx)=>{
+      const blocks=section.blocks||[];
+      return `<section id="cm-private-section-${idx}" class="cm-preview-section"><span class="eyebrow">${esc(pcModuleName(section))} · ${esc(pcLessonKind(section))} ${idx+1}</span><h2>${esc(section.title)}</h2>${section.description?cmParagraph(section.description):''}${blocks.map(cmBlock).join('')||'<p class="cm-text">No content has been added to this lesson yet.</p>'}</section>`;
+    });
+    const tocBody=groups.map((group,groupIndex)=>`<section class="cm-smart-module"><div class="cm-smart-module-head"><span class="cm-smart-module-index">${String(groupIndex+1).padStart(2,'0')}</span><div><strong>${esc(group.name)}</strong><small>${group.items.length} item${group.items.length===1?'':'s'}</small></div></div><div class="cm-smart-module-list">${group.items.map(({section,index},itemIndex)=>`<a href="#cm-private-section-${index}" class="cm-smart-link" data-action="cm-scroll-section" data-anchor="cm-private-section-${index}"><span class="cm-smart-link-index">${pcLessonKind(section)==='quiz'?'?':pcLessonKind(section)==='assignment'?'✓':String(itemIndex+1).padStart(2,'0')}</span><span class="cm-smart-link-copy"><strong>${esc(section.title)}</strong><small>${pcLessonKind(section)[0].toUpperCase()+pcLessonKind(section).slice(1)} · ${(section.blocks||[]).length} widget${(section.blocks||[]).length===1?'':'s'}</small></span></a>`).join('')}</div></section>`).join('');
+    content.innerHTML=`${pageHead(course.title,`${scope} Course · Private page ${readonly?'(read-only preview)':''}`)}
+      <div class="pc-editor-toolbar"><div><button class="secondary-button" data-action="cm-back" data-mode="${mode}">← ${scope} Courses</button><a class="secondary-button" href="../#/course/${encodeURIComponent(course.slug)}?mode=${mode==='offline'?'classroom':mode}" target="_blank" rel="noopener">View Public Page ↗</a></div>${mode==='offline'&&normalizedRole()!=='instructor'?`<button class="primary-button" data-action="pc-edit" data-id="${pcCourse?.id||course.id}">Edit Private Page Data</button>`:''}</div>
+      <div class="pc-editor-guide">Admin preview: private content is displayed without student progress or submission controls. ${mode==='offline'?'Admin can edit this page.':'Only the assigned instructor can edit private lessons.'}</div>
+      <div class="cm-preview-layout cm-preview-layout-smart"><main class="cm-preview-body">${sectionNodes.join('')||emptyState('No private content yet',mode==='offline'?'Use Edit Private Page Data to add content.':'The instructor has not published learning content.')}</main><aside class="cm-preview-toc cm-preview-toc-smart"><div class="cm-preview-toc-head"><span>COURSE CONTENTS</span><h3>${esc(course.title||'Course')}</h3><p>${sections.length} items · Classroom learning</p></div><div class="cm-preview-toc-scroll">${tocBody||'<p>No lessons yet</p>'}</div></aside></div>`;
+    requestAnimationFrame(cmActivatePreviewToc);
+  }
+  function cmActivatePreviewToc(){
+    const links=[...document.querySelectorAll('.cm-smart-link[data-anchor]')];
+    if(!links.length)return;
+    const setActive=id=>links.forEach(link=>link.classList.toggle('active',link.dataset.anchor===id));
+    const sections=links.map(link=>document.getElementById(link.dataset.anchor)).filter(Boolean);
+    const onScroll=()=>{
+      let current=sections[0]?.id||'';
+      sections.forEach(section=>{if(section.getBoundingClientRect().top<=180)current=section.id;});
+      if(current)setActive(current);
+    };
+    onScroll();
+    window.addEventListener('scroll',onScroll,{passive:true});
+  }
+  async function cmOpenPrivate(id,mode){
+    loading();
+    try{
+      if(mode==='offline'){
+        const result=await api('admin_physical_page',{query:{course_id:id}});
+        cmPreviewShell(result.course,'offline',result.sections||[]);
+      }else{
+        const result=await api('admin_course_private_preview',{query:{course_id:id,mode}});
+        const sections=[];
+        const modules=result.modules||[];
+        if(modules.length)sections.push({title:'Course curriculum',blocks:modules.flatMap(mod=>[
+          {type:'heading',title:mod.title||'Module'},
+          {type:'paragraph',title:'Module overview',text:mod.description||''},
+          ...(mod.lessons||[]).map(l=>({type:'paragraph',title:l.title||'Lesson',text:[l.duration,l.content].filter(Boolean).join(' · ')}))
+        ])});
+        const lectures=result.lectures||[];
+        if(mode==='recorded'&&lectures.length)sections.push({title:'Recorded lectures',blocks:lectures.map(l=>({type:cmUrl(l.video_url)?'download':'paragraph',title:l.title,text:[l.description,`${l.duration_minutes||0} minutes`,l.status].filter(Boolean).join(' · '),url:l.video_url,linkTitle:'Open instructor lecture video ↗'}))});
+        const sessions=result.sessions||[];
+        if(mode==='live'&&sessions.length)sections.push({title:'Live sessions',blocks:sessions.map(s=>({type:'paragraph',title:s.title,text:[s.description,s.starts_at,s.status].filter(Boolean).join(' · ')}))});
+        const recordings=result.recordings||[];
+        if(mode==='live'&&recordings.length)sections.push({title:'Class recordings',blocks:recordings.map(r=>({type:cmUrl(r.recording_url)?'download':'paragraph',title:r.title,text:[r.description,r.status].filter(Boolean).join(' · '),url:r.recording_url,linkTitle:'Open class recording ↗'}))});
+        const quizzes=result.quizzes||[];
+        if(quizzes.length)sections.push({title:'Quizzes',blocks:quizzes.map(q=>({type:'callout',title:q.title,text:[q.description,q.status].filter(Boolean).join(' · ')}))});
+        const assignments=result.assignments||[];
+        if(assignments.length)sections.push({title:'Assignments',blocks:assignments.map(a=>({type:'callout',title:a.title,text:[a.instructions,a.status].filter(Boolean).join(' · ')}))});
+        cmPreviewShell(result.course,mode,sections);
+      }
+    }catch(error){toast(error.message,'error');await renderModeCourses(mode);}
+  }
+
+  function pcReorderBlock(fromSection,fromBlock,toSection,toBlock){
+    const source=pcSections[fromSection]?.blocks||[],target=pcSections[toSection]?.blocks||[];
+    if(!source[fromBlock]||!pcSections[toSection])return;
+    if(fromSection===toSection && fromBlock<toBlock)toBlock--;
+    const [block]=source.splice(fromBlock,1);
+    target.splice(Math.min(Math.max(0,toBlock),target.length),0,block);
+    pcMarkDirty();pcRenderEditor();
+  }
+  async function pcHandleAction(target){
+    const action=target.dataset.action;
+    if(action==='pc-edit'){await pcOpenEditor(Number(target.dataset.id));return;}
+    if(action==='pc-back'){if(pcDirty&&!confirm('Leave without saving changes?'))return;await renderAllCourses();return;}
+    if(action==='pc-focus-section'||action==='pc-select-lesson'){
+      pcCapture();const at=Number(target.dataset.section);
+      if(at>=0&&at<pcSections.length){pcActiveLesson=at;pcOpenBlock=null;pcRenderEditor();}
+      return;
+    }
+    if(action==='pc-toggle-block'){pcCapture();pcOpenBlock=pcOpenBlock===target.dataset.id?null:target.dataset.id;pcRenderEditor();return;}
+    if(action==='pc-save'){
+      pcCapture();if(!pcCourse)return;
+      if(!pcSections.length){toast('Add a module first. Each module automatically contains Lesson 01.','error');return;}
+      target.disabled=true;
+      try{
+        const result=await api('admin_physical_page_save',{method:'POST',body:{course_id:pcCourse.id,sections:pcSections}});
+        pcSections=result.sections;pcDirty=false;toast(result.message);pcRenderEditor();
+      }catch(error){toast(error.message,'error');}
+      finally{target.disabled=false;}
+      return;
+    }
+    pcCapture();
+    if(action==='pc-add-quiz-question'){
+      const section=pcSections[pcActiveLesson];
+      const block=(section?.blocks||[]).find(item=>item.id===pcOpenBlock && item.type==='quiz') || (section?.blocks||[]).find(item=>item.type==='quiz');
+      if(!block){toast('Open a quiz widget first.','error');return;}
+      const questions=pcQuizQuestions(block);
+      questions.push({id:pcId(),prompt:'',choices:['Option A','Option B'],correct:0});
+      block.questions=questions;pcOpenBlock=block.id;pcMarkDirty();pcRenderEditor();return;
+    }
+    if(action==='pc-remove-quiz-question'){
+      const section=pcSections[pcActiveLesson];
+      const block=(section?.blocks||[]).find(item=>item.id===pcOpenBlock && item.type==='quiz') || (section?.blocks||[]).find(item=>item.type==='quiz');
+      const at=Number(target.dataset.question);
+      if(!block||!Array.isArray(block.questions)||block.questions.length<=1)return;
+      block.questions.splice(at,1); pcOpenBlock=block.id; pcMarkDirty(); pcRenderEditor(); return;
+    }
+    if(action==='pc-add-module'){
+      const module=pcNextModuleName();pcSections.push(pcNewLesson('lesson',module));
+      pcActiveLesson=pcSections.length-1;pcOpenBlock=null;
+    }
+    if(action==='pc-add-section'||action==='pc-add-lesson'){
+      const kind=target.dataset.kind||'lesson';
+      const at=Number(target.dataset.moduleStart);
+      const group=pcGroups().find(g=>g.start===at)||pcGroupAt(pcActiveLesson);
+      if(!group){toast('Add a module first.','error');return;}
+      const next=pcNewLesson(kind,group.name);
+      pcSections.splice(group.end+1,0,next);pcActiveLesson=group.end+1;
+      pcOpenBlock=next.blocks[0]?.id||null;
+    }
+    if(action==='pc-duplicate-lesson'){
+      const at=Number(target.dataset.section),source=pcSections[at];if(!source)return;
+      const copy=JSON.parse(JSON.stringify(source));copy.id=pcId();copy.title=`${copy.title} (copy)`;
+      copy.blocks.forEach(b=>b.id=pcId());pcSections.splice(at+1,0,copy);pcActiveLesson=at+1;pcOpenBlock=null;
+    }
+    if(action==='pc-palette-add'){
+      if(!pcSections[pcActiveLesson])return;
+      const type=target.dataset.pcPalette||'paragraph';
+      const b=pcNewBlock(type);pcSections[pcActiveLesson].blocks.push(b);pcOpenBlock=b.id;
+    }
+    if(action==='pc-remove-section'){
+      const at=Number(target.dataset.section),group=pcGroupAt(at);
+      if(!group)return;
+      if(group.start===group.end){toast('A module needs at least one item. Delete the module instead.','error');return;}
+      if(!confirm('Delete this item and all of its widgets?'))return;
+      pcSections.splice(at,1);pcActiveLesson=Math.min(at,pcSections.length-1);pcOpenBlock=null;
+    }
+    if(action==='pc-remove-module'){
+      const at=Number(target.dataset.moduleStart),group=pcGroups().find(g=>g.start===at);
+      if(!group)return;
+      if(pcGroups().length===1){toast('Keep at least one module. You can rename it or replace its lessons.','error');return;}
+      if(!confirm(`Delete ${group.name} and all its ${group.end-group.start+1} lessons, quizzes and assignments?`))return;
+      pcSections.splice(group.start,group.end-group.start+1);
+      pcActiveLesson=Math.min(group.start,pcSections.length-1);pcOpenBlock=null;
+    }
+    if(action==='pc-move-module'){
+      const groups=pcGroups(),index=groups.findIndex(g=>g.start===Number(target.dataset.moduleStart));
+      const next=index+Number(target.dataset.direction);
+      if(index>=0&&next>=0&&next<groups.length){
+        const chunks=groups.map(g=>pcSections.slice(g.start,g.end+1));
+        [chunks[index],chunks[next]]=[chunks[next],chunks[index]];
+        pcSections=chunks.flat();pcActiveLesson=chunks.slice(0,next).reduce((sum,group)=>sum+group.length,0);pcOpenBlock=null;
+      }
+    }
+    if(action==='pc-move-section'){
+      const at=Number(target.dataset.section),to=at+Number(target.dataset.direction),group=pcGroupAt(at);
+      // Arrow controls reorder items only inside the selected module.
+      if(group&&to>=group.start&&to<=group.end){
+        [pcSections[at],pcSections[to]]=[pcSections[to],pcSections[at]];
+        pcActiveLesson=to;pcOpenBlock=null;
+      }
+    }
+    if(action==='pc-add-block'){
+      const si=Number(target.dataset.section),type=target.closest('.pc-add-widget')?.querySelector('[data-pc-new-type]')?.value||'paragraph';
+      if(!pcSections[si])return;
+      const b=pcNewBlock(type);pcSections[si].blocks.push(b);pcOpenBlock=b.id;
+    }
+    if(action==='pc-remove-block'){
+      if(!confirm('Remove this widget?'))return;
+      pcSections[Number(target.dataset.section)]?.blocks.splice(Number(target.dataset.block),1);
+    }
+    if(action==='pc-move-block'){
+      const si=Number(target.dataset.section),at=Number(target.dataset.block),to=at+Number(target.dataset.direction);
+      const blocks=pcSections[si]?.blocks||[];
+      if(to>=0&&to<blocks.length)[blocks[at],blocks[to]]=[blocks[to],blocks[at]];
+    }
+    if(action==='pc-pick-media'){
+      const input=target.closest('.pc-block')?.querySelector('[data-pc-field="url"]');
+      if(input){openMediaPicker('',input);pcMarkDirty();}
+      return;
+    }
+    pcMarkDirty();pcRenderEditor();
+  }
+
+  // Native drag/drop: widget palette -> section, block -> block/section, section -> section.
+  document.addEventListener('dragstart',event=>{
+    if(!event.target.closest('#pcEditor'))return;
+    const palette=event.target.closest('[data-pc-palette]');
+    const outlineLesson=event.target.closest('[data-pc-outline-lesson]');
+    const block=event.target.closest('[data-pc-block]');
+    const section=event.target.closest('[data-pc-section]');
+    if(palette)pcDrag={kind:'palette',type:palette.dataset.pcPalette};
+    else if(outlineLesson)pcDrag={kind:'outline-lesson',section:Number(outlineLesson.dataset.pcOutlineLesson)};
+    else if(block)pcDrag={kind:'block',section:Number(block.closest('[data-pc-section]').dataset.pcSection),block:Number(block.dataset.pcBlock)};
+    else if(section)pcDrag={kind:'section',section:Number(section.dataset.pcSection)};
+    else return;
+    pcCapture();event.dataTransfer.effectAllowed=pcDrag.kind==='palette'?'copy':'move';
+    event.dataTransfer.setData('text/plain',JSON.stringify(pcDrag));
+    event.target.classList.add('pc-dragging');
+  });
+  document.addEventListener('dragover',event=>{
+    if(!pcDrag||!event.target.closest('#pcEditor'))return;
+    if(pcDrag.kind==='outline-lesson' && event.target.closest('[data-pc-outline-row],[data-pc-outline-drop]')){event.preventDefault();event.dataTransfer.dropEffect='move';return;}
+    const section=event.target.closest('[data-pc-section]');
+    if(!section)return;
+    if(pcDrag.kind==='section'||event.target.closest('[data-pc-dropzone]')){
+      event.preventDefault();event.dataTransfer.dropEffect=pcDrag.kind==='palette'?'copy':'move';
+    }
+  });
+  document.addEventListener('drop',event=>{
+    if(!pcDrag||!event.target.closest('#pcEditor'))return;
+    if(pcDrag.kind==='outline-lesson'){
+      const row=event.target.closest('[data-pc-outline-row]');
+      const moduleBox=event.target.closest('[data-pc-outline-drop]');
+      if(!row&&!moduleBox){pcDrag=null;return;}
+      event.preventDefault();pcCapture();
+      const from=pcDrag.section,sourceGroup=pcGroupAt(from);
+      const destIndex=row?Number(row.dataset.pcOutlineRow):Number(moduleBox.dataset.pcOutlineDrop);
+      const destinationGroup=pcGroupAt(destIndex);
+      if(!destinationGroup||!sourceGroup){pcDrag=null;return;}
+      if(sourceGroup.start===sourceGroup.end&&sourceGroup.name!==destinationGroup.name){toast('Each module needs at least one item. Add another item before moving this one.','error');pcDrag=null;return;}
+      const insertBefore=row?destIndex:destinationGroup.end+1;
+      const [moved]=pcSections.splice(from,1);
+      moved.module=destinationGroup.name;
+      const at=Math.max(0,Math.min(pcSections.length,insertBefore-(from<insertBefore?1:0)));
+      pcSections.splice(at,0,moved);pcActiveLesson=at;pcOpenBlock=null;
+      pcMarkDirty();pcRenderEditor();pcDrag=null;return;
+    }
+    const section=event.target.closest('[data-pc-section]');
+    if(!section)return;
+    event.preventDefault();const destination=Number(section.dataset.pcSection);
+    if(pcDrag.kind==='section'){
+      const source=pcDrag.section;if(source!==destination){const [sectionItem]=pcSections.splice(source,1);pcSections.splice(destination,0,sectionItem);pcMarkDirty();pcRenderEditor();}
+    }else if(pcDrag.kind==='palette'){
+      const b=pcNewBlock(pcDrag.type);
+      const hovered=event.target.closest('[data-pc-block]');
+      const position=hovered?Number(hovered.dataset.pcBlock):pcSections[destination].blocks.length;
+      pcSections[destination].blocks.splice(position,0,b);
+      pcOpenBlock=b.id;pcMarkDirty();pcRenderEditor();
+    }else if(pcDrag.kind==='block'){
+      const block=event.target.closest('[data-pc-block]');
+      pcReorderBlock(pcDrag.section,pcDrag.block,destination,block?Number(block.dataset.pcBlock):pcSections[destination].blocks.length);
+    }
+    pcDrag=null;
+  });
+  document.addEventListener('dragend',()=>{pcDrag=null;document.querySelectorAll('.pc-dragging').forEach(el=>el.classList.remove('pc-dragging'));});
+  document.addEventListener('change',event=>{
+    const lessonKind=event.target.closest('#pcEditor [data-pc-lesson-kind]');
+    if(lessonKind){
+      pcCapture();const current=pcSections[pcActiveLesson],kind=lessonKind.value;
+      if(current && ['quiz','assignment'].includes(kind) && !current.blocks.some(block=>block.type===kind)){
+        const block=pcNewBlock(kind);block.title=kind==='quiz'?'Knowledge check':'Practice assignment';
+        current.blocks.push(block);pcOpenBlock=block.id;
+      }
+      pcMarkDirty();pcRenderEditor();return;
+    }
+    const typeField=event.target.closest('#pcEditor [data-pc-field="type"]');
+    if(typeField){pcCapture();pcOpenBlock=typeField.closest('[data-pc-block]')?.dataset.pcBlockId||null;pcMarkDirty();pcRenderEditor();}
+  });
+
+  document.addEventListener('input',event=>{
+    if(event.target.id==='pcWidgetSearch'){
+      const q=event.target.value.toLowerCase().trim();
+      document.querySelectorAll('#pcEditor .pc-widget-palette-item').forEach(btn=>btn.hidden=!btn.textContent.toLowerCase().includes(q));
+      return;
+    }
+    if(!event.target.closest('#pcEditor [data-pc-field],#pcEditor [data-pc-section-title],#pcEditor [data-pc-module-title],#pcEditor [data-pc-lesson-description]'))return;
+    pcMarkDirty();
+    if(event.target.matches('[data-pc-section-title]')){
+      const si=Number(event.target.closest('[data-pc-section]')?.dataset.pcSection);
+      const label=document.querySelectorAll('[data-pc-outline-row] .pc-outline-lesson strong')[si];
+      if(label)label.textContent=event.target.value||`Lesson ${si+1}`;
+      const headline=document.querySelector('.pc-canvas-heading h2');if(headline)headline.textContent=event.target.value||'Untitled lesson';
+    }
+  });
+
+  document.addEventListener('change', event=>{
+    const box=event.target.closest?.('[data-course-format-checkbox]');
+    if(!box || !courseModalBackdrop.contains(box))return;
+    setCourseModeEnabled(box.dataset.mode,box.checked);
+  });
+
   document.addEventListener('click', async event=>{
+    const courseToggle=event.target.closest('[data-action="toggle-courses-menu"]');
+    if(courseToggle){event.preventDefault();document.querySelector('[data-courses-menu]')?.classList.toggle('open');return;}
+    const pcTarget=event.target.closest('[data-action^="pc-"]');
+    if(pcTarget){event.preventDefault();await pcHandleAction(pcTarget);return;}
     const reviewTab=event.target.closest('[data-review-admin-tab]');
     if(reviewTab){
       const type=reviewTab.dataset.reviewAdminTab;
@@ -1465,6 +2454,9 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
     }
     const studentSectionTarget=event.target.closest('[data-student-section]');
     if(studentSectionTarget){event.preventDefault();state.studentTab=studentSectionTarget.dataset.studentSection||'enrolled';await navigate('students');return;}
+    if(event.target.closest('#adminAlertsButton')){event.preventDefault();const popup=document.getElementById('adminAlertsPanel');if(popup){const opening=popup.hidden;popup.hidden=!opening;alertsButton()?.setAttribute('aria-expanded',String(opening));if(opening)refreshAdminAlerts();}return;}
+    const notice=event.target.closest('[data-action="academy-open-notice"]');
+    if(notice){event.preventDefault();document.getElementById('adminAlertsPanel').hidden=true;alertsButton()?.setAttribute('aria-expanded','false');const key=notice.dataset.key;const selected=adminAlerts.find(item=>item.key===key);if(selected&&!selected.actionable&&!selected.read){try{await api('admin_notification_read',{method:'POST',body:{key}});}catch(_){}}const view=notice.dataset.nextView;if(canView(view))await navigate(view);refreshAdminAlerts();return;}
     const viewTarget=event.target.closest('[data-view]'); if(viewTarget){ event.preventDefault(); if(viewTarget.dataset.view==='students'&&!state.studentTab) state.studentTab='enrolled'; navigate(viewTarget.dataset.view); return; }
     const target=event.target.closest('[data-action]'); if(!target) return; const action=target.dataset.action;
     if(action==='toggle-password'){ const input=target.closest('.password-field').querySelector('input'); input.type=input.type==='password'?'text':'password'; target.textContent=input.type==='password'?'Show':'Hide'; }
@@ -1476,18 +2468,50 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
     else if(action==='add-user') openUserModal();
     else if(action==='edit-user') openUserModal(state.users.find(user=>Number(user.id)===Number(target.dataset.id)));
     else if(action==='generate-student-code'){if(!confirm('Generate a new login ID? The previous ID will stop working.'))return;try{const r=await api('admin_user_code_generate',{method:'POST',body:{id:target.dataset.id}});toast(`New student ID: ${r.student_code}`);await renderUsers();}catch(e){toast(e.message,'error');}}
-    else if(action==='review-approval'){const note=prompt(target.dataset.decision==='approved'?'Optional approval note:':'Reason for rejection:','')??null;if(note===null)return;try{const r=await api('admin_approval_review',{method:'POST',body:{type:target.dataset.type,id:target.dataset.id,decision:target.dataset.decision,note}});toast(r.message);await renderApprovals();}catch(e){toast(e.message,'error');}}
+    else if(action==='review-approval'){const note=prompt(target.dataset.decision==='approved'?'Optional approval note:':'Reason for rejection:','')??null;if(note===null)return;try{const r=await api('admin_approval_review',{method:'POST',body:{type:target.dataset.type,id:target.dataset.id,decision:target.dataset.decision,note}});toast(r.message);await renderApprovals();refreshAdminAlerts();}catch(e){toast(e.message,'error');}}
     else if(action==='close-modal') setModalOpen(modalBackdrop,false);
-    else if(action==='add-course') openCourseModal();
-    else if(action==='toggle-course-mode'){event.stopPropagation();toggleCourseMode(target.dataset.mode||'offline');}
-    else if(action==='course-mode') switchCourseMode(target.dataset.mode||'offline');
+    else if(action==='cm-add-course') openCourseEditorTab('new',target.dataset.mode||'offline');
+    else if(action==='fsa-open-types') navigate('courses');
+    else if(action==='cm-attach-mode'){
+      const mode=target.dataset.mode||'offline';
+      const id=Number(document.getElementById('cmExistingCourseForMode')?.value||0);
+      const course=state.courses.find(c=>Number(c.id)===id);
+      if(!course||courseModes(course).includes(mode)){toast('Choose a course that does not already offer this format.','error');return;}
+      openCourseModal(course,mode,true);
+      toast("Edit this format's public-page details, then save to enable it for the same course.");
+    }
+    else if(action==='cm-edit-public') openCourseEditorTab(target.dataset.id,target.dataset.mode||'offline');
+    else if(action==='fsa-enable-all-formats')enableAllCourseModes();
+    else if(action==='fsa-format-disable'){
+      const id=Number(target.dataset.id),mode=target.dataset.mode;
+      const course=state.courses.find(item=>Number(item.id)===id);
+      if(!course||!isCentralRole()||!courseModes(course).includes(mode))return;
+      if(courseModes(course).length<=1){toast('Keep one format enabled, or set the entire course to Draft to hide it from the website.','error');return;}
+      if(!confirm(`Disable the ${COURSE_MODE_LABELS[mode]} version of “${course.title}” for NEW purchases? Existing content and enrollments are retained.`))return;
+      target.disabled=true;
+      try{
+        const response=await api('admin_course_format_disable',{method:'POST',body:{course_id:id,mode}});
+        toast(response.message||'Format disabled.');await renderModeCourses(mode);
+      }catch(error){toast(error.message,'error');target.disabled=false;}
+    }
+    else if(action==='cm-view-private'){if(!document.getElementById('pcEditor')||!pcDirty||confirm('Preview opens the last saved version. Continue without saving?'))await cmOpenPrivate(Number(target.dataset.id),target.dataset.mode||'offline');}
+    else if(action==='cm-back') await renderAllCourses();
+    else if(action==='cm-scroll-section'){event.preventDefault();document.getElementById(target.dataset.anchor)?.scrollIntoView({behavior:'smooth',block:'start'});}
+    else if(action==='cm-delete'){
+      const id=Number(target.dataset.id),course=state.courses.find(c=>Number(c.id)===id);
+      if(!course||!isCentralRole()||courseModes(course).length!==1)return;
+      if(!confirm(`Delete the ENTIRE course “${course.title}”, including enrollment links? This cannot be undone.`))return;
+      try{const r=await api('admin_course_delete',{method:'POST',body:{id}});toast(r.message);await renderModeCourses(target.dataset.mode||'offline');}catch(e){toast(e.message,'error');}
+    }
+    else if(action==='add-course') openCourseEditorTab('new');
+    else if(action==='course-mode'){if(!courseForm.querySelector('.course-mode-switcher')?.style.display)switchCourseMode(target.dataset.mode||'offline');}
     else if(action==='add-enrollment') openEnrollmentModal();
     else if(action==='edit-enrollment') openEnrollmentModal(state.enrollments.find(item=>Number(item.id)===Number(target.dataset.id)));
     else if(action==='close-access-modal') setModalOpen(accessModalBackdrop,false);
-    else if(action==='edit-course') openCourseModal(state.courses.find(course=>Number(course.id)===Number(target.dataset.id)));
-    else if(action==='edit-private-content') openPrivateContentModal(state.courses.find(course=>Number(course.id)===Number(target.dataset.id)));
+    else if(action==='edit-course') openCourseEditorTab(target.dataset.id);
+    else if(action==='edit-private-content'){if(normalizedRole()==='instructor')openPrivateContentModal(state.courses.find(course=>Number(course.id)===Number(target.dataset.id)));else toast('Private recorded/live content is edited by the assigned instructor only.','error');}
     else if(action==='close-content-modal') setModalOpen(contentModalBackdrop,false);
-    else if(action==='close-course-modal') setModalOpen(courseModalBackdrop,false);
+    else if(action==='close-course-modal') { if(editorPageMode){window.location.href='index.html#courses';}else setModalOpen(courseModalBackdrop,false); }
     else if(action==='choose-media') openMediaPicker(target.dataset.mediaTarget||'');
     else if(action==='choose-lesson-media'){const input=target.closest('.lesson-row-editor')?.querySelector('[data-field="lesson-image"]');openMediaPicker('',input);}
     else if(action==='choose-lecture-media'){const input=target.closest('.lecture-row-editor')?.querySelector('[data-field="lecture-image"]');openMediaPicker('',input);}
@@ -1505,6 +2529,18 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
     else if(action==='remove-lesson'){target.closest('.lesson-row-editor')?.remove();refreshBuilders();}
     else if(action==='add-lecture'){const lesson=target.closest('.lesson-row-editor');const list=lesson?.querySelector('.lecture-list');const count=list?.querySelectorAll('.lecture-row-editor').length||0;list?.insertAdjacentHTML('beforeend',lectureEditor({title:`Video ${String(count+1).padStart(2,'0')}`},count));refreshBuilders();}
     else if(action==='remove-lecture'){target.closest('.lecture-row-editor')?.remove();refreshBuilders();}
+    else if(action==='public-add-module'){const list=document.getElementById('publicCurriculumBuilder');const index=list.querySelectorAll('.public-module-editor').length+1;list.insertAdjacentHTML('beforeend',publicModuleEditor({title:`Module ${String(index).padStart(2,'0')}`,lessons:[{title:'Lesson 01'}]}));refreshPublicModules();}
+    else if(action==='public-remove-module'){target.closest('.public-module-editor')?.remove();refreshPublicModules();}
+    else if(action==='public-add-lesson'){const module=target.closest('.public-module-editor');const list=module?.querySelector('.public-lesson-list');if(list){const index=list.querySelectorAll('.public-lesson-editor').length+1;list.insertAdjacentHTML('beforeend',publicLessonEditor({title:`Lesson ${String(index).padStart(2,'0')}`},index-1));refreshPublicModules();}}
+    else if(action==='public-remove-lesson'){target.closest('.public-lesson-editor')?.remove();refreshPublicModules();}
+    else if(action==='public-move-lesson'||action==='public-move-module'){
+      const card=target.closest(action==='public-move-lesson'?'.public-lesson-editor':'.public-module-editor');const dir=Number(target.dataset.direction)||0;
+      if(card&&dir<0&&card.previousElementSibling)card.parentElement.insertBefore(card,card.previousElementSibling);
+      if(card&&dir>0&&card.nextElementSibling)card.parentElement.insertBefore(card.nextElementSibling,card);
+      refreshPublicModules();
+    }
+    else if(action==='public-add-faq'){document.getElementById('publicFaqBuilder').insertAdjacentHTML('beforeend',publicFaqEditor({}));}
+    else if(action==='public-remove-faq'){target.closest('.public-faq-editor')?.remove();}
     else if(action==='add-project'){document.getElementById('projectsBuilder').insertAdjacentHTML('beforeend',projectEditor({}));refreshBuilders();}
     else if(action==='remove-project'){target.closest('.project-editor')?.remove();refreshBuilders();}
     else if(action==='add-review'){document.getElementById('reviewsBuilder').insertAdjacentHTML('beforeend',reviewEditor({rating:5}));refreshBuilders();}
@@ -1567,7 +2603,7 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
     else if(action==='logout'){ try{await api('auth_admin_logout',{method:'POST',body:{}});}catch(_){} state.user=null; history.replaceState(null,'',location.pathname); showLogin(); toast('Signed out successfully.'); }
     else if(action==='toggle-user-status'){ if(!confirm(`Change this user to ${target.dataset.status}?`))return; try{const r=await api('admin_user_status',{method:'POST',body:{id:target.dataset.id,status:target.dataset.status}});toast(r.message);await renderUsers();}catch(e){toast(e.message,'error');} }
     else if(action==='delete-user'){ if(!confirm('Delete this user and all related data?'))return; try{const r=await api('admin_user_delete',{method:'POST',body:{id:target.dataset.id}});toast(r.message);await renderUsers();}catch(e){toast(e.message,'error');} }
-    else if(action==='delete-course'){ if(!confirm('Delete this course? Related enrollment progress will also be removed.'))return; try{const r=await api('admin_course_delete',{method:'POST',body:{id:target.dataset.id}});toast(r.message);await renderCourses();}catch(e){toast(e.message,'error');} }
+    else if(action==='delete-course'){ if(!confirm('Delete this course? Related enrollment progress will also be removed.'))return; try{const r=await api('admin_course_delete',{method:'POST',body:{id:target.dataset.id}});toast(r.message);await renderModeCourses(categorizedEditorMode);}catch(e){toast(e.message,'error');} }
   });
 
   document.addEventListener('input',event=>{
@@ -1668,6 +2704,8 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
         toast('Welcome to the administration dashboard.');
       } else if (formId === 'userForm') {
         const payload = Object.fromEntries(fd.entries());
+        delete payload.student_code;
+        if(['super_admin','admin_staff'].includes(payload.role))payload.branch='';
         payload.can_record_lectures = fd.get('can_record_lectures') === 'on';
         const r = await api('admin_user_save', { method:'POST', body:payload });
         setFormStatus('userForm', r.message || 'User saved.');
@@ -1697,16 +2735,32 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
         payload.audience = activeDraft.audience;
         payload.projectItems = activeDraft.projectItems;
         payload.courseReviews = activeDraft.courseReviews;
+        payload.publicModules = activeDraft.publicModules;
+        payload.publicModulesManaged = true;
+        payload.publicFaqs = activeDraft.publicFaqs;
+        // Editing must UPDATE the existing course, never INSERT another row with its slug.
+        // The saved public page is opened with ?courseEditor=<database ID>.
+        const idInForm = Number(courseForm.elements.namedItem('id')?.value || 0);
+        const idFromUrl = editorPageMode ? requestedEditorId : 0;
+        const currentCourseId = idFromUrl > 0 ? idFromUrl : idInForm;
+        if (editorPageMode && requestedEditorId > 0 && idInForm > 0 && idInForm !== requestedEditorId) {
+          throw new Error('Course ID mismatch. Refresh the editor before saving.');
+        }
+        payload.id = currentCourseId > 0 ? currentCourseId : 0;
+        if (editorPageMode && requestedEditorId > 0 && !payload.id) {
+          throw new Error('Cannot identify the existing course. Please reopen it from All Courses.');
+        }
         const r = await api('admin_course_save', { method:'POST', body:payload });
         setFormStatus('courseForm', r.message || 'Course saved.');
         toast(r.message || 'Course saved.');
-        await renderCourses();
-        setModalOpen(courseModalBackdrop,false);
+        refreshAdminAlerts();
+        if(editorPageMode){const savedId=Number(r.course?.id||r.course_id||r.id||payload.id||0);if(savedId){courseForm.elements.namedItem('id').value=String(savedId);if(!requestedEditorId)window.location.replace(editorUrl(savedId,activeCourseMode));}}
+        else {await renderAllCourses();setModalOpen(courseModalBackdrop,false);}
       } else if (formId === 'privateContentForm') {
         const payload={course_id:Number(fd.get('course_id')||0),modules:collectModules()};
         const r=await api('admin_course_content_save',{method:'POST',body:payload});
         setFormStatus('privateContentForm',r.message||'Private lessons saved.');toast(r.message||'Private lessons saved.');
-        await renderCourses();setModalOpen(contentModalBackdrop,false);
+        await renderAllCourses();setModalOpen(contentModalBackdrop,false);
       } else if (formId === 'accessForm') {
         const payload=Object.fromEntries(fd.entries());payload.ip_lock_enabled=fd.get('ip_lock_enabled')==='on';payload.reset_ip=fd.get('reset_ip')==='on';
         const r=await api('admin_enrollment_save',{method:'POST',body:payload});setFormStatus('accessForm',r.message);toast(r.message);setModalOpen(accessModalBackdrop,false);await renderEnrollments();
@@ -1744,6 +2798,10 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
         if(!(file instanceof File)||!file.size) throw new Error('Choose an image or video to upload.');
         const r=await api('admin_media_upload',{method:'POST',body:fd});
         toast(r.message); await renderMedia();
+      } else if (formId === 'studentIntegrationsForm') {
+        const p={section:'student_integrations',providers:{},otp_email_enabled:fd.get('otp_email_enabled')==='on',recaptcha_mode:fd.get('recaptcha_mode'),recaptcha_site_key:fd.get('recaptcha_site_key'),recaptcha_secret:fd.get('recaptcha_secret')};
+        for(const key of ['google','microsoft','linkedin'])p.providers[key]={enabled:fd.get(key+'_enabled')==='on',client_id:fd.get(key+'_id'),secret:fd.get(key+'_secret')};
+        const r=await api('admin_student_integrations',{method:'POST',body:p});toast(r.message);await renderStudentIntegrations();
       } else if (formId === 'smtpForm') {
         const payload=Object.fromEntries(fd.entries()); payload.section='smtp'; payload.enabled=fd.get('enabled')==='on';
         const r=await api('admin_settings',{method:'POST',body:payload}); toast(r.message); await renderSmtp();
@@ -1786,11 +2844,27 @@ Use plain HTML, CSS and vanilla JavaScript. Do not use document.write. Do not ov
   accessModalBackdrop.addEventListener('click',event=>{if(event.target===accessModalBackdrop)setModalOpen(accessModalBackdrop,false);});
   mediaPickerBackdrop.addEventListener('click',event=>{if(event.target===mediaPickerBackdrop)setModalOpen(mediaPickerBackdrop,false);});
   window.addEventListener('hashchange',()=>{if(state.user)navigate(location.hash.slice(1)||'dashboard',false);});
-  window.addEventListener('keydown',event=>{if(event.key==='Escape'){setModalOpen(modalBackdrop,false);setModalOpen(courseModalBackdrop,false);setModalOpen(accessModalBackdrop,false);setModalOpen(contentModalBackdrop,false);setModalOpen(mediaPickerBackdrop,false);sidebar.classList.remove('open');}});
+  document.addEventListener('click',event=>{const popup=document.getElementById('adminAlertsPanel');if(popup&&!popup.hidden&&!event.target.closest('.academy-alerts')){popup.hidden=true;alertsButton()?.setAttribute('aria-expanded','false');}});
+  window.addEventListener('keydown',event=>{if(event.key==='Escape'){const pop=document.getElementById('adminAlertsPanel');if(pop)pop.hidden=true;alertsButton()?.setAttribute('aria-expanded','false');setModalOpen(modalBackdrop,false);if(!editorPageMode)setModalOpen(courseModalBackdrop,false);setModalOpen(accessModalBackdrop,false);setModalOpen(contentModalBackdrop,false);setModalOpen(mediaPickerBackdrop,false);sidebar.classList.remove('open');}});
 
   (async function init(){
     try{const publicResult=await api('public_settings');applyAdminBranding(publicResult.site||{});applyAdminTheme(publicResult.site?.theme||{});}catch(_){}
     try{const r=await api('auth_admin_me');if(r.authenticated&&['admin','super_admin','admin_staff','branch_head','branch_admin','instructor'].includes(r.user?.role)){state.user=r.user;showApp();}else showLogin();}
     catch(error){const message=error.installUrl?'MySQL is not installed. Open the installer first.':'Backend connection failed. Start PHP and MySQL.';showLogin(message);toast(message,'error');}
   })();
+
+  // Course Types controls save immediately; revert the checkbox if the API rejects the change.
+  document.addEventListener('change',async event=>{
+    const box=event.target.closest?.('[data-course-type-toggle]');
+    if(!box || state.view!=='courseTypes')return;
+    const id=Number(box.dataset.id),mode=box.dataset.mode,enabled=box.checked;
+    box.disabled=true;
+    try {
+      const result=await api('admin_course_type_toggle',{method:'POST',body:{course_id:id,mode,enabled}});
+      toast(result.message||'Course type updated.');
+      const search=document.getElementById('ctCourseSearch')?.value||'';
+      await renderCourseTypes();
+      const input=document.getElementById('ctCourseSearch');if(input){input.value=search;input.dispatchEvent(new Event('input'));}
+    }catch(error){box.checked=!enabled;box.disabled=false;toast(error.message||'Unable to update course type.','error');}
+  });
 })();

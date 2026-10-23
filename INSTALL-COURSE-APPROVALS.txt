@@ -1,0 +1,71 @@
+FULL STACK ACADEMY — SHARED COURSE EDITOR & APPROVAL NOTIFICATIONS
+================================================================
+
+APPLIES TO: Your most recent LMS modifications in this conversation.
+Contains REPLACEMENT FILES only (keep folder locations) plus a SQL migration.
+
+1. BACK UP your existing database and the files being replaced.
+2. In phpMyAdmin, select the current LMS database and import:
+     database/course-approvals-notifications.sql
+   This adds new course-publication review columns and a per-admin notification read table.
+   The SQL checks for existing columns, so reruns do not duplicate them.
+3. Replace the corresponding files in your LMS project:
+     api/index.php
+     admin/index.html
+     admin/js/admin.js
+     admin/css/admin.css
+4. Refresh the dashboard with Ctrl+Shift+R after replacing files.
+
+COURSE AUTHORING & PUBLICATION
+-----------------------------
+Super Admin / Admin Staff: Academy-wide creation and management.
+Branch Head / Branch Admin: Create public or private courses for own branch;
+  may edit courses owned by that branch. Existing permission limits on other
+  features are retained.
+Instructor: Create public course drafts using the EXACT SAME editor layout.
+  Newly created instructor public courses are status=draft and sent to the
+  branch Approvals queue, including central staff. They cannot go live
+  until Branch Head, Branch Admin, Admin Staff or Super Admin approves.
+  Rejected drafts can be edited and resubmitted. To prevent bypassing review,
+  an instructor cannot change a course after its initial public approval
+  through this general course editor. Existing instructor private content
+  submission/review logic is retained.
+
+'Private course' visibility hides the course from the public catalogue and
+public checkout. Assigned student access can still be managed by staff.
+These are separate from a published course's protected/private lesson pages.
+
+NOTIFICATIONS
+-------------
+Topbar bell opens a dropdown. Approvals menu and bell get numeric badges.
+Pending instructor-created public courses, instructor private content,
+profile/certificate requests, and manual enrollment reviews appear in the
+Approvals section, within the user's branch or academy-wide as permitted.
+New enrollments, student registrations, central orders, and new enquiries are also
+shown as notification messages to the authorized roles. Informational
+notifications become read when clicked; unresolved approvals remain counted.
+The client refreshes approximately every 45 seconds while the page is open.
+
+Enrollment approvals protect payment: UNPAID purchased enrollments cannot be
+approved through the new Approval Centre. Staff must confirm paid orders in
+Orders using the existing payment flow. Manually created pending access
+requests (or already-paid exceptions) are eligible for approval.
+
+TEST AFTER INSTALLATION
+-----------------------
+- Log in as Branch Head and Branch Admin in different branches. Verify they
+  cannot see or edit each other's courses and enrollment notices.
+- Each branch role: create one Public and one Private course. Confirm the
+  public one is listed and the private one isn't on the public website.
+- Log in as Instructor, create a public course, and verify it is DRAFT and
+  cannot be bought. Log in as an authorized reviewer and approve it. Verify
+  public listing appears after approval. Test reject/resubmit as well.
+- Test pending manual enrollment, approve/reject, and confirm status updates.
+- Open bell dropdown and Approvals page to verify counts, navigation,
+  dismissal/read behavior and mobile layout.
+
+VALIDATION PERFORMED: PHP lint and JavaScript syntax checks. Live MySQL and
+browser integration tests require your local XAMPP installation; not run here.
+
+IMPORTANT: If you added more changes to these files since the last packages,
+merge against those current versions rather than blindly replacing files.

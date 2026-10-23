@@ -165,12 +165,23 @@
 
   function injectCallModal(){
     if(document.getElementById('fsaCallBackdrop'))return;
-    const options=['Artificial Intelligence Specialist','AI-Powered Web Developer','Data Science','Data Analyst','AWS & DevOps','MERN Full Stack Development','Digital Marketing','SOC Analysis','Software Testing','SUPER40 BBA','Other / Not Sure'];
-    const modes=['Live Streamed','Recorded','Offline Classroom','Not Sure'];
+    const options=[];
+    const modes=[];
     const wrap=document.createElement('div');wrap.id='fsaCallBackdrop';wrap.className='fsa-call-backdrop';wrap.setAttribute('aria-hidden','true');
     wrap.innerHTML=`<section class="fsa-call-modal" role="dialog" aria-modal="true" aria-labelledby="fsaCallTitle"><div class="fsa-call-head"><span class="fsa-call-head-icon">${icon('phone')}</span><div><small>Course Guidance</small><strong id="fsaCallTitle">Request a callback</strong></div><button class="fsa-call-close" type="button" data-call-close aria-label="Close callback form">${icon('x')}</button></div><div class="fsa-call-body"><div class="fsa-call-intro"><span>${icon('sparkle')}</span><p>Tell us what you want to learn. Our team can guide you to the right course, mode and batch.</p></div><form id="fsaCallForm" novalidate><div class="fsa-call-form-grid">${fieldMarkup({label:'Full name',name:'name',placeholder:'Your name',autocomplete:'name',required:true,iconName:'user'})}${fieldMarkup({label:'Phone number',name:'phone',type:'tel',placeholder:'+91 ...',autocomplete:'tel',required:true,iconName:'phone'})}${fieldMarkup({label:'Email address',name:'email',type:'email',placeholder:'you@example.com',autocomplete:'email',required:true,iconName:'mail',full:true})}${fieldMarkup({label:'Course interested',name:'course',options,iconName:'book'})}${fieldMarkup({label:'Learning mode',name:'mode',options:modes,iconName:'layers'})}</div><button class="fsa-call-submit" type="submit"><span>${icon('phone')}</span>Request My Call</button><p class="fsa-call-status" data-call-status></p><div class="fsa-call-foot">${icon('privacy')}<span>Your details are used only to respond to this enquiry.</span></div></form></div></section>`;
     document.body.appendChild(wrap);
-    const open=()=>{document.getElementById('fsaNewsletterBackdrop')?.classList.remove('open');wrap.classList.add('open');wrap.setAttribute('aria-hidden','false');syncBodyLock();requestAnimationFrame(()=>{const body=wrap.querySelector('.fsa-call-body');if(body)body.scrollTop=0});setTimeout(()=>wrap.querySelector('input[name="name"]')?.focus({preventScroll:true}),120)};
+    const refreshChoices=()=>{
+      const cfg=window.FSA_DATA?.content?.callback||{};
+      const choices=[...new Set([...(window.FSA_DATA?.courses||[]).map(c=>c.title),...(cfg.extraCourses||[])])];
+      for(const [name,values] of [['course',choices],['mode',cfg.modes||[]]]){
+        const select=wrap.querySelector(`select[name="${name}"]`);if(!select)continue;const previous=select.value;
+        select.replaceChildren(...values.map(value=>{const option=document.createElement('option');option.textContent=value;option.value=value;return option;}));
+        if(values.includes(previous))select.value=previous;
+      }
+      initPremiumSelects(wrap);
+    };
+    document.addEventListener('fsa:catalog-updated',refreshChoices);document.addEventListener('fsa:content-updated',refreshChoices);
+    const open=()=>{refreshChoices();document.getElementById('fsaNewsletterBackdrop')?.classList.remove('open');wrap.classList.add('open');wrap.setAttribute('aria-hidden','false');syncBodyLock();requestAnimationFrame(()=>{const body=wrap.querySelector('.fsa-call-body');if(body)body.scrollTop=0});setTimeout(()=>wrap.querySelector('input[name="name"]')?.focus({preventScroll:true}),120)};
     const close=()=>{wrap.classList.remove('open');wrap.setAttribute('aria-hidden','true');syncBodyLock()};
     document.addEventListener('click',e=>{const trigger=e.target.closest('[data-call-popup],[data-action="open-call-popup"]');if(trigger){e.preventDefault();open();return}if(e.target===wrap||e.target.closest('[data-call-close]'))close()});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&wrap.classList.contains('open'))close()});
@@ -229,60 +240,20 @@
   }
 
   /* Learner review experience. Only mounted on conversion-relevant public pages. */
-  const SITE_REVIEWS=[
-    {name:'Roshan Ara Khanam',course:'Online MERN Course',rating:5,avatar:'assets/images/fsa-home/student-1.png',comment:'I have attended an online MERN course from Full Stack Academy. It was a great learning experience with Mr. Mujib Sir, an industry expert. The explanation and method of teaching were excellent. I have learned new skills and techniques in programming.'},
-    {name:'Burhan Ashraf',course:'FSA Alumni',rating:5,avatar:'assets/images/fsa-home/student-2.png',comment:'One of the best academies for everyone who wants to learn and develop their skills in the IT world. The atmosphere here is amazing, and the encouragement you get from the staff and everyone is incredible. I secured an IT job by learning here at Full Stack Academy.'},
-    {name:'Jaseem Ansari',course:'FSA Student',rating:5,avatar:'assets/images/fsa-home/student-3.png',comment:'Full Stack Academy is doing its best in training students in the latest technologies. It is one of the best institutes. You must enroll here to build a career in the IT world. The faculty is well-qualified, and the atmosphere for learning is excellent.'},
-    {name:'Imtiaz Shaik',course:'FSA Community',rating:5,avatar:'assets/images/fsa-home/student-4.png',comment:'I have been following Full Stack Academy since Day 1, and they have been doing great, especially in filling the gap between IT industry expectations, requirements, and the skills of freshers. They have helped many freshers secure placements in top IT companies.'},
-    {name:'Areeba Atif',course:'FSA Student',rating:5,avatar:'assets/images/fsa-home/student-5.png',comment:'Full Stack Academy is the best place to learn about almost everything—from soft skills like personality development to technical skills like coding. The environment and the staff here encourage and motivate us to learn more.'},
-    {name:'Mirza Faizan Baig',course:'Online Learner',rating:5,avatar:'assets/images/fsa-home/student-6.png',comment:'A very good opportunity for students living abroad to learn new things easily. Every student must upgrade themselves in these high-demanding sectors.'},
-    {name:'ADNAN',course:'Public reviewer · Justdial',rating:5,comment:'Top quality learning and very good ambience.'},
-    {name:'Muhammad Iqbal',course:'Public Google reviewer',rating:5,comment:'Highlighted how the academy helps learners from both IT and non-IT backgrounds grow their careers in the technology field.'},
-    {name:'Mohammed Owais',course:'AWS DevOps learner · Public review',rating:5,comment:'Shared that the AWS DevOps journey strengthened hands-on technical skills, confidence, communication, assessments and mock-interview readiness.'},
-    {name:'Md Abdullah',course:'MERN learner · Public review',rating:5,comment:'Praised the training in current technologies, qualified faculty, learning atmosphere and domain-focused placement support.'}
-  ];
-
-  /* V36: bundled local dummy posters are always visible before playback; remote video starts only on play. */
-  const STOCK_VIDEO_REVIEWS=[
-    {
-      src:'https://videos.pexels.com/video-files/4994144/4994144-uhd_2160_3840_25fps.mp4',
-      poster:'assets/images/review-video-posters/video-review-01.svg',
-      source:'https://www.pexels.com/video/man-sitting-while-talking-4994144/',
-      label:'Video story 01'
-    },
-    {
-      src:'https://videos.pexels.com/video-files/9019589/9019589-uhd_2160_3840_24fps.mp4',
-      poster:'assets/images/review-video-posters/video-review-02.svg',
-      source:'https://www.pexels.com/video/video-of-a-woman-smiling-9019589/',
-      label:'Video story 02'
-    },
-    {
-      src:'https://videos.pexels.com/video-files/8136210/8136210-hd_1080_1920_25fps.mp4',
-      poster:'assets/images/review-video-posters/video-review-03.svg',
-      source:'https://www.pexels.com/video/a-man-talking-to-the-camera-8136210/',
-      label:'Video story 03'
-    },
-    {
-      src:'https://videos.pexels.com/video-files/8135999/8135999-hd_1080_1920_25fps.mp4',
-      poster:'assets/images/review-video-posters/video-review-04.svg',
-      source:'https://www.pexels.com/video/a-woman-talking-to-the-camera-8135999/',
-      label:'Video story 04'
-    },
-    {
-      src:'https://videos.pexels.com/video-files/8688214/8688214-hd_1080_1920_25fps.mp4',
-      poster:'assets/images/review-video-posters/video-review-05.svg',
-      source:'https://www.pexels.com/video/man-video-recording-himself-8688214/',
-      label:'Video story 05'
-    }
-  ];
-
+  const reviewEsc=value=>String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+  const backendWrittenReviews=()=> (window.FSA_DATA?.reviews||[]).filter(r=>r.type==='written').map(r=>({...r,name:reviewEsc(r.name),avatar:reviewEsc(r.avatar),comment:reviewEsc(r.text),course:reviewEsc(r.course||r.role),rating:Math.max(1,Math.min(5,Number(r.rating||5)))}));
+  const backendVideoReviews=()=> (window.FSA_DATA?.reviews||[]).filter(r=>r.type==='video'&&r.videoUrl).map(r=>({src:reviewEsc(r.videoUrl),poster:reviewEsc(r.thumbnail||r.avatar||''),label:reviewEsc(r.name),caption:reviewEsc(r.role||r.course||''),badge:reviewEsc(r.text||'')}));
   const reviewAsset=src=>onBranch()?`../../${src}`:src;
   const reviewStars=count=>`<span class="stars" aria-label="${count} out of 5 stars">${Array.from({length:count},()=>icon('star','',true)).join('')}</span>`;
   const reviewInitials=name=>String(name||'FSA').trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part.charAt(0)).join('').toUpperCase()||'FSA';
   const reviewAvatar=item=>item.avatar?`<span class="avatar"><img src="${reviewAsset(item.avatar)}" alt="${item.name}" loading="lazy" decoding="async"></span>`:`<span class="avatar fsa-review-avatar-fallback" aria-hidden="true">${reviewInitials(item.name)}</span>`;
   const reviewCard=item=>`<article class="fsa-home-testimonial"><div class="fsa-home-testimonial-top"><span class="fsa-quote-mark" aria-hidden="true">“</span><div class="fsa-home-testimonial-stars">${reviewStars(item.rating||5)}</div></div><p>${item.comment}</p><div class="fsa-home-testimonial-user">${reviewAvatar(item)}<span><strong>${item.name}</strong><small>${item.course}</small></span></div></article>`;
 
-  const videoReviewCard=(item,index)=>{const poster=reviewAsset(item.poster);return `<article class="fsa-video-review-card is-video-loading" data-video-review-card><div class="fsa-review-phone" data-video-shell><span class="fsa-review-phone-speaker" aria-hidden="true"></span><div class="fsa-review-phone-screen"><img class="fsa-video-fallback" src="${poster}" alt="Temporary preview for ${item.label}" loading="eager" decoding="sync"><video playsinline preload="metadata" poster="${poster}" data-review-video aria-label="${item.label}"><source src="${item.src}" type="video/mp4">Your browser does not support HTML video.</video><div class="fsa-video-vignette" aria-hidden="true"></div><span class="fsa-stock-video-badge">Stock preview</span><span class="fsa-video-load-status" aria-live="polite"></span><button type="button" class="fsa-video-center-play" data-video-action="toggle" aria-label="Play ${item.label}">${icon('playSolid')}</button><div class="fsa-video-controls" data-video-controls><div class="fsa-video-progress-wrap"><input type="range" min="0" max="1000" value="0" step="1" data-video-progress aria-label="Video progress"></div><div class="fsa-video-control-row"><button type="button" data-video-action="toggle" aria-label="Play or pause">${icon('playSolid')}</button><span class="fsa-video-time" data-video-time>0:00 / 0:00</span><span class="fsa-video-control-spacer"></span><button type="button" data-video-action="mute" aria-label="Mute or unmute">${icon('volume')}</button><button type="button" data-video-action="fullscreen" aria-label="View fullscreen">${icon('fullscreen')}</button></div></div></div></div><div class="fsa-video-review-meta"><strong>${item.label}</strong><span>Temporary learner-video preview</span></div></article>`;}
+  const videoReviewCard=(item,index)=>{const poster=reviewAsset(item.poster);
+    const yt=String(item.src).match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+    const vm=String(item.src).match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+    if(yt||vm){const url=yt?`https://www.youtube.com/embed/${yt[1]}`:`https://player.vimeo.com/video/${vm[1]}`;return `<article class="fsa-video-review-card"><div class="fsa-review-phone"><div class="fsa-review-phone-screen"><iframe src="${url}" title="${item.label}" allow="autoplay; fullscreen" allowfullscreen style="width:100%;height:100%;border:0"></iframe></div></div><div class="fsa-video-review-meta"><strong>${item.label}</strong><span>${item.caption}</span></div></article>`;}
+    return `<article class="fsa-video-review-card is-video-loading" data-video-review-card><div class="fsa-review-phone" data-video-shell><span class="fsa-review-phone-speaker" aria-hidden="true"></span><div class="fsa-review-phone-screen"><img class="fsa-video-fallback" src="${poster}" alt="Temporary preview for ${item.label}" loading="eager" decoding="sync"><video playsinline preload="metadata" poster="${poster}" data-review-video aria-label="${item.label}"><source src="${item.src}" type="video/mp4">Your browser does not support HTML video.</video><div class="fsa-video-vignette" aria-hidden="true"></div><span class="fsa-stock-video-badge">${item.badge||''}</span><span class="fsa-video-load-status" aria-live="polite"></span><button type="button" class="fsa-video-center-play" data-video-action="toggle" aria-label="Play ${item.label}">${icon('playSolid')}</button><div class="fsa-video-controls" data-video-controls><div class="fsa-video-progress-wrap"><input type="range" min="0" max="1000" value="0" step="1" data-video-progress aria-label="Video progress"></div><div class="fsa-video-control-row"><button type="button" data-video-action="toggle" aria-label="Play or pause">${icon('playSolid')}</button><span class="fsa-video-time" data-video-time>0:00 / 0:00</span><span class="fsa-video-control-spacer"></span><button type="button" data-video-action="mute" aria-label="Mute or unmute">${icon('volume')}</button><button type="button" data-video-action="fullscreen" aria-label="View fullscreen">${icon('fullscreen')}</button></div></div></div></div><div class="fsa-video-review-meta"><strong>${item.label}</strong><span>${item.caption||''}</span></div></article>`;}
 
   function injectReviewStyles(){
     if(document.getElementById('fsaRelevantReviewStyles'))return;
@@ -416,7 +387,7 @@
   }
 
   function reviewExperienceMarkup(){
-    return `<section id="fsaRelevantReviews" class="fsa-home-section fsa-home-testimonials-section" data-relevant-review-experience><div class="container"><div class="fsa-review-heading-row"><div class="fsa-home-heading fsa-home-heading-left"><span>Student Experience</span><h2>Hear It From Our <em>Learners</em></h2><p>Watch learner-style video stories first, or switch to written feedback from Full Stack Academy students and alumni.</p></div><div class="fsa-review-tabs" role="tablist" aria-label="Student review format"><button class="fsa-review-tab active" type="button" role="tab" aria-selected="true" data-review-tab="video">${icon('video')} Video Reviews</button><button class="fsa-review-tab" type="button" role="tab" aria-selected="false" data-review-tab="written">${icon('star')} Written Reviews</button></div></div><div class="fsa-review-panel" data-review-panel="video" role="tabpanel"><div class="fsa-review-slider-head"><div class="fsa-review-slider-controls" aria-label="Video testimonial slider controls"><button type="button" data-video-review-prev aria-label="Previous video review">${icon('arrowLeft')}</button><button type="button" data-video-review-next aria-label="Next video review">${icon('arrow')}</button></div></div><div class="fsa-video-review-carousel"><div class="fsa-video-review-rail" data-video-review-track>${STOCK_VIDEO_REVIEWS.map(videoReviewCard).join('')}</div></div></div><div class="fsa-review-panel" data-review-panel="written" role="tabpanel" hidden><div class="fsa-review-slider-head"><div class="fsa-review-slider-controls" aria-label="Written testimonial slider controls"><button type="button" data-relevant-review-prev aria-label="Previous testimonial">${icon('arrowLeft')}</button><button type="button" data-relevant-review-next aria-label="Next testimonial">${icon('arrow')}</button></div></div><div class="fsa-testimonial-carousel"><div class="fsa-home-testimonial-track" data-relevant-review-track>${SITE_REVIEWS.map(item=>`<div class="fsa-home-testimonial-slide" data-relevant-review-card>${reviewCard(item)}</div>`).join('')}</div></div></div></div></section>`;
+    return `<section id="fsaRelevantReviews" class="fsa-home-section fsa-home-testimonials-section" data-relevant-review-experience><div class="container"><div class="fsa-review-heading-row"><div class="fsa-home-heading fsa-home-heading-left"><span>Student Experience</span><h2>Hear It From Our <em>Learners</em></h2><p>Watch learner-style video stories first, or switch to written feedback from Full Stack Academy students and alumni.</p></div><div class="fsa-review-tabs" role="tablist" aria-label="Student review format"><button class="fsa-review-tab active" type="button" role="tab" aria-selected="true" data-review-tab="video">${icon('video')} Video Reviews</button><button class="fsa-review-tab" type="button" role="tab" aria-selected="false" data-review-tab="written">${icon('star')} Written Reviews</button></div></div><div class="fsa-review-panel" data-review-panel="video" role="tabpanel"><div class="fsa-review-slider-head"><div class="fsa-review-slider-controls" aria-label="Video testimonial slider controls"><button type="button" data-video-review-prev aria-label="Previous video review">${icon('arrowLeft')}</button><button type="button" data-video-review-next aria-label="Next video review">${icon('arrow')}</button></div></div><div class="fsa-video-review-carousel"><div class="fsa-video-review-rail" data-video-review-track>${backendVideoReviews().map(videoReviewCard).join('')}</div></div></div><div class="fsa-review-panel" data-review-panel="written" role="tabpanel" hidden><div class="fsa-review-slider-head"><div class="fsa-review-slider-controls" aria-label="Written testimonial slider controls"><button type="button" data-relevant-review-prev aria-label="Previous testimonial">${icon('arrowLeft')}</button><button type="button" data-relevant-review-next aria-label="Next testimonial">${icon('arrow')}</button></div></div><div class="fsa-testimonial-carousel"><div class="fsa-home-testimonial-track" data-relevant-review-track>${backendWrittenReviews().map(item=>`<div class="fsa-home-testimonial-slide" data-relevant-review-card>${reviewCard(item)}</div>`).join('')}</div></div></div></div></section>`;
   }
 
   let activeReviewSection=null,activeReviewCleanup=null;
@@ -629,132 +600,8 @@
   const safeRead=(key,fallback=null)=>{try{return localStorage.getItem(key)??fallback}catch(_){return fallback}};
   const safeWrite=(key,value)=>{try{localStorage.setItem(key,value)}catch(_){}};
 
-  const HINDI={
-    'Home':'होम','Courses':'कोर्स','Batches':'बैच','Events':'इवेंट','Branches':'शाखाएँ',
-    'About':'हमारे बारे में','Contact':'संपर्क','Sign In':'साइन इन','Login':'लॉग इन','Register':'रजिस्टर',
-    'Search':'खोजें','Search Courses':'कोर्स खोजें','Search courses':'कोर्स खोजें','Open cart':'कार्ट खोलें',
-    'Open menu':'मेन्यू खोलें','Close menu':'मेन्यू बंद करें','Get A Call':'कॉल का अनुरोध करें','Request a callback':'कॉल का अनुरोध करें',
-    'Course Guidance':'कोर्स मार्गदर्शन','Full name':'पूरा नाम','Phone number':'फोन नंबर','Email address':'ईमेल पता',
-    'Course interested':'पसंदीदा कोर्स','Learning mode':'सीखने का तरीका','Request My Call':'मुझे कॉल करें',
-    'View All Courses':'सभी कोर्स देखें','View Course':'कोर्स देखें','View Details':'विवरण देखें','Learn More':'और जानें',
-    'Upcoming Batches':'आने वाले बैच','Upcoming Batch':'आने वाला बैच','Live Streamed':'लाइव ऑनलाइन',
-    'Recorded':'रिकॉर्डेड','Offline Classroom':'क्लासरूम','Start anytime':'कभी भी शुरू करें',
-    'Add to Cart':'कार्ट में जोड़ें','Buy Now':'अभी खरीदें','Enroll Now':'अभी नामांकन करें','Apply Now':'अभी आवेदन करें',
-    'Explore Courses':'कोर्स देखें','Browse Courses':'कोर्स खोजें','Course Categories':'कोर्स श्रेणियाँ',
-    'Our Courses':'हमारे कोर्स','Popular Courses':'लोकप्रिय कोर्स','Featured Courses':'विशेष कोर्स',
-    'Why Choose Us':'हमें क्यों चुनें','Student Reviews':'छात्र समीक्षाएँ','Frequently Asked Questions':'अक्सर पूछे जाने वाले प्रश्न',
-    'Read More':'और पढ़ें','Show More':'और दिखाएँ','Show Less':'कम दिखाएँ','Back to top':'ऊपर वापस जाएँ',
-    'Latest':'ताज़ा','Latest academy news':'अकादमी की ताज़ा खबरें','Upcoming batch':'आने वाला बैच',
-    'Classroom batch':'क्लासरूम बैच','Hide course updates':'कोर्स अपडेट छिपाएँ','Hide updates':'अपडेट छिपाएँ',
-    'Accessibility':'सुलभता','Accessibility options':'सुलभता विकल्प','Close accessibility options':'सुलभता विकल्प बंद करें',
-    'Text size':'टेक्स्ट का आकार','Decrease text size':'टेक्स्ट छोटा करें','Increase text size':'टेक्स्ट बड़ा करें',
-    'Website tools':'वेबसाइट टूल','High contrast':'उच्च कॉन्ट्रास्ट','Readable font':'पढ़ने योग्य फ़ॉन्ट','Highlight links':'लिंक हाइलाइट करें',
-    'Reduce motion':'एनिमेशन कम करें','Reset settings':'सेटिंग रीसेट करें','Reset':'रीसेट','On':'चालू','Off':'बंद',
-    'Language':'भाषा','English':'अंग्रेज़ी','Hindi':'हिन्दी','Privacy policy':'गोपनीयता नीति',
-    'Accept all':'सभी स्वीकार करें','Necessary only':'केवल आवश्यक','Subscribe':'सब्सक्राइब करें','Your name':'आपका नाम',
-    'Close':'बंद करें','Submit':'जमा करें','Send':'भेजें','Continue':'जारी रखें','Previous':'पिछला','Next':'अगला',
-    'My Courses':'मेरे कोर्स','Wishlist':'पसंदीदा','Profile':'प्रोफ़ाइल','Logout':'लॉग आउट','Dashboard':'डैशबोर्ड',
-    'Successfully Placed':'सफल छात्र','Available Candidates':'उपलब्ध उम्मीदवार','Academy Locations':'अकादमी स्थान',
-    'All Courses':'सभी कोर्स','All Modes':'सभी तरीके','All Branches':'सभी शाखाएँ','All Locations':'सभी स्थान','All Times':'सभी समय','Clear Filters':'फ़िल्टर हटाएँ',
-    'Time':'समय','Mode':'तरीका','Branch':'शाखा','Choose schedule':'समय चुनें','Choose batch time':'बैच का समय चुनें','Choose learning mode':'सीखने का तरीका चुनें','Choose location':'स्थान चुनें',
-    'Morning':'सुबह','Afternoon':'दोपहर','Evening':'शाम','Start Anytime':'कभी भी शुरू करें','Online':'ऑनलाइन','Preferred language':'पसंदीदा भाषा','English / Hindi':'अंग्रेज़ी / हिन्दी',
-    'No courses found':'कोई कोर्स नहीं मिला','Contact Us':'हमसे संपर्क करें','Call Us':'हमें कॉल करें','Email Us':'हमें ईमेल करें',
-    'Message FSA AI Assistant':'FSA AI असिस्टेंट को संदेश भेजें','Send message':'संदेश भेजें','Close chat':'चैट बंद करें',
-    'Start a new chat':'नई चैट शुरू करें','New chat':'नई चैट','Online now':'अभी ऑनलाइन','Demo mode':'डेमो मोड',
-    'Ask about courses, batches, fees…':'कोर्स, बैच और फीस के बारे में पूछें…',
-    'Search course, skill or technology...':'कोर्स, कौशल या तकनीक खोजें...',
-    'Your name':'आपका नाम','View branches':'शाखाएँ देखें','Explore events':'इवेंट देखें','Talk to the team':'टीम से बात करें',
-    'Which course is right for me?':'मेरे लिए कौन-सा कोर्स सही है?','Show upcoming batches':'आने वाले बैच दिखाएँ',
-    'Online or classroom?':'ऑनलाइन या क्लासरूम?','What about course fees?':'कोर्स फीस कितनी है?',
-    'Do you provide placement support?':'क्या आप प्लेसमेंट सहायता देते हैं?','Where are your branches?':'आपकी शाखाएँ कहाँ हैं?',
-    'What events are coming up?':'कौन-से इवेंट आने वाले हैं?','How do I enroll?':'मैं नामांकन कैसे करूँ?',
-    'Talk to admissions':'एडमिशन टीम से बात करें','You can also ask':'आप यह भी पूछ सकते हैं','Start with a question':'एक सवाल से शुरू करें',
-    'How can I help you today?':'आज मैं आपकी कैसे मदद कर सकता हूँ?','Choose what you want help with, or type your own question below.':'जिस विषय में मदद चाहिए उसे चुनें, या नीचे अपना सवाल लिखें।',
-    'Browse all courses':'सभी कोर्स देखें','View batches':'बैच देखें','Compare courses':'कोर्स की तुलना करें','See course prices':'कोर्स की फीस देखें',
-    'Get fee details':'फीस की जानकारी लें','See alumni outcomes':'पूर्व छात्रों के परिणाम देखें','Contact FSA':'FSA से संपर्क करें',
-    'Ask about an event':'इवेंट के बारे में पूछें','Choose a course':'कोर्स चुनें','Request a call':'कॉल का अनुरोध करें','Get a call':'कॉल प्राप्त करें','Contact page':'संपर्क पेज',
-    'AI Specialist Live Streamed batch starts 07 Sep':'AI Specialist का लाइव ऑनलाइन बैच 07 सितम्बर से शुरू होगा',
-    'AI-Powered Web Developer online enrollment is open':'AI-Powered Web Developer के ऑनलाइन नामांकन खुले हैं',
-    'Data Science classroom batch at Tolichowki starts 21 Sep':'Tolichowki में Data Science क्लासरूम बैच 21 सितम्बर से शुरू होगा',
-    'Recorded technology courses are available to start anytime':'रिकॉर्डेड टेक्नोलॉजी कोर्स कभी भी शुरू किए जा सकते हैं',
-    'Upcoming academy events and workshops are now listed':'आने वाले अकादमी इवेंट और वर्कशॉप अब उपलब्ध हैं',
-    'Admissions guidance is available at four Hyderabad branches':'हैदराबाद की चार शाखाओं में एडमिशन मार्गदर्शन उपलब्ध है',
-    'Live Streamed batch starts 07 Sep':'लाइव ऑनलाइन बैच 07 सितम्बर से शुरू होगा','Online batch enrollment is open':'ऑनलाइन बैच के नामांकन खुले हैं',
-    'Offline classroom seats are available':'ऑफलाइन क्लासरूम सीटें उपलब्ध हैं','Live Streamed evening batch enrolling':'लाइव ऑनलाइन शाम के बैच में नामांकन जारी है',
-    'Instructor-led online batch enrolling':'प्रशिक्षक के साथ ऑनलाइन बैच में नामांकन जारी है','Recorded learning access is available':'रिकॉर्डेड लर्निंग उपलब्ध है',
-    'Morning · 08:00 AM – 09:30 AM':'सुबह · 08:00 – 09:30','Starts 10 Sep · Afternoon':'10 सितम्बर से · दोपहर',
-    'Tolichowki · Starts 21 Sep':'Tolichowki · 21 सितम्बर से','Starts 17 Sep · 07:30 PM':'17 सितम्बर से · शाम 07:30',
-    'Starts 21 Sep · Afternoon':'21 सितम्बर से · दोपहर','Self-paced · Online':'अपनी गति से · ऑनलाइन',
-    'Ask me anything about FSA':'FSA के बारे में कुछ भी पूछें','Try a quick question below, or type what you want to know about courses, batches, learning modes, branches, events or career support.':'नीचे कोई सवाल चुनें, या कोर्स, बैच, सीखने के तरीके, शाखाओं, इवेंट या करियर सहायता के बारे में अपना सवाल लिखें।',
-    'Hi! I’m the FSA demo assistant 👋':'नमस्ते! मैं FSA डेमो असिस्टेंट हूँ 👋','I can help you explore courses, batches, learning modes, branches, events and career support. What would you like to know?':'मैं कोर्स, बैच, सीखने के तरीके, शाखाओं, इवेंट और करियर सहायता की जानकारी दे सकता हूँ। आप क्या जानना चाहेंगे?',
-    'Let’s narrow down the right course':'सही कोर्स चुनते हैं','For a demo, I’d start with your goal: software development, data/analytics, cloud & DevOps, cyber security, or another technology track. The Courses page lets you compare the available programmes and learning modes.':'पहले अपना लक्ष्य चुनें: सॉफ्टवेयर डेवलपमेंट, डेटा और एनालिटिक्स, क्लाउड व DevOps, साइबर सुरक्षा या कोई अन्य टेक्नोलॉजी क्षेत्र। कोर्स पेज पर उपलब्ध प्रोग्राम और सीखने के तरीकों की तुलना करें।',
-    'FSA supports different schedules and learning modes depending on the programme. Open the Batches page to filter current options by time and mode.':'FSA अलग-अलग प्रोग्राम के अनुसार विभिन्न समय और सीखने के तरीके देता है। समय और तरीके के अनुसार विकल्प देखने के लिए बैच पेज खोलें।',
-    'Choose the learning mode that fits you':'अपने लिए सही सीखने का तरीका चुनें','Courses can be offered through Live Streamed, Recorded and Offline Classroom options. Availability varies by course and batch, so check the course details or current batch filters before enrolling.':'कोर्स लाइव ऑनलाइन, रिकॉर्डेड और ऑफलाइन क्लासरूम विकल्पों में उपलब्ध हो सकते हैं। नामांकन से पहले कोर्स विवरण और मौजूदा बैच फ़िल्टर देखें।',
-    'Course fees & payment':'कोर्स फीस और भुगतान','Fees depend on the selected course and learning mode. The demo assistant does not invent a fee; use the course page for the displayed price or request a callback for the latest admission/payment details.':'फीस चुने गए कोर्स और सीखने के तरीके पर निर्भर करती है। सही कीमत के लिए कोर्स पेज देखें या नवीनतम एडमिशन और भुगतान जानकारी के लिए कॉल का अनुरोध करें।',
-    'Career & placement support':'करियर और प्लेसमेंट सहायता','FSA’s learning experience is designed around practical skills and career preparation, including guidance such as projects, CV/interview readiness and placement-focused support. Placement is support, not a guaranteed job outcome.':'FSA का सीखने का अनुभव व्यावहारिक कौशल और करियर तैयारी पर आधारित है, जिसमें प्रोजेक्ट, CV, इंटरव्यू तैयारी और प्लेसमेंट सहायता शामिल है। प्लेसमेंट सहायता दी जाती है, नौकरी की गारंटी नहीं।',
-    'Visit an FSA branch':'FSA शाखा पर जाएँ','You can explore the FSA branch locations and choose the most convenient centre. The website currently includes Tolichowki, Charminar, Ameerpet and Gachibowli branch pages.':'आप FSA शाखाओं के स्थान देखकर अपने लिए सुविधाजनक केंद्र चुन सकते हैं। वेबसाइट पर Tolichowki, Charminar, Ameerpet और Gachibowli शाखाएँ उपलब्ध हैं।',
-    'FSA events & workshops':'FSA इवेंट और वर्कशॉप','The Events area lists academy workshops, talks, ceremonies, hackathons and other activities. Open it to browse event cards, filters, event details and the calendar.':'इवेंट क्षेत्र में अकादमी वर्कशॉप, वार्ता, समारोह, हैकाथॉन और अन्य गतिविधियाँ उपलब्ध हैं। इवेंट कार्ड, फ़िल्टर, विवरण और कैलेंडर देखने के लिए इसे खोलें।',
-    'Ready to start?':'शुरू करने के लिए तैयार हैं?','Choose your course first, review the available mode and batch, then contact the academy for the latest enrollment steps. This demo assistant can route you to the right place.':'पहले कोर्स चुनें, उपलब्ध तरीका और बैच देखें, फिर नामांकन की नवीनतम प्रक्रिया के लिए अकादमी से संपर्क करें।',
-    'Talk to the FSA team':'FSA टीम से बात करें','For admissions, fees, batch availability or a specific course question, the fastest next step is the website callback/contact flow.':'एडमिशन, फीस, बैच उपलब्धता या किसी कोर्स के सवाल के लिए वेबसाइट से कॉल का अनुरोध करना सबसे तेज़ तरीका है।',
-    'I can help with that in demo mode':'मैं डेमो मोड में इसमें मदद कर सकता हूँ','This version is using smart preset replies rather than a live AI model. Ask me about courses, batches, fees, learning modes, branches, events, admissions or placement support. Later, the reply function can be connected directly to your AI backend.':'यह संस्करण लाइव AI मॉडल के बजाय तैयार जवाबों का उपयोग करता है। कोर्स, बैच, फीस, सीखने के तरीके, शाखाओं, इवेंट, एडमिशन या प्लेसमेंट सहायता के बारे में पूछें। बाद में इसे आपके AI बैकएंड से जोड़ा जा सकता है।'
-  };
-  const ATTRIBUTE_NAMES=['placeholder','title','aria-label'];
-  const originalText=new WeakMap();
-  const originalAttributes=new WeakMap();
   let currentLanguage='en';
-  let translationQueued=false;
-
-  function translated(value){return HINDI[String(value||'').trim()]||null}
-  function skipTranslation(node){
-    const parent=node.parentElement;
-    return !parent||Boolean(parent.closest('script,style,noscript,svg,code,pre,[data-no-translate],.fsa-language-switch'));
-  }
-  function translateTextNode(node,toHindi){
-    if(skipTranslation(node))return;
-    if(!originalText.has(node))originalText.set(node,node.nodeValue);
-    const english=originalText.get(node)||'';
-    if(!toHindi){if(node.nodeValue!==english)node.nodeValue=english;return}
-    const replacement=translated(english);
-    if(!replacement)return;
-    const start=(english.match(/^\s*/)||[''])[0],end=(english.match(/\s*$/)||[''])[0];
-    const next=`${start}${replacement}${end}`;
-    if(node.nodeValue!==next)node.nodeValue=next;
-  }
-  function translateElementAttributes(element,toHindi){
-    if(!(element instanceof Element)||element.closest('[data-no-translate],.fsa-language-switch'))return;
-    let saved=originalAttributes.get(element);
-    if(!saved){saved={};originalAttributes.set(element,saved)}
-    ATTRIBUTE_NAMES.forEach(name=>{
-      if(!element.hasAttribute(name)&&!(name in saved))return;
-      if(!(name in saved))saved[name]=element.getAttribute(name);
-      const english=saved[name];
-      if(english==null)return;
-      const next=toHindi?(translated(english)||english):english;
-      if(element.getAttribute(name)!==next)element.setAttribute(name,next);
-    });
-  }
-  function translateRoot(root,toHindi){
-    if(root.nodeType===Node.TEXT_NODE){translateTextNode(root,toHindi);return}
-    if(!(root instanceof Element)&&root!==document.body)return;
-    if(root instanceof Element)translateElementAttributes(root,toHindi);
-    root.querySelectorAll?.('*').forEach(element=>translateElementAttributes(element,toHindi));
-    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-    let node;while((node=walker.nextNode()))translateTextNode(node,toHindi);
-  }
-  function syncLanguageButtons(){
-    document.querySelectorAll('[data-fsa-language]').forEach(button=>{
-      const active=button.dataset.fsaLanguage===currentLanguage;
-      button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));
-    });
-  }
-  function applyLanguage(language,remember=true){
-    currentLanguage=language==='hi'?'hi':'en';
-    document.documentElement.lang=currentLanguage;
-    document.documentElement.classList.toggle('fsa-lang-hi',currentLanguage==='hi');
-    translateRoot(document.body,currentLanguage==='hi');syncLanguageButtons();applyAccessibility(false);
-    if(remember)safeWrite(LANGUAGE_KEY,currentLanguage);
-    window.dispatchEvent(new CustomEvent('fsa-language-change',{detail:{language:currentLanguage}}));
-  }
+  function applyLanguage(language,remember=true){currentLanguage=language==='hi'?'hi':'en';window.FSA_LANGUAGE?.set(currentLanguage,remember);applyAccessibility(false);}
   function injectLanguageSwitcher(){
     document.querySelectorAll('.site-header .header-actions').forEach(actions=>{
       if(actions.querySelector('.fsa-language-switch'))return;
@@ -762,10 +609,7 @@
       group.innerHTML=`<span class="fsa-language-icon" aria-hidden="true">${icon('globe')}</span><button type="button" data-fsa-language="en" aria-pressed="false" aria-label="English">EN</button><i aria-hidden="true"></i><button type="button" data-fsa-language="hi" aria-pressed="false" aria-label="Hindi" lang="hi">हिन्दी</button>`;
       actions.prepend(group);
     });
-    document.addEventListener('click',event=>{
-      const button=event.target.closest('[data-fsa-language]');
-      if(button)applyLanguage(button.dataset.fsaLanguage,true);
-    });
+
   }
 
   const defaultAccessibility=()=>({text:0,contrast:false,readable:false,links:false,motion:false});
@@ -851,14 +695,8 @@
     document.head.appendChild(style);
   }
   function init(){
-    injectStyles();injectLanguageSwitcher();injectAccessibility();applyAccessibility(false);
-    applyLanguage(safeRead(LANGUAGE_KEY,'en'),false);applyAccessibility(false);
-    const observer=new MutationObserver(records=>{
-      if(currentLanguage!=='hi'||translationQueued)return;
-      if(!records.some(record=>record.addedNodes.length||record.type==='characterData'))return;
-      translationQueued=true;requestAnimationFrame(()=>{translationQueued=false;translateRoot(document.body,true);syncLanguageButtons()});
-    });
-    observer.observe(document.body,{childList:true,subtree:true});
+    injectStyles();injectAccessibility();applyAccessibility(false);
+    applyAccessibility(false);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
@@ -880,68 +718,12 @@
   const currentPath=()=>decodeURIComponent((location.hash||'#/').slice(1)).split('?')[0]||'/';
   const shouldShow=()=>onBranch()||(!authRoutes.includes(currentPath())&&!currentPath().startsWith('/learn/'));
 
-  const QUICK_QUESTIONS=[
-    {label:'Which course is right for me?',icon:'sparkle'},
-    {label:'Show upcoming batches',icon:'calendar'},
-    {label:'Online or classroom?',icon:'classroom'},
-    {label:'What about course fees?',icon:'chart'},
-    {label:'Do you provide placement support?',icon:'briefcase'},
-    {label:'Where are your branches?',icon:'map'},
-    {label:'What events are coming up?',icon:'calendar'}
-  ];
-
+  const assistantData=()=>window.FSA_DATA?.content?.assistant||{};
+  const quickQuestions=()=>assistantData().questions||[];
   const normalize=text=>String(text||'').trim().toLowerCase();
-  const includesAny=(text,words)=>words.some(word=>text.includes(word));
-
-  function relatedQuestions(question){
-    const q=normalize(question);
-    if(includesAny(q,['right for me','which course','recommend course','best course','course should','career course']))return ['Show upcoming batches','Online or classroom?','What about course fees?'];
-    if(includesAny(q,['batch','timing','schedule','start date','upcoming']))return ['Which course is right for me?','Online or classroom?','How do I enroll?'];
-    if(includesAny(q,['online','offline','classroom','recorded','live streamed','live class','learning mode']))return ['Show upcoming batches','What about course fees?','Which course is right for me?'];
-    if(includesAny(q,['fee','fees','price','cost','payment','installment','instalment']))return ['How do I enroll?','Do you provide placement support?','Talk to admissions'];
-    if(includesAny(q,['placement','job','career','interview','cv','resume','hiring']))return ['Which course is right for me?','Show upcoming batches','Talk to admissions'];
-    if(includesAny(q,['branch','location','where are','visit','address','tolichowki','charminar','ameerpet','gachibowli']))return ['Show upcoming batches','What events are coming up?','Talk to admissions'];
-    if(includesAny(q,['event','workshop','seminar','hackathon','ceremony']))return ['Where are your branches?','Show upcoming batches','Talk to admissions'];
-    if(includesAny(q,['admission','enroll','enrol','join','register','apply','contact','phone','call','whatsapp','email','talk to','counsellor','counselor']))return ['Which course is right for me?','What about course fees?','Show upcoming batches'];
-    return ['Which course is right for me?','Show upcoming batches','Do you provide placement support?'];
-  }
-
-  function getDemoReply(question){
-    const q=normalize(question);
-    if(!q)return {title:'Ask me anything about FSA',text:'Try a quick question below, or type what you want to know about courses, batches, learning modes, branches, events or career support.'};
-
-    if(includesAny(q,['hello','hi ','hey','salam','assalam','good morning','good afternoon','good evening'])||q==='hi'||q==='hello'||q==='hey'){
-      return {title:'Hi! I’m the FSA demo assistant 👋',text:'I can help you explore courses, batches, learning modes, branches, events and career support. What would you like to know?',actions:[{label:'Explore courses',href:'/courses',primary:true},{label:'Upcoming batches',href:'/batches'}]};
-    }
-    if(includesAny(q,['right for me','which course','recommend course','best course','course should','career course'])){
-      return {title:'Let’s narrow down the right course',text:'For a demo, I’d start with your goal: software development, data/analytics, cloud & DevOps, cyber security, or another technology track. The Courses page lets you compare the available programmes and learning modes.',actions:[{label:'Browse all courses',href:'/courses',primary:true},{label:'Get a course callback',action:'callback'}]};
-    }
-    if(includesAny(q,['batch','timing','schedule','start date','upcoming'])){
-      return {title:'Upcoming batches',text:'FSA supports different schedules and learning modes depending on the programme. Open the Batches page to filter current options by time and mode.',actions:[{label:'View batches',href:'/batches',primary:true},{label:'Ask for a batch callback',action:'callback'}]};
-    }
-    if(includesAny(q,['online','offline','classroom','recorded','live streamed','live class','learning mode'])){
-      return {title:'Choose the learning mode that fits you',text:'Courses can be offered through Live Streamed, Recorded and Offline Classroom options. Availability varies by course and batch, so check the course details or current batch filters before enrolling.',actions:[{label:'Compare courses',href:'/courses',primary:true},{label:'View batches',href:'/batches'}]};
-    }
-    if(includesAny(q,['fee','fees','price','cost','payment','installment','instalment'])){
-      return {title:'Course fees & payment',text:'Fees depend on the selected course and learning mode. The demo assistant does not invent a fee; use the course page for the displayed price or request a callback for the latest admission/payment details.',actions:[{label:'See course prices',href:'/courses',primary:true},{label:'Get fee details',action:'callback'}]};
-    }
-    if(includesAny(q,['placement','job','career','interview','cv','resume','hiring'])){
-      return {title:'Career & placement support',text:'FSA’s learning experience is designed around practical skills and career preparation, including guidance such as projects, CV/interview readiness and placement-focused support. Placement is support, not a guaranteed job outcome.',actions:[{label:'See alumni outcomes',href:'/alumni',primary:true},{label:'Talk to the team',action:'callback'}]};
-    }
-    if(includesAny(q,['branch','location','where are','visit','address','tolichowki','charminar','ameerpet','gachibowli'])){
-      return {title:'Visit an FSA branch',text:'You can explore the FSA branch locations and choose the most convenient centre. The website currently includes Tolichowki, Charminar, Ameerpet and Gachibowli branch pages.',actions:[{label:'View branches',href:'/branches',primary:true},{label:'Contact FSA',href:'/contact'}]};
-    }
-    if(includesAny(q,['event','workshop','seminar','hackathon','ceremony'])){
-      return {title:'FSA events & workshops',text:'The Events area lists academy workshops, talks, ceremonies, hackathons and other activities. Open it to browse event cards, filters, event details and the calendar.',actions:[{label:'Explore events',href:'/events',primary:true},{label:'Ask about an event',action:'callback'}]};
-    }
-    if(includesAny(q,['admission','enroll','enrol','join','register','apply'])){
-      return {title:'Ready to start?',text:'Choose your course first, review the available mode and batch, then contact the academy for the latest enrollment steps. This demo assistant can route you to the right place.',actions:[{label:'Choose a course',href:'/courses',primary:true},{label:'Request a call',action:'callback'}]};
-    }
-    if(includesAny(q,['contact','phone','call','whatsapp','email','talk to','counsellor','counselor'])){
-      return {title:'Talk to the FSA team',text:'For admissions, fees, batch availability or a specific course question, the fastest next step is the website callback/contact flow.',actions:[{label:'Get a call',action:'callback',primary:true},{label:'Contact page',href:'/contact'}]};
-    }
-    return {title:'I can help with that in demo mode',text:'This version is using smart preset replies rather than a live AI model. Ask me about courses, batches, fees, learning modes, branches, events, admissions or placement support. Later, the reply function can be connected directly to your AI backend.',actions:[{label:'Browse courses',href:'/courses',primary:true},{label:'Get a call',action:'callback'}]};
-  }
+  function assistantMatch(question){const q=normalize(question);return (assistantData().routes||[]).find(row=>(row.key==='greeting'&&['hi','hello','hey'].includes(q))||(row.keywords||[]).some(word=>q.includes(word)));}
+  function relatedQuestions(question){return assistantMatch(question)?.suggestions||assistantData().fallbackSuggestions||[];}
+  function getDemoReply(question){return !normalize(question)?(assistantData().empty||{}):(assistantMatch(question)?.reply||assistantData().fallback||{});}
 
   function injectStyles(){
     if(document.getElementById('fsaAiAssistantStyles'))return;
@@ -1038,7 +820,7 @@
         const followups=document.createElement('div');followups.className='fsa-ai-followups';
         const label=document.createElement('span');label.className='fsa-ai-followup-label';label.textContent=content.suggestionLabel||'You can also ask';followups.appendChild(label);
         content.suggestions.forEach((suggestion,index)=>{
-          const item=QUICK_QUESTIONS.find(entry=>entry.label===suggestion);
+          const item=quickQuestions().find(entry=>entry.label===suggestion);
           const button=document.createElement('button');button.type='button';button.className='fsa-ai-followup-button';
           if(content.mainSuggestions&&index===0)button.classList.add('is-main');
           button.dataset.aiSuggestion=suggestion;button.innerHTML=`${icon(item?.icon||'sparkle')}<span></span>`;button.querySelector('span').textContent=suggestion;followups.appendChild(button);
@@ -1061,7 +843,7 @@
     const addBot=reply=>{messages.querySelectorAll('[data-ai-suggestion]').forEach(button=>button.disabled=true);messages.appendChild(buildMessage('bot',reply));scrollBottom()};
     const addUser=text=>{messages.appendChild(buildMessage('user',text));scrollBottom()};
     const setPending=value=>{pending=value;send.disabled=value;const groups=[...messages.querySelectorAll('.fsa-ai-followups')];groups.forEach((group,index)=>group.querySelectorAll('[data-ai-suggestion]').forEach(btn=>btn.disabled=value||index!==groups.length-1));input.setAttribute('aria-busy',value?'true':'false')};
-    const greeting=()=>addBot({title:'How can I help you today?',text:'Choose what you want help with, or type your own question below.',suggestionLabel:'Start with a question',mainSuggestions:true,suggestions:QUICK_QUESTIONS.slice(0,4).map(item=>item.label)});
+    const greeting=()=>addBot({...(assistantData().greeting||{}),suggestions:quickQuestions().slice(0,4).map(item=>item.label)});
     const reset=()=>{messages.innerHTML='';greeting();input.value='';resizeInput()};
     const open=()=>{root.classList.add('is-open','has-opened');launcher.setAttribute('aria-expanded','true');setTimeout(()=>input.focus({preventScroll:true}),180)};
     const close=()=>{root.classList.remove('is-open');launcher.setAttribute('aria-expanded','false');launcher.focus({preventScroll:true})};
@@ -1118,14 +900,6 @@
   const onBranch=()=>/\/branches\//.test(location.pathname.replace(/\\/g,'/'));
   const routeHref=path=>onBranch()?`../../index.html#${path}`:`#${path}`;
   const icon=(name,cls='',filled=false)=>window.FSA_UI?.icon?.(name,cls,filled)||'';
-  const BASE_NEWS=[
-    {text:'AI Specialist Live Streamed batch starts 07 Sep',href:'/course/artificial-intelligence-specialist'},
-    {text:'AI-Powered Web Developer online enrollment is open',href:'/course/ai-powered-web-developer'},
-    {text:'Data Science classroom batch at Tolichowki starts 21 Sep',href:'/course/data-science'},
-    {text:'Recorded technology courses are available to start anytime',href:'/courses?mode=recorded'},
-    {text:'Upcoming academy events and workshops are now listed',href:'/events'},
-    {text:'Admissions guidance is available at four Hyderabad branches',href:'/branches'}
-  ];
 
   function injectStyles(){
     if(document.getElementById('fsaTopNewsTickerStyles'))return;
@@ -1173,7 +947,7 @@
     let lastSignature='';
     const build=()=>{
       const dynamic=(source?.textContent||legacyText).trim();
-      const news=[...(dynamic?[{text:dynamic,href:'/courses'}]:[]),...BASE_NEWS].filter((item,index,list)=>list.findIndex(other=>other.text.toLowerCase()===item.text.toLowerCase())===index);
+      const news=[...(dynamic?[{text:dynamic,href:'/courses'}]:[]),...(window.FSA_CONTENT?.get()?.news||[])].filter((item,index,list)=>list.findIndex(other=>other.text.toLowerCase()===item.text.toLowerCase())===index);
       const signature=news.map(item=>`${item.text}|${item.href}`).join('||');
       if(signature===lastSignature&&track.childElementCount)return;
       lastSignature=signature;
@@ -1213,20 +987,11 @@
   const icon=(name,cls='',filled=false)=>window.FSA_UI?.icon?.(name,cls,filled)||'';
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
-  const FALLBACK_UPDATES=[
-    {kind:'Upcoming batch',icon:'calendar',title:'Artificial Intelligence Specialist',slug:'artificial-intelligence-specialist',message:'Live Streamed batch starts 07 Sep',meta:'Morning · 08:00 AM – 09:30 AM',art:'assets/images/course-v16/ai-machine-learning.svg'},
-    {kind:'Live Streamed',icon:'radio',title:'AI-Powered Web Developer',slug:'ai-powered-web-developer',message:'Online batch enrollment is open',meta:'Starts 10 Sep · Afternoon',art:'assets/images/course-v16/generative-ai-analytics.svg'},
-    {kind:'Classroom batch',icon:'classroom',title:'Data Science',slug:'data-science',message:'Offline classroom seats are available',meta:'Tolichowki · Starts 21 Sep',art:'assets/images/course-v16/azure-data-engineer.svg'},
-    {kind:'Upcoming batch',icon:'calendar',title:'Digital Marketing',slug:'digital-marketing',message:'Live Streamed evening batch enrolling',meta:'Starts 17 Sep · 07:30 PM',art:'assets/images/course-v16/business-analyst.svg'},
-    {kind:'Live Streamed',icon:'radio',title:'AWS Cloud Engineer',slug:'aws-cloud-engineer',message:'Instructor-led online batch enrolling',meta:'Starts 21 Sep · Afternoon',art:'assets/images/course-v16/aspnet-core.svg'},
-    {kind:'Start anytime',icon:'video',title:'Data Analyst',slug:'data-analyst',message:'Recorded learning access is available',meta:'Self-paced · Online',art:'assets/images/course-v16/generative-ai-analytics.svg'}
-  ];
-
   function updates(){
-    const courses=Array.isArray(window.FSA_DATA?.courses)?window.FSA_DATA.courses:[];
-    return FALLBACK_UPDATES.map(item=>{
-      const course=courses.find(entry=>entry.slug===item.slug);
-      return {...item,title:course?.title||item.title,image:course?.image||assetHref(item.art)};
+    const data=window.FSA_DATA||{};
+    return (data.batches||[]).map(batch=>{
+      const course=(data.courses||[]).find(c=>Number(c.id)===Number(batch.courseId)||c.slug===batch.slug);
+      return {kind:batch.mode||'',icon:batch.modeKey==='recorded'?'video':'calendar',title:course?.title||batch.course,slug:course?.slug||batch.slug,message:batch.modeKey==='recorded'?batch.start:[batch.mode,batch.start].filter(Boolean).join(' · '),meta:[batch.branch,batch.time,batch.seats==null?'':`${batch.seats} seats`].filter(Boolean).join(' · '),image:course?.image||batch.image||'',art:course?.image||batch.image||''};
     });
   }
 
@@ -1272,8 +1037,8 @@
     if(dismissed)return;
     injectStyles();
     document.body.insertAdjacentHTML('beforeend',`<aside id="${ROOT_ID}" role="status" aria-live="polite" aria-atomic="true"></aside>`);
-    const root=document.getElementById(ROOT_ID),items=updates();
-    let index=Math.floor(Math.random()*items.length),showTimer=null,nextTimer=null,leaving=false;
+    const root=document.getElementById(ROOT_ID);
+    let index=0,showTimer=null,nextTimer=null,leaving=false;
 
     const clearTimers=()=>{window.clearTimeout(showTimer);window.clearTimeout(nextTimer)};
     const schedule=(delay=8500)=>{window.clearTimeout(nextTimer);if(!dismissed&&shouldShow()&&!document.hidden)nextTimer=window.setTimeout(show,delay)};
@@ -1284,7 +1049,7 @@
     };
     const show=()=>{
       if(dismissed||!shouldShow()||document.hidden){schedule(3000);return}
-      const item=items[index%items.length];index=(index+1)%items.length;
+      const items=updates();if(!items.length){hide(false);schedule(8500);return;}const item=items[index%items.length];index=(index+1)%items.length;
       root.innerHTML=`<article class="fsa-activity-card"><a class="fsa-activity-link" href="${escapeHtml(routeHref(`/course/${encodeURIComponent(item.slug)}`))}" aria-label="View ${escapeHtml(item.title)}"><span class="fsa-activity-art"><img src="${escapeHtml(item.image)}" alt="" loading="eager"></span><span class="fsa-activity-copy"><b class="fsa-activity-kind"><i aria-hidden="true"></i>${escapeHtml(item.kind)}</b><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span><small>${icon(item.icon)}${escapeHtml(item.meta)}</small></span></a><button class="fsa-activity-close" type="button" aria-label="Hide course updates" title="Hide updates">${icon('x')}</button></article>`;
       const image=root.querySelector('.fsa-activity-art img');if(image)image.addEventListener('error',()=>{image.src=assetHref(item.art)},{once:true});
       root.hidden=false;root.classList.remove('is-leaving');requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.add('is-visible')));

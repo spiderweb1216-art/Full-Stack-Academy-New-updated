@@ -28,7 +28,11 @@
   const norm = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
   const initials = name => String(name || 'FS').trim().split(/\s+/).slice(0,2).map(word=>word[0]||'').join('').toUpperCase();
   const unique = values => [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const salaryValue = salary => Number.parseFloat(String(salary || '').replace(/[^0-9.]/g,'')) || 0;
+  const newestFirst = (a,b) => {
+    const date = r => { const v=r.created_at||r.createdAt||r.created_on||r.published_at||''; const t=v?Date.parse(String(v)):NaN; return Number.isFinite(t)?t:0; };
+    return date(b)-date(a) || (Number(b.id)||0)-(Number(a.id)||0);
+  };
+  const salaryValue = salary => { const raw=String(salary ?? '').trim(); if(!raw || !/\d/.test(raw)) return NaN; const value=Number.parseFloat(raw.replace(/[^0-9.]/g,'')); return Number.isFinite(value)?value:NaN; };
   const canonicalCompany = name => {
     const n = norm(name);
     if (n === 'hcl tech') return 'HCL';
@@ -39,14 +43,14 @@
   const logoForCompany = name => {
     const wanted=norm(canonicalCompany(name));
     const company=(window.FSA_DATA?.companies||[]).find(item=>norm(canonicalCompany(item.name))===wanted||norm(item.name)===norm(name));
-    return company?.logo || extraCompanyLogos[canonicalCompany(name)] || extraCompanyLogos[name] || '';
+    return company?.logo || '';
   };
 
   let courseList = [];
   let alumniCompanyList = [];
 
-  const companyState = { query:'', groups:new Set(), evidence:'all', sort:'name-asc', page:1, perPage:12, filtersOpen:false };
-  const alumniState = { query:'', courses:new Set(), companies:new Set(), companyQuery:'', salary:'all', sort:'reference', page:1, perPage:9, filtersOpen:false, expandedCompanies:false };
+  const companyState = { query:'', groups:new Set(), evidence:'all', sort:'newest', page:1, perPage:50, filtersOpen:false };
+  const alumniState = { query:'', courses:new Set(), companies:new Set(), companyQuery:'', salary:'all', sort:'newest', page:1, perPage:50, filtersOpen:false, expandedCompanies:false };
   let activePage = '';
 
   function icon(name) {
@@ -99,7 +103,7 @@
   function contactHireUrl() {
     const subject = encodeURIComponent('Hiring support — Full Stack Academy');
     const body = encodeURIComponent('Hello Full Stack Academy Placement Team,\n\nI would like to discuss hiring trained candidates from your placement pool.\n\nRegards,');
-    return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+    return `mailto:${encodeURIComponent(window.FSA_DATA?.content?.placementEmail||window.FSA_DATA?.site?.support_email||CONTACT_EMAIL)}?subject=${subject}&body=${body}`;
   }
 
   // ---------- COMPANIES ----------
@@ -107,13 +111,14 @@
     const q = norm(companyState.query);
     let rows = companies.filter(company=>{
       const placements = companyPlacements(company.name);
-      if (q && !norm(company.name).includes(q)) return false;
+      if (q && !norm([company.name,company.sector,company.location,company.description,company.hiringStatus].join(' ')).includes(q)) return false;
       if (companyState.groups.size && !companyState.groups.has(companyGroup(company.name))) return false;
       if (companyState.evidence === 'with' && !placements.length) return false;
       return true;
     }).map(company=>({ ...company, placements:companyPlacements(company.name) }));
 
-    if (companyState.sort === 'name-desc') rows.sort((a,b)=>b.name.localeCompare(a.name));
+    if (companyState.sort === 'newest') rows.sort(newestFirst);
+    else if (companyState.sort === 'name-desc') rows.sort((a,b)=>b.name.localeCompare(a.name));
     else if (companyState.sort === 'placements') rows.sort((a,b)=>b.placements.length-a.placements.length || a.name.localeCompare(b.name));
     else rows.sort((a,b)=>a.name.localeCompare(b.name));
     return rows;
@@ -147,7 +152,7 @@
     const start=(companyState.page-1)*companyState.perPage;
     const visible=rows.slice(start,start+companyState.perPage);
     const from=rows.length?start+1:0,to=Math.min(start+companyState.perPage,rows.length);
-    return `<div class="candidate-results-wrap"><div class="candidate-results-toolbar"><div><button class="candidate-mobile-filter" type="button" data-placement-action="open-filters">${icon('filter')} Filters ${companyFilterCount()?`<b>${companyFilterCount()}</b>`:''}</button><p><strong>${rows.length}</strong> compan${rows.length===1?'y':'ies'} found <span>· Showing ${from}–${to}</span></p></div><label class="candidate-sort"><span>Sort by</span><select data-placement-sort><option value="name-asc" ${companyState.sort==='name-asc'?'selected':''}>Name: A–Z</option><option value="name-desc" ${companyState.sort==='name-desc'?'selected':''}>Name: Z–A</option><option value="placements" ${companyState.sort==='placements'?'selected':''}>Most placements</option></select>${icon('chevron')}</label></div>${renderCompanyActiveFilters()}${visible.length?`<div class="company-grid">${visible.map(companyCard).join('')}</div>`:`<div class="candidate-empty-state"><span>${icon('building')}</span><h3>No companies match these filters.</h3><p>Try another company name, A–Z group, or clear the placement filter.</p><button type="button" class="button button-primary" data-placement-action="reset">Clear filters</button></div>`}${renderPagination(pages,companyState.page,'company')}</div>`;
+    return `<div class="candidate-results-wrap"><div class="candidate-results-toolbar"><div><button class="candidate-mobile-filter" type="button" data-placement-action="open-filters">${icon('filter')} Filters ${companyFilterCount()?`<b>${companyFilterCount()}</b>`:''}</button><p><strong>${rows.length}</strong> compan${rows.length===1?'y':'ies'} found <span>· Showing ${from}–${to}</span></p></div><label class="candidate-sort"><span>Sort by</span><select data-placement-sort><option value="newest" ${companyState.sort==='newest'?'selected':''}>Newest First</option><option value="name-asc" ${companyState.sort==='name-asc'?'selected':''}>Name: A–Z</option><option value="name-desc" ${companyState.sort==='name-desc'?'selected':''}>Name: Z–A</option><option value="placements" ${companyState.sort==='placements'?'selected':''}>Most placements</option></select>${icon('chevron')}</label></div>${renderCompanyActiveFilters()}${visible.length?`<div class="company-grid">${visible.map(companyCard).join('')}</div>`:`<div class="candidate-empty-state"><span>${icon('building')}</span><h3>No companies match these filters.</h3><p>Try another company name, A–Z group, or clear the placement filter.</p><button type="button" class="button button-primary" data-placement-action="reset">Clear filters</button></div>`}${renderPagination(pages,companyState.page,'company')}</div>`;
   }
 
   function renderCompanyDirectory(app) {
@@ -175,6 +180,7 @@
   }
 
   function salaryMatches(value,filter) {
+    if (filter !== 'all' && !Number.isFinite(value)) return false;
     if(filter==='under-3')return value<3;
     if(filter==='3-5')return value>=3&&value<5;
     if(filter==='5-10')return value>=5&&value<10;
@@ -187,15 +193,16 @@
     let rows=alumni.filter(item=>{
       if(q && !norm([item.name,item.course,item.role,item.company,item.salary].join(' ')).includes(q))return false;
       if(alumniState.courses.size&&!alumniState.courses.has(item.course))return false;
-      if(alumniState.companies.size&&!alumniState.companies.has(item.company))return false;
+      if(alumniState.companies.size&&![...alumniState.companies].some(name=>norm(canonicalCompany(name))===norm(canonicalCompany(item.company))))return false;
       if(!salaryMatches(salaryValue(item.salary),alumniState.salary))return false;
       return true;
     });
-    if(alumniState.sort==='salary-desc')rows.sort((a,b)=>salaryValue(b.salary)-salaryValue(a.salary)||a.name.localeCompare(b.name));
-    else if(alumniState.sort==='salary-asc')rows.sort((a,b)=>salaryValue(a.salary)-salaryValue(b.salary)||a.name.localeCompare(b.name));
+    if(alumniState.sort==='newest')rows.sort(newestFirst);
+    else if(alumniState.sort==='salary-desc')rows.sort((a,b)=>(Number.isFinite(salaryValue(b.salary))?salaryValue(b.salary):-1)-(Number.isFinite(salaryValue(a.salary))?salaryValue(a.salary):-1)||a.name.localeCompare(b.name));
+    else if(alumniState.sort==='salary-asc')rows.sort((a,b)=>(Number.isFinite(salaryValue(a.salary))?salaryValue(a.salary):Infinity)-(Number.isFinite(salaryValue(b.salary))?salaryValue(b.salary):Infinity)||a.name.localeCompare(b.name));
     else if(alumniState.sort==='name')rows.sort((a,b)=>a.name.localeCompare(b.name));
     else if(alumniState.sort==='company')rows.sort((a,b)=>a.company.localeCompare(b.company)||a.name.localeCompare(b.name));
-    else rows.sort((a,b)=>a.id-b.id);
+    else rows.sort(newestFirst);
     return rows;
   }
 
@@ -242,7 +249,7 @@
     const start=(alumniState.page-1)*alumniState.perPage;
     const visible=rows.slice(start,start+alumniState.perPage);
     const from=rows.length?start+1:0,to=Math.min(start+alumniState.perPage,rows.length);
-    return `<div class="candidate-results-wrap"><div class="candidate-results-toolbar"><div><button class="candidate-mobile-filter" type="button" data-placement-action="open-filters">${icon('filter')} Filters ${alumniFilterCount()?`<b>${alumniFilterCount()}</b>`:''}</button><p><strong>${rows.length}</strong> alumni placement${rows.length===1?'':'s'} found <span>· Showing ${from}–${to}</span></p></div><label class="candidate-sort"><span>Sort by</span><select data-placement-sort><option value="reference" ${alumniState.sort==='reference'?'selected':''}>Reference order</option><option value="salary-desc" ${alumniState.sort==='salary-desc'?'selected':''}>Package: High–Low</option><option value="salary-asc" ${alumniState.sort==='salary-asc'?'selected':''}>Package: Low–High</option><option value="name" ${alumniState.sort==='name'?'selected':''}>Name: A–Z</option><option value="company" ${alumniState.sort==='company'?'selected':''}>Company: A–Z</option></select>${icon('chevron')}</label></div>${renderAlumniActiveFilters()}${visible.length?`<div class="alumni-grid">${visible.map(alumniCard).join('')}</div>`:`<div class="candidate-empty-state"><span>${icon('award')}</span><h3>No alumni placements match these filters.</h3><p>Try another training track, company, package range, or clear your search.</p><button type="button" class="button button-primary" data-placement-action="reset">Clear filters</button></div>`}${renderPagination(pages,alumniState.page,'alumni')}</div>`;
+    return `<div class="candidate-results-wrap"><div class="candidate-results-toolbar"><div><button class="candidate-mobile-filter" type="button" data-placement-action="open-filters">${icon('filter')} Filters ${alumniFilterCount()?`<b>${alumniFilterCount()}</b>`:''}</button><p><strong>${rows.length}</strong> alumni placement${rows.length===1?'':'s'} found <span>· Showing ${from}–${to}</span></p></div><label class="candidate-sort"><span>Sort by</span><select data-placement-sort><option value="newest" ${alumniState.sort==='newest'?'selected':''}>Newest First</option><option value="salary-desc" ${alumniState.sort==='salary-desc'?'selected':''}>Package: High–Low</option><option value="salary-asc" ${alumniState.sort==='salary-asc'?'selected':''}>Package: Low–High</option><option value="name" ${alumniState.sort==='name'?'selected':''}>Name: A–Z</option><option value="company" ${alumniState.sort==='company'?'selected':''}>Company: A–Z</option></select>${icon('chevron')}</label></div>${renderAlumniActiveFilters()}${visible.length?`<div class="alumni-grid">${visible.map(alumniCard).join('')}</div>`:`<div class="candidate-empty-state"><span>${icon('award')}</span><h3>No alumni placements match these filters.</h3><p>Try another training track, company, package range, or clear your search.</p><button type="button" class="button button-primary" data-placement-action="reset">Clear filters</button></div>`}${renderPagination(pages,alumniState.page,'alumni')}</div>`;
   }
 
   function renderAlumniDirectory(app) {
@@ -267,8 +274,8 @@
   }
 
   function resetCurrent() {
-    if(activePage==='companies') Object.assign(companyState,{query:'',groups:new Set(),evidence:'all',sort:'name-asc',page:1,filtersOpen:false});
-    else Object.assign(alumniState,{query:'',courses:new Set(),companies:new Set(),companyQuery:'',salary:'all',sort:'reference',page:1,filtersOpen:false,expandedCompanies:false});
+    if(activePage==='companies') Object.assign(companyState,{query:'',groups:new Set(),evidence:'all',sort:'newest',page:1,filtersOpen:false});
+    else Object.assign(alumniState,{query:'',courses:new Set(),companies:new Set(),companyQuery:'',salary:'all',sort:'newest',page:1,filtersOpen:false,expandedCompanies:false});
   }
 
   function rerender() {

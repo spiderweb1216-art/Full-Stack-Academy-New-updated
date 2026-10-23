@@ -1,0 +1,12 @@
+{
+  "QA-REPORT-v130.txt": "31ce5d3ed7a5b0be030463536754c0ab626eab156dc7280ca77dfe6ecbefa400",
+  "README-INSTALL-v130.txt": "cbcd522f2d34bea0014a54009fe12b7cb744ee9cf834b813d9a39cdf91c8f3e9",
+  "index.html": "b8e4d18a048b991d65fa5dea1c5a87a7f7171c8c27f1ffe0c5216c14aca5d38b",
+  "js/app.js": "cf6a79556dd730e3441711f406b6a17b841ba4db204338ce1d6a1f61b19cdb44",
+  "api/index.php": "b71f149758d8d91c3cdec2b40466331c714372ed5e7a8066d9a071412c6e9939",
+  "admin/index.html": "46fa6bb14088870999e70e3dd1fd1379b40fc82b1d5cdd9f91a6660e12b40a79",
+  "css/physical-pages.css": "98c464f570c01aca9eda9fc8b939eb31fefa94778a9bc1ca1811306df0bbac64",
+  "admin/js/admin.js": "b9942a740c4fa66c2aa9055f69ecc7b618ba93ca72046333e418508b0ecd0ade",
+  "admin/css/physical-pages.css": "84eed7c08bf6df9e447df54c20904d04290e1914d90142aa91619bae91b6fcef",
+  "api/lib/PhysicalCourses.php": "94ec07ba40b5a569687e0f6e64ef4ac898553fc93feea69ed7086d182a063e2b"
+}
