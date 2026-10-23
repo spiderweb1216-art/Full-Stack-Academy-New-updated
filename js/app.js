@@ -1250,8 +1250,9 @@ window.FSA_BUILD='v134-returning-learner';
 
   function renderHome() {
     setChrome('public');
-    const placements=(D.alumni||[]).map(r=>({name:r.name,role:r.role,company:r.company,image:r.image}));
-    const placementPages=Array.from({length:Math.ceil(placements.length/10)},(_,i)=>placements.slice(i*10,(i+1)*10));
+    const alumniDate = r => { const value=r.created_at||r.createdAt||r.created_on||r.published_at||r.updated_at||''; return Date.parse(String(value))||0; };
+    const placements=(D.alumni||[]).slice().sort((a,b)=>alumniDate(b)-alumniDate(a)||(Number(b.id)||0)-(Number(a.id)||0)).slice(0,12).map(r=>({name:r.name,role:r.role,company:r.company,image:r.image}));
+    const placementPages=placements.length?[placements]:[];
     const hiringCompanies=(D.companies||[]).filter(r=>r&&r.name);
     const companyRows=hiringCompanies.length?[0,4,8,12].map(offset=>hiringCompanies.map((_,i)=>hiringCompanies[(i+offset)%hiringCompanies.length])):[];
     const onlineCourses=(D.courses||[]).slice(0,8);
@@ -1293,8 +1294,8 @@ window.FSA_BUILD='v134-returning-learner';
 
         <section class="fsa-home-section fsa-home-branches-section">
           <div class="container">
-            <div class="fsa-home-heading"><span>Four Hyderabad Centres</span><h2>Visit Our <em>Branches</em></h2><p>Four branches, one learning community. Choose the centre closest to you for classroom training, mentoring and career support.</p></div>
-            <div class="fsa-home-branch-grid">${D.branches.map((b,i)=>homeBranchCard(b,i)).join('')}</div>
+            <div class="fsa-home-heading"><span>Hyderabad Learning Centres</span><h2>Visit Our <em>Branches</em></h2><p>Explore three of our learning centres for classroom training, mentoring and career support.</p></div>
+            <div class="fsa-home-branch-grid">${D.branches.slice(0,3).map((b,i)=>homeBranchCard(b,i)).join('')}</div>
           </div>
         </section>
 
@@ -5237,7 +5238,6 @@ window.FSA_BUILD='v134-returning-learner';
       <nav class="dashboard-nav">
         <span class="dashboard-nav-label">Teaching</span>
         ${renderLinks(teaching.slice(0,2))}
-        <a class="instructor-course-create-nav" href="admin/index.html?courseEditor=new&amp;mode=offline#courses" target="_blank" rel="noopener" title="Submit a new public course for approval">${icon('plus')}<span>Create Public Course</span></a>
         <div class="dashboard-nav-group ${['instructor-live','instructor-recordings'].includes(active)?'is-active is-open':''}">
           <button class="dashboard-nav-parent ${['instructor-live','instructor-recordings'].includes(active)?'active':''}" type="button" data-action="toggle-instructor-live-submenu" aria-expanded="${['instructor-live','instructor-recordings'].includes(active)?'true':'false'}">${icon('radio')}<span>Live Classes</span><b>${icon('chevronDown')}</b></button>
           <div class="dashboard-nav-submenu" aria-label="Live Classes submenu">
@@ -5277,7 +5277,7 @@ window.FSA_BUILD='v134-returning-learner';
     const publishedAssignments=assignments.filter(x=>x.status!=='draft');
     const recentAssessments=[...quizzes.map(x=>({...x,_type:'Quiz'})),...assignments.map(x=>({...x,_type:'Assignment'}))]
       .sort((a,b)=>new Date(b.updated_at||b.created_at||0)-new Date(a.updated_at||a.created_at||0)).slice(0,5);
-    const content=`<section class="premium-dashboard-hero instructor-premium-hero"><div><span class="eyebrow light">Instructor Workspace</span><h2>Teach, assess and review from one place.</h2><p>Your assigned courses, live classes, recordings, multi-step quizzes and student submissions stay connected to the same classroom.</p></div><div class="premium-hero-actions"><a class="button button-primary" href="admin/index.html?courseEditor=new&amp;mode=offline#courses" target="_blank" rel="noopener">${icon('plus')} Create Public Course</a><a class="button button-secondary" href="#/instructor-courses">Manage Assigned Courses</a></div></section>
+    const content=`<section class="premium-dashboard-hero instructor-premium-hero"><div><span class="eyebrow light">Instructor Workspace</span><h2>Teach, assess and review from one place.</h2><p>Your assigned courses, live classes, recordings, multi-step quizzes and student submissions stay connected to the same classroom.</p></div><div class="premium-hero-actions"><a class="button button-primary" href="#/instructor-courses">Manage Course Curriculum</a></div></section>
       <div class="dashboard-metrics premium-metrics">${[[courses.length,'Assigned courses','book'],[(d.students||[]).length,'Students','users'],[toGrade.length,'To grade','project'],[publishedQuizzes.length,'Published quizzes','note']].map(m=>`<article class="premium-metric-card"><i>${icon(m[2])}</i><div><strong>${m[0]}</strong><span>${m[1]}</span></div></article>`).join('')}</div>
       <div class="premium-dashboard-grid">
         <section class="panel"><div class="panel-head"><div><span class="eyebrow">Teaching tools</span><h2>Quick actions</h2></div><a href="#/instructor-courses">All courses</a></div><div class="instructor-quick-grid premium"><a href="#/instructor-courses">${icon('book')}<span><strong>Assigned Courses</strong><small>Prepare lessons and manage coursework course-by-course.</small></span></a><a href="#/instructor-live">${icon('radio')}<span><strong>Live Classes</strong><small>Schedule and start your embedded Zoom classroom.</small></span></a><a href="#/instructor-recordings">${icon('play')}<span><strong>Recordings</strong><small>Publish completed class recordings for students.</small></span></a><a href="#/instructor-students">${icon('users')}<span><strong>Students</strong><small>Review learners attached to your courses.</small></span></a></div></section>
@@ -5590,7 +5590,15 @@ window.FSA_BUILD='v134-returning-learner';
   }
   function syncCourseMegaMenu(){
     const grid=document.querySelector('.course-mega-grid');if(!grid)return;
-    grid.innerHTML=(D.content?.courseNavigation||[]).map(c=>`<a class="course-mega-item" href="#/courses?q=${encodeURIComponent(c.query||'')}"><span class="mega-icon" data-premium-icon="${escapeHtml(c.icon||'book')}"></span><span><strong>${escapeHtml(c.title)}</strong><small>${escapeHtml(c.caption||'')}</small></span></a>`).join('');
+    const rows=(D.courses||[]).filter(c=>c && c.title && (c.slug || c.id)).slice().sort((a,b)=>{
+      const date=r=>Date.parse(String(r.published_at||r.created_at||r.createdAt||''))||0;
+      return date(b)-date(a)||(Number(b.id)||0)-(Number(a.id)||0);
+    }).slice(0,6);
+    grid.innerHTML=rows.map(c=>{
+      const href=c.slug?`#/course/${encodeURIComponent(c.slug)}`:`#/courses?q=${encodeURIComponent(c.title)}`;
+      const photo=c.image||c.thumbnail||c.cover_image||'';
+      return `<a class="course-mega-item" href="${href}"><span class="course-mega-thumb">${photo?`<img src="${escapeHtml(photo)}" alt="${escapeHtml(c.title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.hidden=false"><span class="image-fallback" hidden>${escapeHtml(initials(c.title))}</span>`:`<span class="image-fallback">${escapeHtml(initials(c.title))}</span>`}</span><span class="course-mega-copy"><strong>${escapeHtml(c.title)}</strong><small>${escapeHtml(c.category||c.short||'Explore course')}</small></span></a>`;
+    }).join('') || '<p class="course-mega-loading">Courses will appear here when published.</p>';
   }
 
   function applyBackendCatalog(catalog={}){
@@ -5650,18 +5658,14 @@ window.FSA_BUILD='v134-returning-learner';
 
   function renderInstructorCourses(){
     const courses=instructorCourses(), quizzes=state.instructorData.quizzes||[], assignments=state.instructorData.assignments||[], liveRows=state.instructorData.live_sessions||[], recordedRows=state.instructorData.recorded_lectures||[];
-    const content=`<section class="instructor-public-course-cta"><div class="instructor-public-course-cta-copy"><span class="eyebrow">COURSE AUTHORING</span><h2>Create a public course</h2><p>Use the same course editor as Academy Admin. Your submission stays unpublished until approved by your Branch Head, Branch Admin, Admin Staff or Super Admin.</p></div><a class="button button-primary instructor-public-course-button" href="admin/index.html?courseEditor=new&amp;mode=offline#courses" target="_blank" rel="noopener">${icon('plus')} Create Public Course ${icon('arrow')}</a></section><section class="instructor-course-page-intro"><div><span class="eyebrow">Assigned courses</span><h2>Your teaching workspaces</h2><p>Every assigned course shows all three delivery types. Admin controls which modes are sold; you prepare the learning content for the modes enabled on your course.</p></div><div class="instructor-mode-legend"><span>${icon('classroom')} Offline</span><span>${icon('radio')} Live</span><span>${icon('video')} Recorded</span></div></section>${courses.length?`<div class="instructor-course-grid instructor-mode-course-grid">${courses.map(c=>{
+    const content=`<section class="instructor-course-page-intro"><div><span class="eyebrow">Assigned courses</span><h2>Your teaching workspaces</h2><p>Every assigned course shows all three delivery types. Admin controls which modes are sold; you prepare the learning content for the modes enabled on your course.</p></div><div class="instructor-mode-legend"><span>${icon('classroom')} Offline</span><span>${icon('radio')} Live</span><span>${icon('video')} Recorded</span></div></section>${courses.length?`<div class="instructor-course-grid instructor-mode-course-grid">${courses.map(c=>{
       const quizCount=quizzes.filter(q=>Number(q.course_id)===Number(c.id)).length;
       const assignmentCount=assignments.filter(a=>Number(a.course_id)===Number(c.id)).length;
       const liveCount=liveRows.filter(row=>Number(row.course_id)===Number(c.id)).length;
       const recordedCount=recordedRows.filter(row=>Number(row.course_id)===Number(c.id)).length;
       const pending=String(c.approvalStatus||'approved')==='pending';
-      const publicationReview=String(c.publicApprovalStatus||'approved').toLowerCase();
-      const publicDraft=publicationReview==='pending'||publicationReview==='rejected';
-      const publicReviewBadge=publicDraft?`<span class="status-pill ${publicationReview==='pending'?'status-pending':'status-rejected'}">${publicationReview==='pending'?'Public course: awaiting approval':'Public course: changes requested'}</span>`:'';
-      const publicDraftEdit=publicDraft?`<a class="button button-secondary button-sm" href="admin/index.html?courseEditor=${Number(c.id)}&amp;mode=offline#courses" target="_blank" rel="noopener">${icon('edit')} Edit Public Draft</a>`:'';
-      return `<article class="panel instructor-course-card instructor-course-card-v111"><header class="instructor-course-summary"><div class="instructor-course-thumb">${c.image?imageMarkup(c.image,c.title,initials(c.title)):`<span>${icon('book')}</span>`}</div><div class="instructor-course-summary-copy"><div class="instructor-course-summary-top"><span class="course-category">${escapeHtml(c.category)}</span><span class="status-pill ${pending?'status-pending':''}">${pending?'Content pending approval':escapeHtml(c.approvalStatus||'approved')}</span>${publicReviewBadge}</div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.short||'Assigned academy course')}</p><div class="instructor-course-summary-meta"><span>${icon('book')} ${Number(c.lessons||0)} lessons</span><span>${icon('users')} Assigned instructor course</span>${c.branchName?`<span>${icon('map')} ${escapeHtml(c.branchName)}</span>`:''}</div></div>${c.visibility!=='private'&&c.status==='published'?`<a class="button button-secondary button-sm instructor-course-view" href="#/course/${encodeURIComponent(c.slug)}" target="_blank">View Course</a>`:''}</header><div class="instructor-three-modes">${instructorModeCard(c,'offline',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'live',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'recorded',{live:liveCount,recorded:recordedCount})}</div><footer class="instructor-coursework-strip coursera-coursework-strip"><div><span>${icon('book')}</span><strong>Course curriculum</strong><small>${recordedCount} lecture${recordedCount===1?'':'s'} · ${quizCount} quiz${quizCount===1?'':'zes'} · ${assignmentCount} assignment${assignmentCount===1?'':'s'}</small></div><div class="instructor-course-card-actions">${publicDraftEdit}${instructorModeEnabled(c,'offline')?`<button class="button button-secondary button-sm" type="button" data-action="instructor-offline-course-edit" data-id="${c.id}">${icon('edit')} Edit Course</button>`:''}<a class="button button-primary button-sm" href="#/instructor-course-manage/${c.id}">Manage Course Curriculum ${icon('arrow')}</a></div></footer></article>`;
-    }).join('')}</div>`:`<div class="empty-state"><span class="empty-icon">${icon('book')}</span><h3>No courses yet</h3><p>Create your first public course for approval using the button above, or ask your branch administration to assign an existing course to your account.</p></div>`}`;
+      return `<article class="panel instructor-course-card instructor-course-card-v111"><header class="instructor-course-summary"><div class="instructor-course-thumb">${c.image?imageMarkup(c.image,c.title,initials(c.title)):`<span>${icon('book')}</span>`}</div><div class="instructor-course-summary-copy"><div class="instructor-course-summary-top"><span class="course-category">${escapeHtml(c.category)}</span><span class="status-pill ${pending?'status-pending':''}">${pending?'Content pending approval':escapeHtml(c.approvalStatus||'approved')}</span></div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.short||'Assigned academy course')}</p><div class="instructor-course-summary-meta"><span>${icon('book')} ${Number(c.lessons||0)} lessons</span><span>${icon('users')} Assigned instructor course</span>${c.branchName?`<span>${icon('map')} ${escapeHtml(c.branchName)}</span>`:''}</div></div>${c.visibility!=='private'&&c.status==='published'?`<a class="button button-secondary button-sm instructor-course-view" href="#/course/${encodeURIComponent(c.slug)}" target="_blank">View Course</a>`:''}</header><div class="instructor-three-modes">${instructorModeCard(c,'offline',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'live',{live:liveCount,recorded:recordedCount})}${instructorModeCard(c,'recorded',{live:liveCount,recorded:recordedCount})}</div><footer class="instructor-coursework-strip coursera-coursework-strip"><div><span>${icon('book')}</span><strong>Course curriculum</strong><small>${recordedCount} lecture${recordedCount===1?'':'s'} · ${quizCount} quiz${quizCount===1?'':'zes'} · ${assignmentCount} assignment${assignmentCount===1?'':'s'}</small></div><div class="instructor-course-card-actions">${instructorModeEnabled(c,'offline')?`<button class="button button-secondary button-sm" type="button" data-action="instructor-offline-course-edit" data-id="${c.id}">${icon('edit')} Edit Course</button>`:''}<a class="button button-primary button-sm" href="#/instructor-course-manage/${c.id}">Manage Course Curriculum ${icon('arrow')}</a></div></footer></article>`;
+    }).join('')}</div>`:`<div class="empty-state"><span class="empty-icon">${icon('book')}</span><h3>No course assigned yet</h3><p>Ask Admin Staff or your branch administration to assign a course to your instructor account. Once assigned, it will appear here automatically from MySQL.</p></div>`}`;
     instructorShell('instructor-courses',content,'My Courses','Manage Offline course content, Live teaching and Recorded lectures for every assigned course.');
   }
 
